@@ -8,7 +8,7 @@ module GANK
   module LiteRender
     PLUGIN_ID   = 'literender'.freeze
     PLUGIN_NAME = 'LiteRender'.freeze
-    VERSION     = '0.29.1'.freeze
+    VERSION     = '0.29.2'.freeze
 
     FILE_DIR = File.join(File.dirname(__FILE__), PLUGIN_ID)
 

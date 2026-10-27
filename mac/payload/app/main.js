@@ -365,7 +365,10 @@ ipcMain.handle('lr:photoRender', async (e, job) => {
     send({ text: 'Starting the render engine…', frac: 0 });
     const log = [];
     const code = await new Promise((resolve, reject) => {
-      photoProc = spawn(cmd, args, { cwd: dir, windowsHide: true, env: Object.assign({}, process.env, { PYTHONUNBUFFERED: '1' }) });
+      // the engine's GPU kernel cache lives in LiteRender's data folder, not the user's home
+      const cache = path.join(app.getPath('userData'), 'engine-cache');
+      try { fs.mkdirSync(cache, { recursive: true }); } catch (e) { /* fine */ }
+      photoProc = spawn(cmd, args, { cwd: dir, windowsHide: true, env: Object.assign({}, process.env, { PYTHONUNBUFFERED: '1', XDG_CACHE_HOME: cache }) });
       let buf = '';
       const onData = (d) => {
         buf += d.toString();
@@ -378,6 +381,11 @@ ipcMain.handle('lr:photoRender', async (e, job) => {
           if ((m = line.match(/\[LR\] device (.*)/))) send({ text: 'Cycles on ' + m[1], device: m[1], frac: 0.02 });
           else if (/\[LR\] materials/.test(line)) send({ text: 'Building materials…', frac: 0.03 });
           else if (/\[LR\] geometry/.test(line)) send({ text: 'Building the scene…', frac: 0.05 });
+          else if ((m = line.match(/\[LR\] status (.*)/))) {
+            const st = m[1];
+            if (/kernel|compil|shader|pipeline/i.test(st)) send({ text: 'Preparing the graphics chip (first time only, can take a few minutes)…', frac: 0.05 });
+            else if (/BVH|geometry|mesh|object|image|texture|light|background|denois/i.test(st)) send({ text: 'Preparing the scene: ' + st.replace(/^Updating /, '').toLowerCase(), frac: 0.05 });
+          }
           else if ((m = line.match(/Sample (\d+)\/(\d+)/))) {
             let rem = (line.match(/Remaining:([\d:.]+)/) || [])[1];
             const done = +m[1], tot = +m[2], now = Date.now();
@@ -399,7 +407,7 @@ ipcMain.handle('lr:photoRender', async (e, job) => {
     const exr = path.join(dir, 'render.exr');
     if (code !== 0 || !fs.existsSync(exr)) {
       if (code === -1) throw new Error('CANCELLED');
-      throw new Error('Blender stopped (code ' + code + '):\n' + log.filter((l) => /error|Error|Traceback|\[LR\]/.test(l)).slice(-8).join('\n'));
+      throw new Error('The render engine stopped (code ' + code + '):\n' + log.filter((l) => /error|Error|Traceback|\[LR\]/.test(l)).slice(-8).join('\n'));
     }
     const bytes = fs.readFileSync(exr);
     return new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.length);
