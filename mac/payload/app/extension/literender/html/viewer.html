@@ -1,0 +1,517 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LiteRender</title>
+<link rel="stylesheet" href="fonts.css">
+<style>
+  /* Design system shared with the Furniture Studio configurator: warm neutral
+     panels, pill buttons, cards with collapsible headings, mono values. */
+  :root{
+    --bg:#e3e1db; --panel:#eceae6; --card:#f7f6f3; --card-2:#f1efeb;
+    --ink:#3d3b38; --muted:#928e87; --line:#dcd9d2;
+    --accent:#c0855f; --accent-hover:#b0764f; --accent-ink:#8a5636; --accent-soft:#eaddce;
+    --radius:16px; --radius-sm:11px;
+    --shadow:0 1px 2px rgba(50,47,43,.05), 0 10px 30px rgba(50,47,43,.08);
+    --shadow-sm:0 1px 2px rgba(50,47,43,.05);
+    --glass:rgba(255,252,246,.84);
+  }
+  *{ margin:0; padding:0; box-sizing:border-box; }
+  html, body{ height:100%; overflow:hidden; }
+  body{ background:var(--bg); color:var(--ink); font-family:"Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size:14px; -webkit-font-smoothing:antialiased; display:flex; flex-direction:column; user-select:none; }
+  .mono{ font-family:"DM Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  ::selection{ background:var(--accent-soft); }
+
+  /* ---------- header ---------- */
+  header{ display:flex; justify-content:space-between; align-items:center; gap:16px; padding:11px 20px;
+    background:var(--panel); border-bottom:1px solid var(--line); flex-shrink:0; flex-wrap:wrap; }
+  .eyebrow{ font-size:10px; letter-spacing:.28em; text-transform:uppercase; color:var(--accent); font-weight:700; }
+  .spec{ font-size:14px; color:var(--ink); margin-top:3px; font-weight:400; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:52vw; }
+  .spec span{ color:var(--muted); font-weight:500; }
+  .btns{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  button{ font-family:inherit; font-size:12.5px; font-weight:600; padding:8px 14px; border-radius:999px; cursor:pointer;
+    border:1px solid var(--line); background:var(--card); color:var(--ink);
+    transition:background .15s, border-color .15s, color .15s, transform .05s; }
+  button:hover{ background:var(--accent-soft); border-color:#d6ccbe; }
+  button:active{ transform:translateY(1px); }
+  button:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+  button:disabled{ opacity:.45; cursor:default; }
+  button.primary{ background:var(--accent); border-color:var(--accent); color:#fff; }
+  button.primary:hover{ background:var(--accent-hover); border-color:var(--accent-hover); }
+  button.on{ border-color:var(--accent); color:var(--accent-ink); background:var(--accent-soft); }
+  button.small{ padding:6px 11px; font-size:12px; }
+  .export-wrap{ position:relative; display:inline-block; }
+  .export-menu{ position:absolute; right:0; top:calc(100% + 6px); z-index:30; background:var(--card); border:1px solid var(--line);
+    border-radius:var(--radius-sm); box-shadow:var(--shadow); padding:5px; min-width:210px; display:none; }
+  .export-menu.open{ display:block; }
+  .export-menu button{ display:block; width:100%; text-align:left; border:none; background:none; padding:8px 10px; border-radius:8px; font-size:13px; }
+  .export-menu button:hover{ background:var(--accent-soft); color:var(--accent-ink); }
+  .export-menu .export-group-label{ font-size:10.5px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--muted); padding:8px 10px 4px; }
+
+  /* ---------- stage ---------- */
+  #stage{ flex:1; display:flex; min-height:0; }
+  #viewport{ flex:1; min-width:0; position:relative; overflow:hidden; background:#cfccc4; touch-action:none; }
+  #c{ position:absolute; left:0; top:0; width:100%; height:100%; display:block; outline:none; }
+  #panel{ width:400px; flex-shrink:0; height:100%; overflow-y:auto; background:var(--panel); border-left:1px solid var(--line);
+    padding:16px; display:flex; flex-direction:column; gap:12px; scrollbar-width:none; }
+  #panel::-webkit-scrollbar{ width:0; height:0; display:none; }
+  .tabpane{ display:none; flex-direction:column; gap:12px; }
+  body[data-tab="scene"] #paneScene, body[data-tab="materials"] #paneMaterials, body[data-tab="render"] #paneRender{ display:flex; }
+  @media (max-width:900px){ #panel{ width:320px; } }
+
+  /* floating pills over the viewport */
+  .float{ position:absolute; z-index:5; display:flex; gap:4px; align-items:center; background:var(--glass); border:1px solid var(--line);
+    border-radius:999px; padding:4px; backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); box-shadow:var(--shadow); }
+  .float button{ border:none; background:transparent; color:var(--muted); font-size:11px; letter-spacing:.11em; font-weight:700;
+    padding:7px 14px; border-radius:999px; display:flex; align-items:center; gap:7px; text-transform:uppercase; }
+  .float button svg{ width:15px; height:15px; }
+  .float button:hover{ background:var(--accent-soft); color:var(--ink); }
+  .float button.active, .float button.on{ background:var(--accent); color:#fff; border:none; }
+  #modeTabs{ left:16px; top:16px; }
+  #navTabs{ right:16px; top:16px; }
+  #navTabs label{ display:flex; align-items:center; gap:6px; font-size:11px; letter-spacing:.08em; font-weight:700; text-transform:uppercase;
+    color:var(--muted); padding:0 10px 0 8px; cursor:pointer; }
+  #navTabs select{ width:auto; max-width:190px; padding:6px 28px 6px 10px; border-radius:999px; font-size:11.5px; background-position:right 10px center; }
+
+  #hud{ position:absolute; left:16px; bottom:16px; z-index:4; max-width:min(560px, 70%); background:var(--glass); border:1px solid var(--line);
+    border-radius:var(--radius-sm); padding:8px 12px; font-size:11px; line-height:1.6; color:var(--ink); backdrop-filter:blur(10px);
+    -webkit-backdrop-filter:blur(10px); box-shadow:var(--shadow-sm); cursor:pointer; }
+  #hud b{ font-weight:600; }
+  #hud .dim, .dim{ color:var(--muted); }
+  #hud.collapsed{ max-height:28px; overflow:hidden; }
+  #status{ position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); z-index:6; font-size:14px; font-weight:600; color:var(--ink);
+    background:var(--glass); padding:10px 18px; border-radius:999px; box-shadow:var(--shadow); pointer-events:none; max-width:70%; text-align:center; }
+  #status:empty{ display:none; }
+  #toast{ position:absolute; left:50%; bottom:22px; transform:translateX(-50%); z-index:8; background:var(--ink); color:#fff; font-size:12.5px; font-weight:600;
+    padding:8px 16px; border-radius:999px; opacity:0; transition:opacity .3s; pointer-events:none; max-width:80%; text-align:center; }
+  #frameguide{ display:none; position:absolute; z-index:3; border:1.5px dashed rgba(192,133,95,.95); box-shadow:0 0 0 9999px rgba(40,36,30,.22); pointer-events:none; }
+  #busy{ display:none; position:absolute; inset:0; z-index:10; align-items:flex-end; justify-content:center; padding-bottom:26px; background:rgba(40,36,30,.06); }
+  #busy .busybox{ min-width:380px; background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:14px 16px; box-shadow:var(--shadow); }
+  #busyText{ font-size:12.5px; font-weight:600; }
+  #busy .bar{ height:6px; background:var(--accent-soft); border-radius:999px; margin:10px 0 12px; overflow:hidden; }
+  #busyBar{ height:100%; width:0; background:var(--accent); transition:width .2s; border-radius:999px; }
+  #drop{ display:none; position:absolute; inset:10px; z-index:20; align-items:center; justify-content:center; border:2px dashed var(--accent);
+    border-radius:var(--radius); background:rgba(236,234,230,.85); font-size:16px; font-weight:600; color:var(--accent-ink); pointer-events:none; }
+  #err{ display:none; position:fixed; right:16px; bottom:16px; width:min(560px, calc(100% - 32px)); z-index:99999; background:#7f1d1d; color:#fff;
+    font:12px/1.45 "DM Mono", ui-monospace, Menlo, Consolas, monospace; padding:10px 12px; border-radius:10px; white-space:pre-wrap;
+    max-height:45vh; overflow:auto; box-shadow:0 6px 24px rgba(0,0,0,.35); user-select:text; }
+  #err button{ float:right; margin-left:8px; background:#fff; color:#7f1d1d; border:0; border-radius:6px; padding:2px 8px; font:600 11px system-ui; }
+
+  /* ---------- cards & controls ---------- */
+  .card{ background:linear-gradient(180deg, #faf9f7, var(--card)); border:1px solid var(--line); border-radius:var(--radius);
+    padding:15px 16px 17px; box-shadow:var(--shadow-sm); display:flex; flex-direction:column; gap:13px; }
+  .group-label{ font-size:10.5px; letter-spacing:.17em; text-transform:uppercase; color:var(--muted); font-weight:700;
+    display:flex; align-items:center; justify-content:space-between; cursor:pointer; user-select:none; }
+  .group-label .count{ letter-spacing:.05em; text-transform:none; font-weight:600; margin-left:auto; margin-right:12px; }
+  .group-label:hover{ color:var(--accent-ink); }
+  .group-label::after{ content:""; width:7px; height:7px; margin:0 2px 3px 0; border-right:2px solid currentColor; border-bottom:2px solid currentColor;
+    transform:rotate(45deg); transition:transform .2s; opacity:.7; }
+  .card.collapsed{ gap:0; }
+  .card.collapsed .group-label::after{ transform:rotate(-45deg); margin-bottom:0; }
+  .card.collapsed > *:not(.group-label){ display:none !important; }
+  .grid{ display:grid; grid-template-columns:1fr 1fr; gap:13px 18px; }
+  .grid > .wide{ grid-column:1 / -1; }
+
+  .slider-row .lbl{ display:flex; justify-content:space-between; align-items:baseline; font-size:12.5px; margin-bottom:8px; gap:8px; }
+  .slider-row .lbl .name{ color:var(--ink); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .slider-row .lbl .val{ color:var(--accent-ink); font-size:11.5px; cursor:pointer; border-radius:6px; padding:0 3px; margin:0 -3px; white-space:nowrap; }
+  .slider-row .lbl .val:hover{ background:var(--accent-soft); color:var(--accent); }
+  .val-edit{ width:64px; font-family:"DM Mono", ui-monospace, monospace; font-size:11.5px; color:var(--accent-ink); background:var(--card);
+    border:1px solid var(--accent); border-radius:6px; padding:1px 5px; text-align:right; outline:none; }
+  input[type=range]{ -webkit-appearance:none; appearance:none; width:100%; height:6px; border-radius:999px; background:var(--accent-soft); cursor:pointer; outline:none; display:block; }
+  input[type=range]::-webkit-slider-thumb{ -webkit-appearance:none; width:18px; height:18px; border-radius:50%; background:var(--accent);
+    border:3px solid var(--card); box-shadow:0 1px 5px rgba(74,65,57,.28); cursor:pointer; }
+  input[type=range]::-moz-range-thumb{ width:15px; height:15px; border-radius:50%; background:var(--accent); border:3px solid var(--card); box-shadow:0 1px 5px rgba(74,65,57,.28); cursor:pointer; }
+  input[type=range]:focus-visible{ outline:2px solid var(--accent); outline-offset:3px; }
+
+  .inline-opts{ display:flex; flex-wrap:wrap; gap:8px 8px; align-items:center; }
+  .inline-opts label{ display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--ink); font-weight:500; background:var(--card-2);
+    border:1px solid var(--line); border-radius:999px; padding:7px 13px; cursor:pointer; transition:border-color .15s, background .15s; }
+  .inline-opts label:hover{ border-color:#d6ccbe; background:var(--accent-soft); }
+  input[type=checkbox]{ accent-color:var(--accent); width:15px; height:15px; cursor:pointer; }
+  input[type=color]{ width:34px; height:30px; border:1px solid var(--line); border-radius:8px; background:none; padding:0; cursor:pointer; overflow:hidden; flex:none; }
+  input[type=color]::-webkit-color-swatch-wrapper{ padding:0; }
+  input[type=color]::-webkit-color-swatch{ border:none; border-radius:6px; }
+
+  .sel-row .lbl{ font-size:12.5px; color:var(--ink); font-weight:600; margin-bottom:7px; }
+  select{ width:100%; background:var(--card-2); color:var(--ink); border:1px solid var(--line); border-radius:var(--radius-sm);
+    padding:9px 32px 9px 12px; font-size:12.5px; font-family:inherit; cursor:pointer; appearance:none; -webkit-appearance:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23a2937e' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position:right 12px center; }
+  select:hover{ border-color:#d6ccbe; }
+  select:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+  input[type=number], input[type=search]{ font-family:inherit; font-size:12.5px; background:var(--card-2); color:var(--ink); border:1px solid var(--line);
+    border-radius:var(--radius-sm); padding:8px 11px; outline:none; width:100%; user-select:text; }
+  input[type=number]:focus, input[type=search]:focus{ border-color:var(--accent); }
+  .row2{ display:flex; gap:8px; align-items:center; }
+  .hint{ font-size:11.5px; color:var(--muted); line-height:1.7; padding:0 4px; }
+  .hint kbd{ font-family:"DM Mono", monospace; font-size:10.5px; background:var(--card); border:1px solid var(--line); border-radius:5px; padding:0 4px; }
+
+  /* materials */
+  #matlist{ display:flex; flex-direction:column; gap:8px; }
+  .mrow{ border:1px solid var(--line); border-radius:var(--radius-sm); background:var(--card); padding:9px 10px; display:flex; flex-direction:column; gap:9px; }
+  .mrow.open{ border-color:#d6ccbe; box-shadow:var(--shadow); background:#fbfaf8; }
+  .mrow.unused{ opacity:.55; }
+  .mhead{ display:flex; align-items:center; gap:9px; cursor:pointer; }
+  .mname{ flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:12.5px; font-weight:600; }
+  .sw{ width:26px; height:26px; border-radius:8px; border:1px solid var(--line); background-size:cover; flex:none; }
+  .tag{ font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; padding:2px 8px; border-radius:999px; border:1px solid var(--line); color:var(--muted); }
+  .tag.set{ color:var(--accent-ink); border-color:var(--accent); background:var(--accent-soft); }
+  .tag.auto{ color:#5d7a8c; border-color:#c9d6de; background:#eef3f5; }
+  .medit{ display:flex; flex-direction:column; gap:12px; padding-top:10px; border-top:1px solid var(--line); }
+  .libprev{ display:flex; align-items:center; gap:10px; font-size:11.5px; }
+  .libprev img{ width:44px; height:44px; border-radius:9px; border:1px solid var(--line); }
+  .mfoot{ display:flex; justify-content:space-between; align-items:center; font-size:11px; color:var(--muted); gap:8px; }
+
+  /* render */
+  .passes{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; }
+  .passes label{ justify-content:center; padding:7px 8px; }
+
+  /* overlay scrollbar for the panel */
+  .om-sb{ position:fixed; width:14px; z-index:50; pointer-events:none; display:none; }
+  .om-sb-thumb{ position:absolute; left:3px; width:8px; border-radius:999px; background:#fff; border:1px solid var(--line); pointer-events:auto; cursor:pointer;
+    transition:background-color .35s ease, border-color .35s ease, width .12s; }
+  .om-sb-thumb:hover{ width:10px; left:2px; }
+  .om-sb-thumb.active{ background:var(--accent); border-color:var(--accent); }
+  body.browser .su-only{ display:none !important; }
+  body:not(.browser) .browser-only{ display:none !important; }
+  body.browser:not(.link) .link-only{ display:none !important; }
+  .live-chip{ display:inline-flex; align-items:center; gap:7px; max-width:260px; }
+  .live-chip span{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .live-chip .dot{ width:8px; height:8px; border-radius:50%; background:#b9b1a7; flex:none; }
+  .live-chip[data-state="search"] .dot{ background:#d9a441; animation:lrpulse 1.4s ease-in-out infinite; }
+  .live-chip[data-state="found"] .dot{ background:#3f9a5c; animation:lrpulse 1s ease-in-out infinite; }
+  .live-chip[data-state="found"]{ border-color:#3f9a5c; }
+  .live-chip[data-state="setup"] .dot{ background:#c4805a; }
+  .live-chip[data-state="setup"]{ border-color:#c4805a; }
+  .live-chip[data-state="nolink"] .dot{ background:#c2553f; }
+  .live-chip[data-state="on"] .dot{ background:#3f9a5c; box-shadow:0 0 0 3px rgba(63,154,92,.18); }
+  @keyframes lrpulse{ 50%{ opacity:.35; } }
+
+  #viewModes{ left:50%; transform:translateX(-50%); bottom:16px; }
+  #viewModes button{ padding:7px 16px; }
+  #liveBadge{ display:none; position:absolute; right:16px; bottom:16px; z-index:5; align-items:center; gap:8px; font-size:11.5px; font-weight:700;
+    color:var(--accent-ink); background:var(--glass); border:1px solid var(--line); border-radius:999px; padding:7px 13px; box-shadow:var(--shadow);
+    backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); }
+  #liveBadge .mini{ width:60px; height:4px; border-radius:999px; background:var(--accent-soft); overflow:hidden; }
+  #liveBadge .mini i{ display:block; height:100%; width:0; background:var(--accent); transition:width .25s; }
+  /* v0.10 clarity additions */
+  .card-desc{ font-size:11.5px; color:var(--muted); line-height:1.55; margin-top:-6px; }
+  .sub{ font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); font-weight:700; padding-top:4px; border-top:1px solid var(--line); margin-top:2px; padding-top:12px; }
+  .float button .num{ display:inline-flex; width:17px; height:17px; border-radius:50%; align-items:center; justify-content:center; font-size:10px;
+    border:1.5px solid currentColor; letter-spacing:0; }
+  .float button.active .num{ border-color:#fff; }
+  #navTabs button svg{ width:14px; height:14px; }
+  .chip-status{ display:none; align-items:center; gap:8px; font-size:11.5px; font-weight:600; color:var(--accent-ink); background:var(--accent-soft);
+    border:1px solid #e0cdb8; border-radius:999px; padding:6px 12px; white-space:nowrap; }
+  .chip-status.show{ display:inline-flex; }
+  .chip-status .mini{ width:54px; height:4px; border-radius:999px; background:#f5ece2; overflow:hidden; }
+  .chip-status .mini i{ display:block; height:100%; width:0; background:var(--accent); transition:width .3s; }
+  .seg{ display:flex; background:var(--card-2); border:1px solid var(--line); border-radius:999px; padding:3px; gap:3px; }
+  .seg button{ flex:1; border:none; background:transparent; padding:6px 10px; font-size:12px; color:var(--muted); }
+  .seg button.on{ background:var(--card); color:var(--accent-ink); box-shadow:var(--shadow-sm); }
+  .empty-sel{ display:flex; gap:12px; align-items:flex-start; font-size:12.5px; line-height:1.6; color:var(--ink); background:var(--card-2);
+    border:1px dashed #d3c8bb; border-radius:var(--radius-sm); padding:14px; }
+  .empty-sel svg{ width:28px; height:28px; flex:none; color:var(--accent); margin-top:2px; }
+  .selhead{ display:flex; gap:12px; align-items:center; }
+  .selprev{ width:72px; height:72px; border-radius:50%; background:radial-gradient(circle at 35% 30%, #fff, #ddd8cf); flex:none; box-shadow:var(--shadow-sm); }
+  .seltitle{ flex:1; min-width:0; font-size:11.5px; }
+  .selname{ font-size:14px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:2px; }
+  #matSel{ display:flex; flex-direction:column; gap:13px; }
+  details.adv{ border-top:1px solid var(--line); padding-top:10px; }
+  details.adv summary{ cursor:pointer; font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); font-weight:700; list-style:none; }
+  details.adv summary::before{ content:"+ "; }
+  details.adv[open] summary::before{ content:"– "; }
+  .thumbgrid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(76px, 1fr)); gap:8px; max-height:420px; overflow-y:auto; padding:2px; }
+  .thumbgrid .tgroup{ grid-column:1 / -1; font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); font-weight:700; margin-top:6px; }
+  .tile{ display:flex; flex-direction:column; align-items:center; gap:4px; padding:7px 4px 6px; border-radius:12px; border:1px solid var(--line);
+    background:var(--card-2); cursor:grab; font-size:10.5px; font-weight:600; color:var(--muted); line-height:1.15; text-align:center; }
+  .tile img{ width:54px; height:54px; border-radius:50%; background:radial-gradient(circle at 35% 30%, #fff, #d9d3c9); }
+  .tile:hover{ border-color:#d6ccbe; background:var(--accent-soft); color:var(--ink); }
+  .tile.active{ border-color:var(--accent); background:var(--accent-soft); color:var(--accent-ink); box-shadow:0 2px 10px rgba(192,133,95,.22); }
+  .tile:active{ cursor:grabbing; }
+  .view-list { display:flex; flex-direction:column; gap:6px; margin:4px 0 2px; }
+  .view-row { display:flex; align-items:center; gap:8px; padding:4px; border-radius:10px; cursor:pointer; background:rgba(0,0,0,0.03); }
+  .view-row:hover { background:rgba(192,133,95,0.12); }
+  .view-row img, .view-row .view-noimg { width:64px; height:36px; object-fit:cover; border-radius:6px; background:#d8d5ce; flex:none; }
+  .view-row .view-name { flex:1; display:flex; flex-direction:column; font-size:12.5px; font-weight:600; min-width:0; }
+  .view-row .view-name span { font-size:10.5px; font-weight:400; }
+  .view-row button { border:none; background:none; cursor:pointer; font-size:14px; padding:2px 6px; border-radius:6px; color:inherit; }
+  .view-row button:hover { background:rgba(0,0,0,0.08); }
+  .selbtns { display:flex; flex-direction:column; gap:4px; align-items:flex-end; }
+</style>
+</head>
+<body data-tab="scene">
+
+<header>
+  <div style="min-width:0">
+    <div class="eyebrow mono" id="eyebrow">LiteRender · SketchUp viewer</div>
+    <div class="spec mono" id="specline">No scene</div>
+  </div>
+  <div class="btns">
+    <div class="chip-status" id="giChip" title="Bounce light is being calculated in the background — the view keeps working"><span id="giChipText">Lighting…</span><span class="mini"><i id="giChipBar"></i></span></div>
+    <button id="btnLive" class="browser-only live-chip" data-state="off"><i class="dot"></i><span id="liveText">Live detect off</span></button>
+    <button id="btnOpen" class="browser-only" title="Open a .lrscene file exported from SketchUp (or drop it on the view)">Open file…</button>
+    <button id="btnRefresh" title="Load the latest model from SketchUp (Shift-click: full re-export)">Refresh</button>
+    <button id="btnCamera" class="link-only" title="Jump to the camera currently shown in SketchUp">Match SketchUp view</button>
+    <button id="btnFrame" title="Fit the whole model in view (F)">Fit model</button>
+    <button id="btnSave" title="Store your material and lighting changes">Saved</button>
+    <div class="export-wrap">
+      <button id="btnMenu" class="primary" title="Render images">Render ▾</button>
+      <div id="mainMenu" class="export-menu">
+        <div class="export-group-label">Render now (uses the Render tab's size)</div>
+        <button data-act="still">Image of this view</button>
+        <button data-act="scenes">Images of every SketchUp scene</button>
+        <button data-act="views">Images of every saved view</button>
+        <button data-act="tab-render">Size &amp; passes…</button>
+        <div class="export-group-label">Settings file</div>
+        <button id="btnExportSettings" class="browser-only">Export settings (.json)</button>
+        <button id="btnImportSettings" class="browser-only">Import settings…</button>
+        <div class="export-group-label">Help</div>
+        <button data-act="help">Mouse &amp; keyboard</button>
+      </div>
+    </div>
+  </div>
+  <input id="sceneFile" type="file" accept=".lrscene" style="display:none">
+  <input id="settingsFile" type="file" accept=".json,application/json" style="display:none">
+  <input id="libDir" type="file" webkitdirectory multiple style="display:none">
+  <div id="browserRow" style="display:none"></div>
+</header>
+
+<main id="stage">
+  <div id="viewport">
+    <canvas id="c" tabindex="0"></canvas>
+    <div id="modeTabs" class="float">
+      <button id="tabScene" class="active" data-tab="scene" title="Sun, sky, exposure and image style"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>Light</button>
+      <button id="btnMaterials" data-tab="materials" title="Click surfaces to change their materials"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.6-.9 1.2-1.8-.5-1-.1-2.2 1.1-2.2H17a4 4 0 0 0 4-4c0-5-4-10-9-10z"/><circle cx="7.5" cy="11" r="1.1" fill="currentColor" stroke="none"/><circle cx="10.5" cy="7" r="1.1" fill="currentColor" stroke="none"/><circle cx="15" cy="7.5" r="1.1" fill="currentColor" stroke="none"/></svg>Materials</button>
+      <button id="btnRender" data-tab="render" title="Image size, passes and path tracing"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2"/><circle cx="12" cy="12.5" r="3.5"/><path d="M8 6l1.5-2h5L16 6"/></svg>Render</button>
+    </div>
+    <div id="navTabs" class="float">
+      <button id="btnOrbit" title="Orbit: drag to turn around the model (Tab switches)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="12" rx="9" ry="4"/><circle cx="12" cy="12" r="2"/></svg>Orbit</button>
+      <button id="btnWalk" title="Walk: drag to look, W A S D to move (Tab switches)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="13" cy="4.5" r="1.8"/><path d="M10 21l2-6 3 3v3M9 11l3-3 3 2 2 3M12 8l-1 5"/></svg>Walk</button>
+      <label class="link-only su-follow" title="Keep this view in step with the SketchUp camera"><input id="follow" type="checkbox"> Follow SketchUp</label>
+      <select id="scenes" title="Jump to a SketchUp scene"><option value="">SketchUp scenes</option></select>
+    </div>
+    <div id="viewModes" class="float" title="How the view is drawn">
+      <button data-mode="draft" class="on" title="Fast, for navigating and editing">Draft</button>
+      <button data-mode="beauty" title="Refines when you stop moving: soft shadows, clean edges (like Lumion / Twinmotion media mode)">Beauty</button>
+    </div>
+    <div id="liveBadge"><span id="liveBadgeText"></span><span class="mini"><i id="liveBadgeBar"></i></span></div>
+    <div id="hud" class="mono collapsed" title="Click to expand / collapse (I)">Starting…</div>
+    <div id="frameguide"></div>
+    <div id="busy"><div class="busybox"><div id="busyText">Working…</div><div class="bar"><div id="busyBar"></div></div>
+      <div class="btns"><button id="btnCancel">Cancel</button></div></div></div>
+    <div id="status"></div>
+    <div id="toast"></div>
+  </div>
+
+  <div id="panel">
+    <!-- ================= SCENE ================= -->
+    <div id="paneScene" class="tabpane">
+      <section class="card">
+        <h3 class="group-label">Sun</h3>
+        <p class="card-desc">Taken from SketchUp's location and shadow settings. Drag to try another time of day.</p>
+        <div class="slider-row"><div class="lbl"><span class="name">Time of day</span><span class="val mono" id="sunTimeLbl"></span></div>
+          <input id="sunTime" type="range" min="0" max="1435" step="5" value="810"></div>
+        <div class="slider-row"><div class="lbl"><span class="name">Date</span><span class="val mono" id="sunDateLbl"></span></div>
+          <input id="sunDate" type="range" min="1" max="365" step="1" value="312"></div>
+        <div class="slider-row"><div class="lbl"><span class="name">Sun brightness</span><span class="val mono"></span></div>
+          <input id="sunInt" type="range" min="0" max="3" step="0.05" value="1" data-fmt="x"></div>
+        <div class="row2"><button id="btnSunSU" class="small" title="Back to SketchUp's exact sun position">Reset to SketchUp sun</button></div>
+      </section>
+
+      <section class="card">
+        <h3 class="group-label">Sky</h3>
+        <p class="card-desc">The sky lights the scene and shows through windows. An HDRI photo gives real-world sky and reflections.</p>
+        <div class="seg" id="envSeg"><button data-env="sky" class="on">Generated sky</button><button data-env="hdri">HDRI photo</button></div>
+        <select id="envMode" style="display:none"><option value="sky">Procedural sky</option><option value="hdri">HDRI image</option></select>
+        <div class="slider-row"><div class="lbl"><span class="name">Sky brightness</span><span class="val mono"></span></div>
+          <input id="envInt" type="range" min="0" max="1" step="0.01" value="0.14" data-fmt="f2"></div>
+        <div id="skyRows">
+          <div class="slider-row"><div class="lbl"><span class="name" title="How blue the light from the sky is (the visible sky stays blue)">Sky light colour</span><span class="val mono"></span></div>
+            <input id="skyTint" type="range" min="0" max="1" step="0.05" value="0.35" data-fmt="pct"></div>
+        </div>
+        <div id="hdriRows" style="display:none; flex-direction:column; gap:13px">
+          <div class="row2"><button id="btnHdri" class="small">Choose HDRI…</button><span class="mono dim" id="hdriName" style="font-size:11.5px">—</span></div>
+          <div class="grid">
+            <div class="slider-row"><div class="lbl"><span class="name">Rotation</span><span class="val mono"></span></div>
+              <input id="hdriRot" type="range" min="0" max="360" step="1" value="0" data-fmt="deg"></div>
+            <div class="slider-row"><div class="lbl"><span class="name">Strength</span><span class="val mono"></span></div>
+              <input id="hdriInt" type="range" min="0" max="3" step="0.05" value="1" data-fmt="x"></div>
+          </div>
+          <div class="inline-opts">
+            <label><input id="hdriBg" type="checkbox" checked> Show as background</label>
+            <label title="Keep the sun light (and its shadows) on top of the HDRI"><input id="hdriSun" type="checkbox" checked> Keep sun</label>
+          </div>
+          <input id="hdriFile" type="file" accept=".hdr,.exr" style="display:none">
+        </div>
+      </section>
+
+      <section class="card">
+        <h3 class="group-label">Surroundings</h3>
+        <p class="card-desc">For exteriors: a ground that runs to the horizon, haze in the distance, and dark rooms behind glass, so the model doesn't float in empty space.</p>
+        <div class="grid">
+          <div class="sel-row"><div class="lbl" title="A ground plane around the model, out to the horizon">Ground to horizon</div>
+            <select id="ctxGround"><option value="off">Off</option><option value="grass">Grass</option><option value="paving">Paving</option><option value="concrete">Concrete</option><option value="sand">Sand / earth</option><option value="neutral">Neutral</option></select></div>
+          <div class="slider-row"><div class="lbl"><span class="name" title="Blends far geometry and the horizon into the sky">Distance haze</span><span class="val mono"></span></div>
+            <input id="ctxHaze" type="range" min="0" max="1" step="0.01" value="0.3" data-fmt="pct"></div>
+          <div class="sel-row"><div class="lbl" title="Windows usually look dark from outside in daylight. Use Dark when the rooms behind the glass aren't modelled.">Behind glass</div>
+            <select id="ctxGlass"><option value="auto">Auto (dark from outside)</option><option value="dark">Always dark rooms</option><option value="show">As modelled</option></select></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h3 class="group-label">Light quality</h3>
+        <p class="card-desc">Bounce light lets daylight fall into rooms through openings (calculated in the background after changes).</p>
+        <div class="inline-opts">
+          <label title="Sky and sunlight bouncing around rooms — the biggest step towards realism indoors"><input id="giOn" type="checkbox" checked> Bounce light</label>
+          <label><input id="shadows" type="checkbox" checked> Sun shadows</label>
+          <label title="Soft darkening in corners and where objects meet"><input id="ao" type="checkbox" checked> Contact shadows</label>
+          <label title="Materials with Glow (LED strips, coves, lamps) cast light on their surroundings"><input id="practicals" type="checkbox" checked> Glowing materials light the room</label>
+        </div>
+        <div class="sel-row"><div class="lbl" title="Standard: calculated on the processor after each change. Bake: standard plus a baked lightmap (the 0.14–0.16 "High"). Real-time: traced on the graphics card in a fraction of a second, so bounce light follows the sun as you move it (Lumen-style). High: real-time plus a baked lightmap at a few cm for walls, floors and ceilings (dark corners, light falloff); re-bakes after changes.">Bounce light quality</div>
+          <select id="giQuality"><option value="standard">Standard</option><option value="high">High (graphics card, follows the sun live)</option></select></div>
+        <div class="slider-row"><div class="lbl"><span class="name">Contact shadow size</span><span class="val mono"></span></div>
+          <input id="aoRadius" type="range" min="0.1" max="2.5" step="0.05" value="0.5" data-fmt="m"></div>
+      </section>
+
+      <section class="card">
+        <h3 class="group-label">Camera</h3>
+        <p class="card-desc">Like a real camera: auto exposure brightens interiors; add or remove light with Exposure.</p>
+        <div class="inline-opts"><label title="Brighten automatically indoors, like a camera adapting"><input id="autoEx" type="checkbox" checked> Auto exposure</label></div>
+        <div class="slider-row"><div class="lbl"><span class="name">Exposure</span><span class="val mono"></span></div>
+          <input data-look="exposure" type="range" min="-3" max="3" step="0.05" value="0" data-fmt="ev"></div>
+        <div class="grid">
+          <div class="sel-row"><div class="lbl" title="Quick colour-grading starting points">Style</div><select id="lookPreset"></select></div>
+          <div class="sel-row"><div class="lbl" title="How bright light is compressed into the image. AgX = natural, Neutral = punchier">Film response</div>
+            <select id="tonemap"><option value="agx">AgX (natural)</option><option value="neutral">Neutral</option><option value="aces">ACES (filmic)</option></select></div>
+        </div>
+      </section>
+
+      <section class="card collapsed">
+        <h3 class="group-label">Colour grading</h3>
+        <div class="grid">
+          <div class="slider-row"><div class="lbl"><span class="name">Warmth</span><span class="val mono"></span></div>
+            <input data-look="warmth" type="range" min="-1" max="1" step="0.01" value="0.1" data-fmt="signed"></div>
+          <div class="slider-row"><div class="lbl"><span class="name">Tint</span><span class="val mono"></span></div>
+            <input data-look="tint" type="range" min="-1" max="1" step="0.01" value="0" data-fmt="signed"></div>
+          <div class="slider-row"><div class="lbl"><span class="name">Contrast</span><span class="val mono"></span></div>
+            <input data-look="contrast" type="range" min="0.6" max="1.6" step="0.01" value="1.05" data-fmt="x"></div>
+          <div class="slider-row"><div class="lbl"><span class="name">Saturation</span><span class="val mono"></span></div>
+            <input data-look="saturation" type="range" min="0" max="1.6" step="0.01" value="1" data-fmt="x"></div>
+          <div class="slider-row"><div class="lbl"><span class="name" title="Compress bright windows / sun patches">Highlight softening</span><span class="val mono"></span></div>
+            <input data-look="highlights" type="range" min="0" max="1.5" step="0.01" value="0.35" data-fmt="f2"></div>
+          <div class="slider-row"><div class="lbl"><span class="name" title="Glow around very bright areas">Glow</span><span class="val mono"></span></div>
+            <input data-look="bloom" type="range" min="0" max="1" step="0.01" value="0.12" data-fmt="f2"></div>
+          <div class="slider-row"><div class="lbl"><span class="name">Vignette</span><span class="val mono"></span></div>
+            <input data-look="vignette" type="range" min="0" max="1" step="0.01" value="0.15" data-fmt="f2"></div>
+        </div>
+      </section>
+
+      <section class="card collapsed">
+        <h3 class="group-label">Performance &amp; display</h3>
+        <div class="grid">
+          <div class="sel-row"><div class="lbl" title="Auto switches very heavy models to a lighter mode">Quality</div>
+            <select id="quality"><option value="auto">Auto</option><option value="high">High</option><option value="performance">Fast (heavy models)</option></select></div>
+          <div class="sel-row"><div class="lbl" title="Largest texture size kept in memory">Texture size</div>
+            <select id="texLimit"><option value="1024">1024 px</option><option value="2048" selected>2048 px</option><option value="4096">4096 px</option></select></div>
+        </div>
+        <div class="inline-opts">
+          <label title="Round off faceted curves like SketchUp's smoothed edges"><input id="smooth" type="checkbox" checked> Smooth curves</label>
+          <label title="Stops flicker where two surfaces overlap in the same plane"><input id="zfix" type="checkbox" checked> Overlap fix</label>
+          <label><input id="axes" type="checkbox"> Show SketchUp axes</label>
+        </div>
+      </section>
+      <p class="hint">Drag to orbit · right-drag to pan · scroll to zoom · <kbd>Tab</kbd> walk (<kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>, <kbd>Q</kbd>/<kbd>E</kbd> down/up) · <kbd>F</kbd> fit model · <kbd>I</kbd> stats. Click any value to type it.</p>
+    </div>
+
+    <!-- ================= MATERIALS ================= -->
+    <div id="paneMaterials" class="tabpane">
+      <section class="card" id="matpanel">
+        <h3 class="group-label">Selected material</h3>
+        <div id="matSel"></div>
+      </section>
+      <section class="card">
+        <h3 class="group-label">Library</h3>
+        <p class="card-desc">Click a sphere to apply it to the selected material, or drag it onto any surface in the view.</p>
+        <div class="seg" id="libKinds"><button data-kind="presets" class="on">Material types</button><button data-kind="textures">Textures</button><button data-kind="mine">My materials</button></div>
+        <input id="libSearch" type="search" placeholder="Search the library">
+        <div id="libGrid" class="thumbgrid"></div>
+        <div class="row2"><button id="matLib" class="small" title="Add a folder of your own PBR textures (Poly Haven, ambientCG, …)">Add texture folder…</button><span class="dim" id="matLibInfo" style="font-size:11px"></span></div>
+      </section>
+      <section class="card collapsed">
+        <h3 class="group-label">All materials in the model <span class="count mono dim" id="matCount"></span></h3>
+        <input id="matSearch" type="search" placeholder="Filter by name">
+        <div class="btns">
+          <button id="matSave" class="small" title="Store material changes">Saved</button>
+          <button id="matResetAll" class="small" title="Undo all material changes">Reset all</button>
+          <span class="inline-opts"><label title="Give wood, stone, fabric and metal materials real textures automatically (by name)"><input id="autoTex" type="checkbox" checked> Auto textures</label></span>
+        </div>
+        <div id="matlist"></div>
+      </section>
+    </div>
+
+    <!-- ================= RENDER ================= -->
+    <div id="paneRender" class="tabpane">
+      <section class="card" id="camcard">
+        <h3 class="group-label">Camera &amp; views</h3>
+        <p class="card-desc">Lens, straight verticals and saved camera shots (with their time of day).</p>
+        <div class="slider-row"><div class="lbl"><span class="name" title="35 mm-equivalent focal length: low = wide angle, high = telephoto">Focal length</span><span class="val mono" id="camFocalLbl">35 mm</span></div>
+          <input id="camFocal" type="range" min="12" max="135" step="1" value="35"></div>
+        <div class="inline-opts">
+          <label title="Keep vertical lines vertical (architectural two-point perspective / shift lens)"><input id="camTwoPoint" type="checkbox"> Two-point perspective</label>
+          <label title="Recalling a view also restores its time of day and date"><input id="viewSun" type="checkbox" checked> Views keep their sun</label>
+        </div>
+        <div class="inline-opts">
+          <label title="Lens blur in Beauty mode and stills: things in front of and behind the focus distance go soft"><input id="camDof" type="checkbox"> Depth of field</label>
+          <select id="camFstop" title="Aperture: lower f-number = shallower focus"><option value="1.4">f/1.4</option><option value="2">f/2</option><option value="2.8" selected>f/2.8</option><option value="4">f/4</option><option value="5.6">f/5.6</option><option value="8">f/8</option><option value="11">f/11</option></select>
+          <button id="camFocusPick" class="small" title="Then click the surface that should be sharp. Double-click the button to go back to automatic focus">Pick focus</button><span class="dim mono" id="camFocusLbl" style="font-size:11px">auto</span>
+        </div>
+        <div id="viewList" class="view-list"></div>
+        <div class="btns"><button id="btnViewSave">Save view</button><button id="btnViews">Render all views</button></div>
+      </section>
+      <section class="card" id="renderpanel">
+        <h3 class="group-label">Output</h3>
+        <div class="sel-row"><div class="lbl">Size</div>
+          <select id="rSize">
+            <option value="window">Window size</option>
+            <option value="1920x1080" selected>1920 × 1080 (HD)</option>
+            <option value="2560x1440">2560 × 1440</option>
+            <option value="3840x2160">3840 × 2160 (4K)</option>
+            <option value="2048x2048">2048 × 2048 square</option>
+            <option value="1080x1350">1080 × 1350 portrait</option>
+            <option value="2480x3508">2480 × 3508 (A4 @300)</option>
+            <option value="custom">Custom…</option>
+          </select></div>
+        <div class="row2" id="rCustom" style="display:none"><input id="rW" type="number" value="3000" min="16" max="16384"><span class="dim">×</span><input id="rH" type="number" value="2000" min="16" max="16384"></div>
+        <div class="dim mono" id="rInfo" style="font-size:11px"></div>
+        <div class="sel-row"><div class="lbl" title="Beauty: the viewer's renderer, seconds. Photo: Blender's Cycles path tracer — physically correct light, soft shadows, real reflections; minutes per image (desktop app, needs Blender)">Renderer</div>
+          <select id="rEngine"><option value="beauty">Beauty (seconds)</option><option value="photo">Photo · Cycles (minutes)</option></select></div>
+        <div id="rPhotoOpts" style="display:none">
+          <div class="sel-row"><div class="lbl" title="More samples: cleaner shadows and reflections, longer render. The denoiser cleans up what is left">Quality</div>
+            <select id="rPhotoQ"><option value="128">Preview (128 samples)</option><option value="512" selected>Final (512 samples)</option><option value="1500">High (1500 samples)</option></select></div>
+          <div class="dim" id="rPhotoInfo" style="font-size:11.5px;line-height:1.4;word-break:break-all"></div>
+          <div class="btns"><button id="rLocateBlender" class="small" style="display:none">Locate Blender…</button></div>
+        </div>
+        <div style="font-size:12.5px;font-weight:600">Still passes</div>
+        <div class="inline-opts passes">
+          <label><input type="checkbox" data-pass="beauty" checked> Beauty</label>
+          <label><input type="checkbox" data-pass="clay"> Clay</label>
+          <label><input type="checkbox" data-pass="depth"> Depth</label>
+          <label><input type="checkbox" data-pass="normal"> Normals</label>
+          <label><input type="checkbox" data-pass="lines"> Lines</label>
+          <label><input type="checkbox" data-pass="id"> Mat ID</label>
+        </div>
+        <div class="inline-opts"><label title="Each tile is rendered several times with jittered sun and camera: soft shadows and clean edges, like the Beauty view"><input id="rBeauty" type="checkbox" checked> Beauty quality</label><label title="Render at twice the size and scale down (sharper, 4× slower)"><input id="rSsaa" type="checkbox"> Supersample 2×</label></div>
+        <div class="btns"><button id="btnStill" class="primary">Render still</button><button id="btnScenes">Render all scenes</button></div>
+      </section>
+    </div>
+  </div>
+</main>
+<div id="err"></div>
+<script src="builtin_tex.js"></script>
+<script src="viewer.bundle.js"></script>
+</body>
+</html>

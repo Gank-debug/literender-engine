@@ -1,0 +1,8 @@
+{
+  "name": "literender",
+  "productName": "LiteRender",
+  "version": "0.29.1",
+  "description": "LiteRender desktop app: real-time viewer for SketchUp models",
+  "main": "main.js",
+  "author": "GANK"
+}
