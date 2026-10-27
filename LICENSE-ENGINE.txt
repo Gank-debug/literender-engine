@@ -1,0 +1,16 @@
+LiteRender engine (lr_engine)
+=============================
+lr_engine renders LiteRender's Photo images. It is built from:
+
+* Cycles 5.2 (https://projects.blender.org/blender/cycles, mirror
+  https://github.com/blender/cycles) - Apache License 2.0.
+  Copyright Blender Foundation and contributors.
+* LiteRender's scene loader (src/lr_engine.cpp in
+  https://github.com/Gank-debug/literender-engine) - Apache License 2.0.
+* nlohmann/json 3.11.3 - MIT.
+* Libraries Cycles uses, from Blender's precompiled library set (Embree,
+  OpenImageDenoise, OpenImageIO, OpenColorIO, OpenEXR, Imath, TBB, zlib, libpng,
+  libjpeg, libtiff, libwebp, OpenJPEG, zstd, pugixml and others) - each under its
+  own permissive license; see the "license" folder next to lr_engine.
+
+Apache License 2.0: https://www.apache.org/licenses/LICENSE-2.0

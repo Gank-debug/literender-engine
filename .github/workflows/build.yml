@@ -1,0 +1,111 @@
+name: Build engine
+
+# Builds lr_engine (LiteRender's Cycles renderer) for Windows x64 and macOS arm64,
+# renders a test scene on each, and publishes zips + logs to a GitHub release
+# named engine-<run number>.
+
+on:
+  push:
+    branches: [main]
+    paths: ['src/**', 'tools/**', 'third_party/**', '.github/workflows/build.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  CYCLES_TAG: v5.2.0
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-2022
+            plat: windows-x64
+            lib: windows_x64
+          - os: macos-14
+            plat: macos-arm64
+            lib: macos_arm64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 300
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get Cycles source
+        run: |
+          git clone --depth 1 --branch "$CYCLES_TAG" https://projects.blender.org/blender/cycles.git cycles \
+            || git clone --depth 1 --branch "$CYCLES_TAG" https://github.com/blender/cycles.git cycles
+          git -C cycles submodule status | tee submodules.txt
+
+      - name: Cache precompiled libraries
+        uses: actions/cache@v4
+        with:
+          path: cycles/lib/${{ matrix.lib }}
+          key: libs-${{ matrix.lib }}-${{ hashFiles('submodules.txt') }}
+
+      - name: Precompiled libraries (Blender's)
+        working-directory: cycles
+        run: |
+          git lfs install --skip-repo
+          if [ ! -f lib/${{ matrix.lib }}/.lr_done ]; then
+            python src/cmake/make_update.py --no-cycles 2>&1 | tail -20 || python src/cmake/make_update.py 2>&1 | tail -20
+            touch lib/${{ matrix.lib }}/.lr_done
+          fi
+          du -sh lib/${{ matrix.lib }} || true
+
+      - name: Add lr_engine to Cycles
+        run: python tools/patch_cycles.py cycles .
+
+      - name: Configure
+        working-directory: cycles
+        run: |
+          EXTRA=""
+          if [ "${{ matrix.plat }}" = "macos-arm64" ]; then EXTRA="-DWITH_CYCLES_DEVICE_METAL=ON"; fi
+          cmake -B build -DCMAKE_BUILD_TYPE=Release \
+            -DWITH_CYCLES_OSL=OFF -DWITH_CYCLES_USD=OFF -DWITH_CYCLES_HYDRA_RENDER_DELEGATE=OFF \
+            -DWITH_CYCLES_ALEMBIC=OFF -DWITH_CYCLES_OPENSUBDIV=OFF -DWITH_CYCLES_OPENVDB=OFF -DWITH_CYCLES_NANOVDB=OFF \
+            -DWITH_CYCLES_DEVICE_CUDA=OFF -DWITH_CYCLES_DEVICE_OPTIX=OFF -DWITH_CYCLES_DEVICE_HIP=OFF -DWITH_CYCLES_DEVICE_ONEAPI=OFF \
+            -DWITH_CYCLES_OPENIMAGEDENOISE=ON -DWITH_CYCLES_EMBREE=ON -DWITH_CYCLES_PATH_GUIDING=ON \
+            $EXTRA 2>&1 | tee ../configure.log
+
+      - name: Build
+        working-directory: cycles
+        run: cmake --build build --config Release --target install --parallel 2>&1 | tee ../build.log | grep -E "error|warning C4|Linking|lr_engine" | head -200; exit ${PIPESTATUS[0]}
+
+      - name: Smoke test
+        run: |
+          python tools/make_test_job.py testjob
+          BIN=cycles/install/lr_engine
+          [ -f "$BIN.exe" ] && BIN="$BIN.exe"
+          "$BIN" testjob --device cpu 2>&1 | tr '\r' '\n' | tee smoke.log | tail -20
+          test -s testjob/render.exr
+          ls -la testjob
+
+      - name: Package
+        run: |
+          mkdir -p pkg/engine
+          cp -R cycles/install/* pkg/engine/
+          rm -f pkg/engine/cycles pkg/engine/cycles.exe
+          cp LICENSE-ENGINE.txt pkg/engine/ 2>/dev/null || true
+          (cd pkg && du -sh engine && find engine -maxdepth 2 | head -80) | tee size.txt
+          if [ "${{ runner.os }}" = "Windows" ]; then (cd pkg && 7z a -tzip -mx=9 ../lr_engine-${{ matrix.plat }}.zip engine >/dev/null); else (cd pkg && zip -qry9 ../lr_engine-${{ matrix.plat }}.zip engine); fi
+          ls -la lr_engine-${{ matrix.plat }}.zip
+
+      - name: Publish
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG=engine-${{ github.run_number }}
+          gh release create "$TAG" --title "Engine build ${{ github.run_number }}" --notes "Commit ${{ github.sha }}" --prerelease 2>/dev/null || true
+          for f in configure.log build.log smoke.log size.txt; do
+            [ -f "$f" ] && cp "$f" "${{ matrix.plat }}-$f"
+            [ -f "${{ matrix.plat }}-$f" ] && gh release upload "$TAG" "${{ matrix.plat }}-$f" --clobber
+          done
+          [ -f lr_engine-${{ matrix.plat }}.zip ] && gh release upload "$TAG" lr_engine-${{ matrix.plat }}.zip --clobber
+          true
