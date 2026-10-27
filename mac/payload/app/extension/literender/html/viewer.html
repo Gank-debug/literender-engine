@@ -372,13 +372,17 @@
           <label title="Materials with Glow (LED strips, coves, lamps) cast light on their surroundings"><input id="practicals" type="checkbox" checked> Glowing materials light the room</label>
         </div>
         <div class="sel-row"><div class="lbl" title="Standard: calculated on the processor after each change. Bake: standard plus a baked lightmap (the 0.14–0.16 "High"). Real-time: traced on the graphics card in a fraction of a second, so bounce light follows the sun as you move it (Lumen-style). High: real-time plus a baked lightmap at a few cm for walls, floors and ceilings (dark corners, light falloff); re-bakes after changes.">Bounce light quality</div>
-          <select id="giQuality"><option value="standard">Standard</option><option value="high">High (graphics card, follows the sun live)</option></select></div>
+          <select id="giQuality"><option value="standard">Standard</option><option value="high" selected>High (graphics card, follows the sun live)</option></select></div>
         <div class="slider-row"><div class="lbl"><span class="name">Contact shadow size</span><span class="val mono"></span></div>
           <input id="aoRadius" type="range" min="0.1" max="2.5" step="0.05" value="0.5" data-fmt="m"></div>
         <div class="slider-row"><div class="lbl"><span class="name" title="Real edges are never knife-sharp: rounds every corner slightly in the shading (no new geometry), so edges catch a soft highlight instead of reading as hard lines. 0 = off. Materials with their own Corner rounding keep it.">Soft edges</span><span class="val mono"></span></div>
-          <input id="softEdges" type="range" min="0" max="20" step="0.5" value="0" data-fmt="mm"></div>
+          <input id="softEdges" type="range" min="0" max="20" step="0.5" value="20" data-fmt="mm"></div>
         <div class="slider-row"><div class="lbl"><span class="name" title="Nothing is perfectly matte: gives every surface a soft reflection of windows and sky at glancing angles. Glossy materials keep their own finish.">Surface sheen</span><span class="val mono"></span></div>
-          <input id="sheen" type="range" min="0" max="1" step="0.05" value="0.3" data-fmt="pct"></div>
+          <input id="sheen" type="range" min="0" max="1" step="0.05" value="1" data-fmt="pct"></div>
+        <div class="slider-row"><div class="lbl"><span class="name" title="No real surface is evenly shiny: adds patches of slightly glossier and duller finish (wear, wiping, uneven sealing), visible in reflections. Breaks the uniform CG look.">Surface variation</span><span class="val mono"></span></div>
+          <input id="rvar" type="range" min="0" max="1" step="0.05" value="0.5" data-fmt="pct"></div>
+        <div class="slider-row"><div class="lbl"><span class="name" title="The soft, velvety glow fabric has along its edges and silhouette. Applies to sofas, chairs, cushions, curtains and rugs (fabric materials, fabric library sets, or fabric names). A material's own Fabric sheen setting wins.">Fabric sheen</span><span class="val mono"></span></div>
+          <input id="fabSheen" type="range" min="0" max="1" step="0.05" value="0.7" data-fmt="pct"></div>
       </section>
 
       <section class="card">
@@ -418,7 +422,7 @@
         <h3 class="group-label">Performance &amp; display</h3>
         <div class="grid">
           <div class="sel-row"><div class="lbl" title="Auto switches very heavy models to a lighter mode">Quality</div>
-            <select id="quality"><option value="auto">Auto</option><option value="high">High</option><option value="performance">Fast (heavy models)</option></select></div>
+            <select id="quality"><option value="auto">Auto</option><option value="high" selected>High</option><option value="performance">Fast (heavy models)</option></select></div>
           <div class="sel-row"><div class="lbl" title="Largest texture size kept in memory">Texture size</div>
             <select id="texLimit"><option value="1024">1024 px</option><option value="2048" selected>2048 px</option><option value="4096">4096 px</option></select></div>
         </div>
