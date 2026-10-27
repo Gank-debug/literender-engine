@@ -367,7 +367,6 @@
         <p class="card-desc">Bounce light lets daylight fall into rooms through openings (calculated in the background after changes).</p>
         <div class="inline-opts">
           <label title="Sky and sunlight bouncing around rooms — the biggest step towards realism indoors"><input id="giOn" type="checkbox" checked> Bounce light</label>
-          <label title="Beauty and stills: every pixel traces its own bounce ray through the model, furniture included, so light fades into rooms, darkens under tables and picks up the colour of nearby walls. Refines over the Beauty frames."><input id="rtOn" type="checkbox" checked> Ray-traced bounce light (Beauty)</label>
           <label><input id="shadows" type="checkbox" checked> Sun shadows</label>
           <label title="Soft darkening in corners and where objects meet"><input id="ao" type="checkbox" checked> Contact shadows</label>
           <label title="Materials with Glow (LED strips, coves, lamps) cast light on their surroundings"><input id="practicals" type="checkbox" checked> Glowing materials light the room</label>
@@ -376,6 +375,10 @@
           <select id="giQuality"><option value="standard">Standard</option><option value="high">High (graphics card, follows the sun live)</option></select></div>
         <div class="slider-row"><div class="lbl"><span class="name">Contact shadow size</span><span class="val mono"></span></div>
           <input id="aoRadius" type="range" min="0.1" max="2.5" step="0.05" value="0.5" data-fmt="m"></div>
+        <div class="slider-row"><div class="lbl"><span class="name" title="Real edges are never knife-sharp: rounds every corner slightly in the shading (no new geometry), so edges catch a soft highlight instead of reading as hard lines. 0 = off. Materials with their own Corner rounding keep it.">Soft edges</span><span class="val mono"></span></div>
+          <input id="softEdges" type="range" min="0" max="20" step="0.5" value="0" data-fmt="mm"></div>
+        <div class="slider-row"><div class="lbl"><span class="name" title="Nothing is perfectly matte: gives every surface a soft reflection of windows and sky at glancing angles. Glossy materials keep their own finish.">Surface sheen</span><span class="val mono"></span></div>
+          <input id="sheen" type="range" min="0" max="1" step="0.05" value="0.3" data-fmt="pct"></div>
       </section>
 
       <section class="card">
