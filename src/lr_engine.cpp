@@ -166,7 +166,7 @@ static ImageTextureNode *tex_node(GraphBuilder &b, const Job &job, const json &t
 {
   ImageTextureNode *t = b.g->create_node<ImageTextureNode>();
   t->set_filename(ustring(path_join(job.dir, tex["img"]["file"].get<string>())));
-  t->set_colorspace(colour ? u_colorspace_srgb : u_colorspace_data);
+  t->set_colorspace(colour ? u_colorspace_scene_linear_srgb : u_colorspace_data); /* sRGB decoded in the kernel; needs no OCIO config */
   t->set_interpolation(colour ? INTERPOLATION_SMART : INTERPOLATION_LINEAR);
   t->set_alpha_type(IMAGE_ALPHA_CHANNEL_PACKED);
   ShaderNode *v = uv_vector(b, tex);
