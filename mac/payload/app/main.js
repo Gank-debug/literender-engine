@@ -14,7 +14,7 @@
 const { app, BrowserWindow, ipcMain, dialog, shell, Menu, session } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const { execFile, spawn } = require('child_process');
+const { execFile } = require('child_process');
 const su = require('./sketchup');
 
 // the extension files shipped inside the app (same as the .rbz)
@@ -24,49 +24,7 @@ const bundledExt = () => su.versionOf(path.join(EXT_SRC, 'literender.rb'));
 const appPath = () => (process.platform === 'darwin' ? path.resolve(process.execPath, '../../..') : process.execPath);
 let extReport = null;
 
-// ------------------------------------------------------------ Blender (Photo renders)
-// Blender isn't bundled (≈400 MB, and blender.org is the place to get it). The
-// app finds it: a location chosen in the menu, a portable Blender unzipped
-// into the LiteRender folder, or a normal Blender install.
-function blenderCandidates() {
-  const out = [];
-  if (prefs.blenderPath) out.push(prefs.blenderPath);
-  const exeDir = path.dirname(process.execPath);
-  const sub = (dir, exe) => { try { for (const n of fs.readdirSync(dir).sort().reverse()) if (/^blender/i.test(n)) out.push(path.join(dir, n, exe)); } catch (e) { /* none */ } };
-  if (process.platform === 'win32') {
-    sub(exeDir, 'blender.exe');
-    sub(path.join(exeDir, 'blender'), 'blender.exe');
-    out.push(path.join(exeDir, 'blender', 'blender.exe'));
-    for (const root of [process.env.ProgramFiles, process.env['ProgramFiles(x86)'], process.env.LOCALAPPDATA && path.join(process.env.LOCALAPPDATA, 'Programs')].filter(Boolean)) sub(path.join(root, 'Blender Foundation'), 'blender.exe');
-  } else if (process.platform === 'darwin') {
-    out.push('/Applications/Blender.app/Contents/MacOS/Blender', path.join(require('os').homedir(), 'Applications/Blender.app/Contents/MacOS/Blender'));
-  } else {
-    sub(exeDir, 'blender');
-    out.push('/usr/bin/blender', '/usr/local/bin/blender', '/snap/bin/blender');
-  }
-  return out;
-}
-// The built-in engine: Blender's Cycles packaged with the app (portable Python +
-// Blender as a Python module, stripped to what rendering needs). Nothing to install.
-function builtInEngine() {
-  const roots = [path.join(path.dirname(process.execPath), 'engine'), path.join(process.resourcesPath || '', 'engine')];
-  for (const r of roots) {
-    // LiteRender's own Cycles build (lr_engine), when present
-    const native = path.join(r, process.platform === 'win32' ? 'lr_engine.exe' : 'lr_engine');
-    try { if (fs.statSync(native).isFile()) return { cmd: native, native: true, builtIn: true }; } catch (e) { /* next */ }
-    const py = process.platform === 'win32' ? path.join(r, 'python', 'python.exe') : path.join(r, 'python', 'bin', 'python3');
-    try { if (fs.statSync(py).isFile()) return { cmd: py, module: true, builtIn: true }; } catch (e) { /* next */ }
-  }
-  return null;
-}
-function findBlender() {
-  if (process.env.LR_BLENDER_CMD) return { cmd: process.env.LR_BLENDER_CMD, test: true };
-  const own = builtInEngine();
-  if (own) return own;
-  for (const f of blenderCandidates()) { try { if (fs.statSync(f).isFile()) return { cmd: f }; } catch (e) { /* next */ } }
-  return null;
-}
-let photoProc = null; // what the start-up check did, shown in the page once it's ready
+ // what the start-up check did, shown in the page once it's ready
 
 // ------------------------------------------------------------ portable data
 function portableDir() {
@@ -181,11 +139,6 @@ function buildMenu() {
       { label: 'Install / update the SketchUp extension', click: () => menuInstall() },
       { label: 'Remove the extension from SketchUp…', click: () => menuRemove() },
       { type: 'separator' },
-      { type: 'separator' },
-      { label: 'Locate Blender (for Photo renders)…', click: async () => {
-        const r = await dialog.showOpenDialog(win, { title: 'Locate Blender', properties: ['openFile'] });
-        if (!r.canceled && r.filePaths[0]) { prefs.blenderPath = r.filePaths[0]; savePrefs(); }
-      } },
       { label: 'Show SketchUp Plugins folder', click: () => { const r = su.pluginRoots()[0]; if (r) shell.openPath(r.dir); } },
     ] },
     { label: 'Graphics', submenu: [
@@ -324,100 +277,6 @@ ipcMain.handle('lr:showInFolder', (_e, file) => {
 });
 
 ipcMain.handle('lr:setGpu', (_e, val) => { if (['high', 'low', 'auto'].includes(val)) setGpu(val); return prefs.gpu; });
-
-ipcMain.handle('lr:blenderInfo', () => { const b = findBlender(); return b ? { path: b.cmd, builtIn: !!b.builtIn } : null; });
-
-ipcMain.handle('lr:locateBlender', async () => {
-  const mac = process.platform === 'darwin';
-  const r = await dialog.showOpenDialog(win, {
-    title: 'Locate Blender', properties: ['openFile'],
-    filters: mac ? [] : process.platform === 'win32' ? [{ name: 'Blender', extensions: ['exe'] }] : [],
-    defaultPath: mac ? '/Applications' : undefined,
-  });
-  if (r.canceled || !r.filePaths[0]) return null;
-  let f = r.filePaths[0];
-  if (mac && f.endsWith('.app')) f = path.join(f, 'Contents', 'MacOS', 'Blender');
-  if (!/blender/i.test(path.basename(f))) throw new Error('That is not Blender (choose blender.exe)');
-  prefs.blenderPath = f; savePrefs();
-  return { path: f };
-});
-
-// Render a Photo: write the job, run Blender's Cycles on it, stream progress, return the EXR.
-ipcMain.handle('lr:photoRender', async (e, job) => {
-  const b = findBlender();
-  if (!b) { const err = new Error('NO_BLENDER'); throw err; }
-  if (photoProc) throw new Error('A Photo render is already running');
-  const dir = path.join(app.getPath('userData'), 'photo', String(Date.now()));
-  fs.mkdirSync(dir, { recursive: true });
-  try {
-    fs.writeFileSync(path.join(dir, 'job.json'), job.json);
-    fs.writeFileSync(path.join(dir, 'scene.bin'), Buffer.from(job.bin));
-    for (const f of job.files || []) {
-      if (/[\\/]/.test(f.name)) throw new Error('bad texture name');
-      fs.writeFileSync(path.join(dir, f.name), Buffer.from(f.bytes));
-    }
-    const script = path.join(__dirname, 'cycles', 'lr_cycles.py');
-    const [cmd, ...pre] = b.test ? b.cmd.split(' ') : [b.cmd];
-    // built-in engine: isolated Python (-I: ignores any Python setup on the machine)
-    const args = b.test ? [...pre, dir] : b.native ? [dir] : b.module ? ['-I', '-B', script, dir] : ['-b', '--factory-startup', '--python', script, '--', dir];
-    let t0s = 0, s0 = 0;
-    const send = (p) => { if (!e.sender.isDestroyed()) e.sender.send('lr:photoProgress', p); };
-    send({ text: 'Starting the render engine…', frac: 0 });
-    const log = [];
-    const code = await new Promise((resolve, reject) => {
-      // the engine's GPU kernel cache lives in LiteRender's data folder, not the user's home
-      const cache = path.join(app.getPath('userData'), 'engine-cache');
-      try { fs.mkdirSync(cache, { recursive: true }); } catch (e) { /* fine */ }
-      photoProc = spawn(cmd, args, { cwd: dir, windowsHide: true, env: Object.assign({}, process.env, { PYTHONUNBUFFERED: '1', XDG_CACHE_HOME: cache }) });
-      let buf = '';
-      const onData = (d) => {
-        buf += d.toString();
-        let i;
-        while ((i = buf.search(/[\r\n]/)) >= 0) {
-          const line = buf.slice(0, i).trim(); buf = buf.slice(i + 1);
-          if (!line) continue;
-          log.push(line); if (log.length > 200) log.shift();
-          let m;
-          if ((m = line.match(/\[LR\] device (.*)/))) send({ text: 'Cycles on ' + m[1], device: m[1], frac: 0.02 });
-          else if (/\[LR\] materials/.test(line)) send({ text: 'Building materials…', frac: 0.03 });
-          else if (/\[LR\] geometry/.test(line)) send({ text: 'Building the scene…', frac: 0.05 });
-          else if ((m = line.match(/\[LR\] status (.*)/))) {
-            const st = m[1];
-            if (/kernel|compil|shader|pipeline/i.test(st)) send({ text: 'Preparing the graphics chip (first time only, can take a few minutes)…', frac: 0.05 });
-            else if (/BVH|geometry|mesh|object|image|texture|light|background|denois/i.test(st)) send({ text: 'Preparing the scene: ' + st.replace(/^Updating /, '').toLowerCase(), frac: 0.05 });
-          }
-          else if ((m = line.match(/Sample (\d+)\/(\d+)/))) {
-            let rem = (line.match(/Remaining:([\d:.]+)/) || [])[1];
-            const done = +m[1], tot = +m[2], now = Date.now();
-            if (!t0s) { t0s = now; s0 = done; }
-            else if (!rem && done > s0) {
-              const left = Math.round((now - t0s) / (done - s0) * (tot - done) / 1000);
-              rem = left >= 60 ? `${Math.floor(left / 60)} min ${left % 60} s` : `${left} s`;
-            }
-            send({ text: `Path tracing · sample ${done} of ${tot}${rem ? ' · about ' + rem.replace(/\.\d+$/, '') + ' left' : ''}`, frac: 0.06 + 0.88 * (done / tot) });
-          } else if (/Denoising/i.test(line)) send({ text: 'Denoising…', frac: 0.95 });
-        }
-      };
-      photoProc.stdout.on('data', onData);
-      photoProc.stderr.on('data', onData);
-      photoProc.on('error', reject);
-      photoProc.on('close', (c, sig) => resolve(sig ? -1 : c));
-    });
-    photoProc = null;
-    const exr = path.join(dir, 'render.exr');
-    if (code !== 0 || !fs.existsSync(exr)) {
-      if (code === -1) throw new Error('CANCELLED');
-      throw new Error('The render engine stopped (code ' + code + '):\n' + log.filter((l) => /error|Error|Traceback|\[LR\]/.test(l)).slice(-8).join('\n'));
-    }
-    const bytes = fs.readFileSync(exr);
-    return new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.length);
-  } finally {
-    photoProc = null;
-    if (!process.env.LR_KEEP_JOB) fs.rmSync(dir, { recursive: true, force: true });
-  }
-});
-
-ipcMain.handle('lr:photoCancel', () => { if (photoProc) { try { photoProc.kill(); } catch (e) { /* gone */ } } });
 
 ipcMain.handle('lr:extStatus', () => ({ bundled: bundledExt(), list: su.status(bundledExt()) }));
 ipcMain.handle('lr:extInstall', () => extInstall(null));

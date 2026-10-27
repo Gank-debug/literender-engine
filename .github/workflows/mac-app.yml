@@ -3,8 +3,7 @@ name: Mac app
 # Assembles LiteRender.app on a real Mac and signs it with Apple's own codesign,
 # so the signature is valid (a broken signature is what makes macOS say an app
 # is "damaged"). Inputs: the Electron runtime, LiteRender's app files
-# (mac/payload/app, pushed from the LiteRender build) and the newest lr_engine
-# Mac build. If Apple Developer ID secrets are set, it also signs with that
+# (mac/payload/app, pushed from the LiteRender build). If Apple Developer ID secrets are set, it also signs with that
 # identity and notarizes, so the app opens with no warning at all.
 #
 # Optional secrets: MAC_CERT_P12_BASE64, MAC_CERT_PASSWORD, MAC_SIGN_IDENTITY,
@@ -38,15 +37,6 @@ jobs:
           test "$want" = "$got"
           mkdir out && ditto -x -k electron.zip out
 
-      - name: Newest engine build
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          TAG=$(gh release list --limit 50 --json tagName -q '.[].tagName' | grep '^engine-' | head -1)
-          echo "engine release: $TAG"
-          gh release download "$TAG" -p lr_engine-macos-arm64.zip
-          ditto -x -k lr_engine-macos-arm64.zip enginepkg
-
       - name: Assemble LiteRender.app
         run: |
           VER=$(cat mac/VERSION)
@@ -54,7 +44,6 @@ jobs:
           C=out/LiteRender.app/Contents
           rm -f "$C/Resources/default_app.asar"
           cp -R mac/payload/app "$C/Resources/app"
-          cp -R enginepkg/engine "$C/Resources/engine"
           P="$C/Info.plist"
           /usr/libexec/PlistBuddy -c "Set :CFBundleName LiteRender" "$P"
           /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName LiteRender" "$P"
@@ -102,12 +91,6 @@ jobs:
           codesign --force --sign "$SIGN" $OPTS "$APP"
           codesign --verify --deep --strict --verbose=2 "$APP"
           echo "signature OK"
-
-      - name: Test the engine inside the app
-        run: |
-          python3 tools/make_test_job.py testjob
-          out/LiteRender.app/Contents/Resources/engine/lr_engine testjob --device cpu | tr '\r' '\n' | tail -5
-          test -s testjob/render.exr
 
       - name: Notarize (Developer ID only)
         env:

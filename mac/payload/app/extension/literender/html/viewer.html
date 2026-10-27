@@ -487,14 +487,6 @@
           </select></div>
         <div class="row2" id="rCustom" style="display:none"><input id="rW" type="number" value="3000" min="16" max="16384"><span class="dim">×</span><input id="rH" type="number" value="2000" min="16" max="16384"></div>
         <div class="dim mono" id="rInfo" style="font-size:11px"></div>
-        <div class="sel-row"><div class="lbl" title="Beauty: the viewer's renderer, seconds. Photo: Blender's Cycles path tracer — physically correct light, soft shadows, real reflections; minutes per image (desktop app, needs Blender)">Renderer</div>
-          <select id="rEngine"><option value="beauty">Beauty (seconds)</option><option value="photo">Photo · Cycles (minutes)</option></select></div>
-        <div id="rPhotoOpts" style="display:none">
-          <div class="sel-row"><div class="lbl" title="More samples: cleaner shadows and reflections, longer render. The denoiser cleans up what is left">Quality</div>
-            <select id="rPhotoQ"><option value="128">Preview (128 samples)</option><option value="512" selected>Final (512 samples)</option><option value="1500">High (1500 samples)</option></select></div>
-          <div class="dim" id="rPhotoInfo" style="font-size:11.5px;line-height:1.4;word-break:break-all"></div>
-          <div class="btns"><button id="rLocateBlender" class="small" style="display:none">Locate Blender…</button></div>
-        </div>
         <div style="font-size:12.5px;font-weight:600">Still passes</div>
         <div class="inline-opts passes">
           <label><input type="checkbox" data-pass="beauty" checked> Beauty</label>

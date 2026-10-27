@@ -11,8 +11,3 @@ Using it
     update live. First time: click "Set up SketchUp link" (top right), then
     restart SketchUp.
   * Or open a .lrscene file (Extensions > LiteRender > Export .lrscene).
-  * Photo renders (Render tab > Renderer: Photo) use LiteRender's own build of
-    Cycles, the open-source path tracer from Blender. On a Mac it uses the
-    graphics chip; the very first Photo render takes a little longer while it
-    prepares the graphics chip.
-  * Licences: LiteRender.app/Contents/Resources/engine/LICENSE-ENGINE.txt

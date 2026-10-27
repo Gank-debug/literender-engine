@@ -19,11 +19,5 @@ contextBridge.exposeInMainWorld('lrDesktop', {
   // the SketchUp extension the app installs and keeps up to date
   extStatus: () => ipcRenderer.invoke('lr:extStatus'),
   extInstall: () => ipcRenderer.invoke('lr:extInstall'),
-  // Photo renders (Blender Cycles)
-  blenderInfo: () => ipcRenderer.invoke('lr:blenderInfo'),
-  locateBlender: () => ipcRenderer.invoke('lr:locateBlender'),
-  photoRender: (job) => ipcRenderer.invoke('lr:photoRender', job),
-  photoCancel: () => ipcRenderer.invoke('lr:photoCancel'),
-  onPhotoProgress: (cb) => ipcRenderer.on('lr:photoProgress', (_e, p) => cb(p)),
   onExtChanged: (cb) => ipcRenderer.on('lr:extChanged', (_e, res) => cb(res)),
 });
