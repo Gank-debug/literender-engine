@@ -5,7 +5,7 @@ usage: patch_cycles.py <cycles source dir> <literender-engine repo dir>
 Idempotent: running it twice changes nothing the second time."""
 import os, shutil, sys
 
-cycles, repo = sys.argv[1], sys.argv[2]
+cycles, repo = os.path.abspath(sys.argv[1]), os.path.abspath(sys.argv[2])
 app = os.path.join(cycles, 'src', 'app')
 shutil.copy(os.path.join(repo, 'src', 'lr_engine.cpp'), os.path.join(app, 'lr_engine.cpp'))
 inc = os.path.join(repo, 'third_party').replace('\\', '/')
