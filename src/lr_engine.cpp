@@ -468,35 +468,60 @@ static Mesh *build_mesh(Scene *scene, const Job &job, const json &g, Shader *sha
 
 /* ------------------------------------------------------------------ output */
 
-class ExrOutput : public OutputDriver {
+/* The finished frame, gathered from the session's tiles. Owned outside the
+ * session (shared_ptr): the session deletes its output driver when it is
+ * destroyed, so the result must not live in the driver itself. */
+struct Frame {
+  int W = 0, H = 0;
+  vector<float> px; /* RGBA, bottom row first */
+  int tiles = 0;
+  bool read_failed = false;
+};
+
+class FrameOutput : public OutputDriver {
  public:
-  explicit ExrOutput(string path) : path_(std::move(path)) {}
+  explicit FrameOutput(std::shared_ptr<Frame> f) : f_(std::move(f)) {}
   void write_render_tile(const Tile &tile) override
   {
-    if (!(tile.size == tile.full_size)) {
-      return; /* only the full frame */
+    const int fw = tile.full_size.x, fh = tile.full_size.y;
+    if (f_->W != fw || f_->H != fh) {
+      f_->W = fw;
+      f_->H = fh;
+      f_->px.assign(size_t(fw) * fh * 4, 0.0f);
     }
     const int w = tile.size.x, h = tile.size.y;
-    vector<float> px(size_t(w) * h * 4);
-    if (!tile.get_pass_pixels("combined", 4, px.data())) {
-      LOG("error: could not read the render");
+    vector<float> t(size_t(w) * h * 4);
+    if (!tile.get_pass_pixels("combined", 4, t.data())) {
+      f_->read_failed = true;
       return;
     }
-    const OIIO::ImageSpec spec(w, h, 4, OIIO::TypeDesc::FLOAT);
-    OIIO::ImageBuf buf(spec, px.data() + size_t(h - 1) * w * 4, OIIO::AutoStride, -ptrdiff_t(w) * 4 * sizeof(float), OIIO::AutoStride);
-    buf.specmod().attribute("compression", "zip");
-    buf.set_write_format(OIIO::TypeDesc::HALF);
-    if (!buf.write(path_)) {
-      LOG("error: could not write %s", path_.c_str());
-      return;
+    for (int y = 0; y < h; y++) {
+      const int fy = tile.offset.y + y;
+      if (fy < 0 || fy >= fh) {
+        continue;
+      }
+      const int x0 = std::max(0, tile.offset.x), x1 = std::min(fw, tile.offset.x + w);
+      if (x1 <= x0) {
+        continue;
+      }
+      std::copy_n(&t[(size_t(y) * w + (x0 - tile.offset.x)) * 4], size_t(x1 - x0) * 4, &f_->px[(size_t(fy) * fw + x0) * 4]);
     }
-    written = true;
+    f_->tiles++;
   }
-  bool written = false;
 
  private:
-  string path_;
+  std::shared_ptr<Frame> f_;
 };
+
+static bool write_exr(const Frame &f, const string &path)
+{
+  const OIIO::ImageSpec spec(f.W, f.H, 4, OIIO::TypeDesc::FLOAT);
+  /* EXR is top row first: start at the last row, step backwards */
+  OIIO::ImageBuf buf(spec, (void *)(f.px.data() + size_t(f.H - 1) * f.W * 4), OIIO::AutoStride, -ptrdiff_t(f.W) * 4 * sizeof(float), OIIO::AutoStride);
+  buf.specmod().attribute("compression", "zip");
+  buf.set_write_format(OIIO::TypeDesc::HALF);
+  return buf.write(path);
+}
 
 /* ------------------------------------------------------------------ main */
 
@@ -564,9 +589,8 @@ static int run(int argc, const char **argv)
 
   auto session = make_unique<Session>(sp, scp);
   Scene *scene = session->scene.get();
-  auto out = make_unique<ExrOutput>(path_join(job.dir, "render.exr"));
-  ExrOutput *outp = out.get();
-  session->set_output_driver(std::move(out));
+  auto frame = std::make_shared<Frame>();
+  session->set_output_driver(make_unique<FrameOutput>(frame));
 
   {
     thread_scoped_lock lock(scene->mutex);
@@ -743,14 +767,25 @@ static int run(int argc, const char **argv)
 
   /* progress */
   double last = 0;
+  string last_status;
   session->progress.set_update_callback([&] {
     const double t = elapsed();
     if (t - last < 0.5) {
       return;
     }
     last = t;
+    /* what Cycles is doing (e.g. preparing GPU kernels), when it changes */
+    string status, sub;
+    session->progress.get_status(status, sub);
+    const string st = sub.empty() ? status : status + ": " + sub;
+    if (st != last_status && st.find("Sample") == string::npos && st.find("Rendered") == string::npos) {
+      last_status = st;
+      LOG("status %s", st.c_str());
+    }
     const double p = session->progress.get_progress();
-    LOG("stats Sample %d/%d", int(p * samples + 0.5), samples);
+    if (p > 0.0) {
+      LOG("stats Sample %d/%d", int(p * samples + 0.5), samples);
+    }
   });
 
   BufferParams bp;
@@ -764,9 +799,13 @@ static int run(int argc, const char **argv)
     LOG("error: %s", session->progress.get_error_message().c_str());
     return 1;
   }
-  session.reset(); /* flushes the output driver */
-  if (!outp->written) {
-    LOG("error: no image written");
+  session.reset(); /* finishes and hands over the last tiles */
+  if (frame->read_failed || frame->tiles == 0 || frame->px.empty()) {
+    LOG("error: the render finished but no image came back (tiles %d%s)", frame->tiles, frame->read_failed ? ", pass read failed" : "");
+    return 1;
+  }
+  if (!write_exr(*frame, path_join(job.dir, "render.exr"))) {
+    LOG("error: could not write %s", path_join(job.dir, "render.exr").c_str());
     return 1;
   }
   LOG("render done %.1fs", elapsed());
