@@ -373,6 +373,10 @@
           <label title="Soft darkening in corners and where objects meet"><input id="ao" type="checkbox" checked> Contact shadows</label>
           <label title="Materials with Glow (LED strips, coves, lamps) cast light on their surroundings"><input id="practicals" type="checkbox" checked> Glowing materials light the room</label>
         </div>
+        <div class="slider-row"><div class="lbl"><span class="name" title="Small glowing discs on ceilings (recessed downlights / spots) shine a soft-edged beam down: pools of light on the floor and scallops on nearby walls. Output per fitting, in lumens (a typical LED downlight is 600–1200 lm).">Downlight output</span><span class="val mono"></span></div>
+          <input id="lumens" type="range" min="0" max="6000" step="100" value="3000" data-fmt="lm"></div>
+        <div class="sel-row"><div class="lbl" title="Rooms modelled with the wall on the camera side left out (to look in) get that wall back for lighting only: no sky or sun flooding in through it, so the room is lit like a real one (windows, lamps, light falling off). The camera still sees through it.">Cut-away rooms</div>
+          <select id="enclose"><option value="auto" selected>Auto (close the open side)</option><option value="off">Off (light comes in)</option></select></div>
         <div class="sel-row"><div class="lbl" title="Standard: calculated on the processor after each change. Bake: standard plus a baked lightmap (the 0.14–0.16 "High"). Real-time: traced on the graphics card in a fraction of a second, so bounce light follows the sun as you move it (Lumen-style). High: real-time plus a baked lightmap at a few cm for walls, floors and ceilings (dark corners, light falloff); re-bakes after changes.">Bounce light quality</div>
           <select id="giQuality"><option value="standard">Standard</option><option value="high" selected>High (graphics card, follows the sun live)</option></select></div>
         <div class="slider-row"><div class="lbl"><span class="name">Contact shadow size</span><span class="val mono"></span></div>
