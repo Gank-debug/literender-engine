@@ -319,6 +319,8 @@
           <input id="sunDate" type="range" min="1" max="365" step="1" value="312"></div>
         <div class="slider-row"><div class="lbl"><span class="name">Sun brightness</span><span class="val mono"></span></div>
           <input id="sunInt" type="range" min="0" max="3" step="0.05" value="1" data-fmt="x"></div>
+        <div class="slider-row"><div class="lbl"><span class="name" title="Apparent size of the sun: bigger = softer shadow edges that blur more the further they fall from the object (Beauty and stills). 1× is the real sun.">Sun size</span><span class="val mono"></span></div>
+          <input id="sunSize" type="range" min="0.5" max="12" step="0.5" value="1" data-fmt="x"></div>
         <div class="row2"><button id="btnSunSU" class="small" title="Back to SketchUp's exact sun position">Reset to SketchUp sun</button></div>
       </section>
 
@@ -381,6 +383,8 @@
           <input id="sheen" type="range" min="0" max="1" step="0.05" value="1" data-fmt="pct"></div>
         <div class="slider-row"><div class="lbl"><span class="name" title="More bounce light, the way a photographer fills a room: areas lit only by bounce light (the back of a deep room, under a dark ceiling) lift the most; sunlit areas barely change">Interior fill</span><span class="val mono"></span></div>
           <input id="fill" type="range" min="0.5" max="3" step="0.05" value="1.3" data-fmt="x"></div>
+        <div class="slider-row"><div class="lbl"><span class="name" title="Soft light from above, as if from ceiling lights or a skylight, even where no light source is modelled. Lights rooms that bounce light can't reach; furniture still grounds itself under it. 0 = off.">Ceiling fill</span><span class="val mono"></span></div>
+          <input id="topFill" type="range" min="0" max="1" step="0.05" value="0" data-fmt="pct"></div>
         <div class="slider-row"><div class="lbl"><span class="name" title="Beauty and stills: soft, ray-traced contact shadows where furniture meets the floor and walls (darkens bounce light only; the sun keeps its own shadows). 0 = off.">Grounding shadows</span><span class="val mono"></span></div>
           <input id="ground" type="range" min="0" max="1" step="0.05" value="0.8" data-fmt="pct"></div>
         <div class="slider-row"><div class="lbl"><span class="name" title="How far the grounding shadows reach from a contact">Grounding reach</span><span class="val mono"></span></div>
@@ -390,7 +394,13 @@
       <section class="card">
         <h3 class="group-label">Camera</h3>
         <p class="card-desc">Like a real camera: auto exposure brightens interiors; add or remove light with Exposure.</p>
-        <div class="inline-opts"><label title="Brighten automatically indoors, like a camera adapting"><input id="autoEx" type="checkbox" checked> Auto exposure</label></div>
+        <div class="inline-opts"><label title="Brighten automatically indoors, like a camera adapting"><input id="autoEx" type="checkbox" checked> Auto exposure</label>
+          <label title="Set exposure like a real camera: ISO, shutter speed and aperture (the f-number is shared with Depth of field). Calibrated to the sunny-16 rule outdoors (ISO 100, 1/125, f/16); interiors here usually want 2–4 stops more (e.g. ISO 200, 1/60, f/8). Exposure below still adds or removes light on top."><input id="manualEx" type="checkbox"> Manual camera</label></div>
+        <div class="grid" id="manualExRow" style="display:none">
+          <div class="sel-row"><div class="lbl">ISO</div><select id="camIso"><option>50</option><option selected>100</option><option>200</option><option>400</option><option>800</option><option>1600</option><option>3200</option><option>6400</option></select></div>
+          <div class="sel-row"><div class="lbl">Shutter</div><select id="camShutter"><option value="1000">1/1000</option><option value="500">1/500</option><option value="250">1/250</option><option value="125" selected>1/125</option><option value="60">1/60</option><option value="30">1/30</option><option value="15">1/15</option><option value="8">1/8</option><option value="4">1/4</option><option value="2">1/2</option><option value="1">1 s</option></select></div>
+          <div class="sel-row"><div class="lbl" title="Shared with Depth of field">Aperture</div><span class="mono dim" id="camFstopLbl">f/2.8</span></div>
+        </div>
         <div class="slider-row"><div class="lbl"><span class="name">Exposure</span><span class="val mono"></span></div>
           <input data-look="exposure" type="range" min="-3" max="3" step="0.05" value="0" data-fmt="ev"></div>
         <div class="grid">
@@ -403,6 +413,8 @@
       <section class="card collapsed">
         <h3 class="group-label">Colour grading</h3>
         <div class="grid">
+          <div class="slider-row"><div class="lbl"><span class="name" title="Camera white balance in kelvin. Set it to the light you want to look neutral: lower = cooler picture, higher = warmer. 6500 K = daylight neutral.">White balance</span><span class="val mono"></span></div>
+            <input data-look="wb" type="range" min="2500" max="10000" step="100" value="6500" data-fmt="kelvin"></div>
           <div class="slider-row"><div class="lbl"><span class="name">Warmth</span><span class="val mono"></span></div>
             <input data-look="warmth" type="range" min="-1" max="1" step="0.01" value="0.1" data-fmt="signed"></div>
           <div class="slider-row"><div class="lbl"><span class="name">Tint</span><span class="val mono"></span></div>
@@ -484,7 +496,7 @@
         </div>
         <div class="inline-opts">
           <label title="Lens blur in Beauty mode and stills: things in front of and behind the focus distance go soft"><input id="camDof" type="checkbox"> Depth of field</label>
-          <select id="camFstop" title="Aperture: lower f-number = shallower focus"><option value="1.4">f/1.4</option><option value="2">f/2</option><option value="2.8" selected>f/2.8</option><option value="4">f/4</option><option value="5.6">f/5.6</option><option value="8">f/8</option><option value="11">f/11</option></select>
+          <select id="camFstop" title="Aperture: lower f-number = shallower focus"><option value="1.4">f/1.4</option><option value="2">f/2</option><option value="2.8" selected>f/2.8</option><option value="4">f/4</option><option value="5.6">f/5.6</option><option value="8">f/8</option><option value="11">f/11</option><option value="16">f/16</option></select>
           <button id="camFocusPick" class="small" title="Then click the surface that should be sharp. Double-click the button to go back to automatic focus">Pick focus</button><span class="dim mono" id="camFocusLbl" style="font-size:11px">auto</span>
         </div>
         <div id="viewList" class="view-list"></div>
@@ -515,6 +527,8 @@
           <label><input type="checkbox" data-pass="id"> Mat ID</label>
         </div>
         <div class="inline-opts"><label title="Each tile is rendered several times with jittered sun and camera: soft shadows and clean edges, like the Beauty view"><input id="rBeauty" type="checkbox" checked> Beauty quality</label><label title="Render at twice the size and scale down (sharper, 4× slower)"><input id="rSsaa" type="checkbox"> Supersample 2×</label></div>
+        <div class="sel-row"><div class="lbl" title="How many refinement frames Beauty and stills average: more = cleaner soft shadows, glossy reflections, depth of field and grounding shadows (and proportionally slower). Doubled with depth of field.">Refinement</div>
+          <select id="refine"><option value="16">Fast (16 frames)</option><option value="48" selected>High (48)</option><option value="128">Ultra (128)</option></select></div>
         <div class="btns"><button id="btnStill" class="primary">Render still</button><button id="btnScenes">Render all scenes</button></div>
       </section>
     </div>
