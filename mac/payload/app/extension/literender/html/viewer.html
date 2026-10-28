@@ -379,6 +379,12 @@
           <input id="softEdges" type="range" min="0" max="20" step="0.5" value="20" data-fmt="mm"></div>
         <div class="slider-row"><div class="lbl"><span class="name" title="Nothing is perfectly matte: gives every surface a soft reflection of windows and sky at glancing angles. Glossy materials keep their own finish.">Surface sheen</span><span class="val mono"></span></div>
           <input id="sheen" type="range" min="0" max="1" step="0.05" value="1" data-fmt="pct"></div>
+        <div class="slider-row"><div class="lbl"><span class="name" title="More bounce light, the way a photographer fills a room: areas lit only by bounce light (the back of a deep room, under a dark ceiling) lift the most; sunlit areas barely change">Interior fill</span><span class="val mono"></span></div>
+          <input id="fill" type="range" min="0.5" max="3" step="0.05" value="1.3" data-fmt="x"></div>
+        <div class="slider-row"><div class="lbl"><span class="name" title="Beauty and stills: soft, ray-traced contact shadows where furniture meets the floor and walls (darkens bounce light only; the sun keeps its own shadows). 0 = off.">Grounding shadows</span><span class="val mono"></span></div>
+          <input id="ground" type="range" min="0" max="1" step="0.05" value="0.8" data-fmt="pct"></div>
+        <div class="slider-row"><div class="lbl"><span class="name" title="How far the grounding shadows reach from a contact">Grounding reach</span><span class="val mono"></span></div>
+          <input id="groundR" type="range" min="0.1" max="1.5" step="0.05" value="0.5" data-fmt="m"></div>
       </section>
 
       <section class="card">
@@ -411,6 +417,14 @@
             <input data-look="bloom" type="range" min="0" max="1" step="0.01" value="0.12" data-fmt="f2"></div>
           <div class="slider-row"><div class="lbl"><span class="name">Vignette</span><span class="val mono"></span></div>
             <input data-look="vignette" type="range" min="0" max="1" step="0.01" value="0.15" data-fmt="f2"></div>
+          <div class="slider-row"><div class="lbl"><span class="name" title="The wide, warm glow a real camera shows around bright windows against a darker room">Window halation</span><span class="val mono"></span></div>
+            <input data-look="halation" type="range" min="0" max="1" step="0.01" value="0.4" data-fmt="f2"></div>
+          <div class="slider-row"><div class="lbl"><span class="name" title="Sunlit areas a touch warmer, shade a touch cooler, as in daylight photographs">Warm light / cool shade</span><span class="val mono"></span></div>
+            <input data-look="split" type="range" min="0" max="1" step="0.01" value="0.35" data-fmt="f2"></div>
+          <div class="slider-row"><div class="lbl"><span class="name" title="Fine, static film grain (strongest in mid-tones); takes the clean CG edge off flat areas">Grain</span><span class="val mono"></span></div>
+            <input data-look="grain" type="range" min="0" max="1" step="0.01" value="0.2" data-fmt="f2"></div>
+          <div class="slider-row"><div class="lbl"><span class="name" title="Faint colour fringing towards the corners, like a real lens">Lens fringing</span><span class="val mono"></span></div>
+            <input data-look="ca" type="range" min="0" max="1" step="0.01" value="0.25" data-fmt="f2"></div>
         </div>
       </section>
 
