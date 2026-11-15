@@ -2387,8 +2387,8 @@ const TRACKS = () => ({ house: [MUSIC_OGG, MUSIC_MP3], town: typeof TOWN_BASE_OG
   stems: [[TOWN_BASE_OGG, TOWN_BASE_MP3], [TOWN_LAMENT_OGG, TOWN_LAMENT_MP3], [TOWN_DREAD_OGG, TOWN_DREAD_MP3], [TOWN_STORM_OGG, TOWN_STORM_MP3], [METAL_MENACE_OGG, METAL_MENACE_MP3], [METAL_METAL_OGG, METAL_METAL_MP3], [METAL_CHANT_OGG, METAL_CHANT_MP3]],
   turn: [[TURN_BASE_OGG, TURN_BASE_MP3], [TURN_LAMENT_OGG, TURN_LAMENT_MP3], [TURN_DREAD_OGG, TURN_DREAD_MP3], [TURN_STORM_OGG, TURN_STORM_MP3], [METAL_TMENACE_OGG, METAL_TMENACE_MP3], [METAL_TMETAL_OGG, METAL_TMETAL_MP3], [METAL_TCHANT_OGG, METAL_TCHANT_MP3]], end: [METAL_END_OGG, METAL_END_MP3] } : [MUSIC_OGG, MUSIC_MP3] });
 MUSIC.stage = 0; MUSIC.threat = 0; MUSIC.bar = 4 * 60 / 62; MUSIC.turnAt = -1; MUSIC.busy = 0;
-// the gain each town layer wants: the stems by the day; under the menace the storm's drums give way to its own; under the metal the stems sit back
-const want = (i, st, th) => th >= 2 ? [.7, .7, .7, 0, 0, 1, .9][i] : th === 1 ? [1, 1, 1, 0, .9, 0, 1][i] : i <= st && i < 4 ? 1 : 0;   // the seventh layer: the chant, from the menace on
+// the gain each town layer wants: the stems by the day; with the menace every stem plays; under the metal the stems sit back a little
+const want = (i, st, th) => th >= 2 ? [.75, .75, .75, .6, 0, 1, .9][i] : th === 1 ? [1, 1, 1, 1, .9, 0, 1][i] : i <= st && i < 4 ? 1 : 0;   // nothing drops out as the threat comes   // the seventh layer: the chant, from the menace on
 // start a track's loop at time n (all its stems together, in step), fading in over f seconds
 function loopUp(k, n, f) { const ctx = MUSIC.ctx, tr = TRACKS()[k] || TRACKS().house, list = tr.stems || [tr];
   return Promise.all(list.map(([o, m]) => musicDecode(o, m))).then(bufs => { n = Math.max(n, ctx.currentTime + .02);
