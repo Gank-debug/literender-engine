@@ -190,6 +190,7 @@ body.pad #flash{top:62px;max-width:90vw;text-align:center;z-index:45}
 body.pad #rolesov .v{width:94vw!important}
 body.pad.cine #padbar,body.pad.cine #padhands{display:none!important}
 @media (max-width:760px){#hmenu{overflow:auto;flex-direction:column;align-items:stretch;justify-content:flex-start;gap:12px;padding:14px} #hmenu .mtitle{font-size:40px} #hmenu .mtitle .cap{font-size:44px} #hmenu .mpitch{display:none} #hmenu .mleft,#hmenu .mright{width:auto} #hmenu .mleft{flex-direction:row;align-items:center;justify-content:space-between} #hmenu .mtabs span{font-size:18px;padding:4px 8px} #hmenu input{font-size:16px;padding:10px}}
+#modal.stash .tlog{max-height:200px;overflow:auto;border:1px solid #3a2e22;padding:6px 10px;background:rgba(10,8,6,.5);font-size:14px;line-height:1.4} #modal.stash .tlog small{color:var(--dim);margin-right:6px} #modal.stash .btn small{display:block}
 </style></head><body><canvas id="cv"></canvas><div id="vig"></div><span class="btn" id="skip" onclick="PROTO.NIGHT.skip()">Skip &#9656;<small>space</small></span>
 <div class="p left"><div class="v clockp"><div class="lnh"><span class="drop">T</span><div class="t">he Long Night</div></div><canvas class="clock" id="clockv" data-k="candle" data-v="0" data-m="8"></canvas><p id="clocknote"></p></div><div class="v" id="bro"></div></div>
 <div class="v p topbar"><span class="day" id="day"></span><div class="ph" id="phases"><span>Dawn</span><span>Searching</span><span>The Hearing</span><span>Night</span></div><span class="timer" id="timer"></span></div>
@@ -813,6 +814,7 @@ MAPS.town = {
 MAPS.town.names = ['Agnes', 'Piet', 'Mathis', 'Elske', 'Joost', 'Griet', 'Wolter', 'Hanne', 'Bram', 'Liesel'];
 MAPS.town.title = '';
 MAPS.town.rules = 'strigoi';
+MAPS.town.stash = [24.3, 23.5];
 MAPS.town.thing = { tower: 'ladder', chapel: 'pew end', script: 'shelf corner', refect: 'bench', dorm: 'pallet', yard: 'well rope', fields: 'grave cross' };
 // roles in the town: same gifts, the town's names; the Strigoi, the Physician and the Sexton work differently
 MAPS.town.roles = { enemy: { name: 'Strigoi', text: 'By day you are one of them. Each night you bite one of the town, or send a Thrall to kill. The bitten turn two nights later and serve you, unless they are cured first. You never kill with your own hands, so the traces at a body point at the Thrall who did it.' },
@@ -1033,6 +1035,40 @@ let TWL = null;
 const tw = t => { if (!t || !MAP.words || typeof t !== 'string') return t; if (!TWL) TWL = MAP.words(); for (const [a, b] of TWL) t = t.replace(a, b); return t; };
 function twNode(root, all) { if ((!MAP.words && !all) || !root) return; const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT); for (let n = w.nextNode(); n; n = w.nextNode()) { if (n.parentElement && n.parentElement.closest('#hmenu,input,textarea,script,style')) continue; if (all) { if (n._o != null) { const v = MAP.words ? tw(n._o) : n._o; n._t = v; n.nodeValue = v; } else if (MAP.words) { n._o = n.nodeValue; n._t = tw(n._o); n.nodeValue = n._t; } continue; } if (n._t === n.nodeValue) continue; n._o = n.nodeValue; const v = tw(n._o); n._t = v; if (v !== n.nodeValue) n.nodeValue = v; } }
 new MutationObserver(ms => { if (!MAP.words) return; for (const m of ms) { if (m.type === 'characterData') twNode(m.target.parentElement); else for (const n of m.addedNodes) n.nodeType === 3 ? twNode(n.parentElement) : twNode(n); } }).observe(document.documentElement, { childList: true, subtree: true, characterData: true });
+// ---------------------------------------------------------------- the town's walls (after Die2Nite): materials found by searching go into a
+// shared stash at the worksite, with a public log; from it the town builds its defences. Each night the dead come at the walls in
+// greater numbers; if they outnumber the defences, they come over and take someone. Rope and timber can also bar your own door.
+const BUILDS = { pal: { name: 'Palisade section', cost: { timber: 2, rope: 1 }, def: 2 }, spikes: { name: 'Spikes in the ditch', cost: { nails: 2, timber: 1 }, def: 2 },
+  gate: { name: 'Gate bar', cost: { timber: 3, nails: 2 }, def: 4, once: 1 }, fire: { name: 'Pitch fires on the wall (tonight only)', cost: { pitch: 2 }, def: 3, tonight: 1 } };
+const TOWN0 = () => ({ stash: { timber: 2, nails: 1, rope: 1, pitch: 0 }, log: [], built: {}, def: 6, fire: 0, last: null });
+const townDef = () => G.town ? G.town.def + (G.town.fire ? BUILDS.fire.def : 0) : 0;
+const hordeSize = n => Math.round((2 + n * 5 + G.clock) * (+QS.get('hz') || MAP.hz || 1));
+const matStr = o => Object.entries(o || {}).filter(([, v]) => v).map(([k, v]) => `${v} ${k}`).join(', ');
+const nearStash = p => !!(STRIG() && MAP.stash && p && Math.hypot(p.x - MAP.stash[0], p.y - MAP.stash[1]) < 2.8);
+function tlog(t) { G.town.log.push({ d: G.day, t }); if (G.town.log.length > 80) G.town.log.shift(); }
+function deposit(p) { const pk = p.pack || {}; if (!Object.values(pk).some(v => v)) return false; for (const k in pk) G.town.stash[k] += pk[k]; tlog(`${p.short} put ${matStr(pk)} in the stash.`); p.pack = {}; return true; }
+const suspectTake = p => { for (const b of living()) if (!isHuman(b.id) && b.id !== p.id && team(b) === 'good') b.sus[p.id] += .2; };
+function takeMat(p, k) { if (!G.town.stash[k]) return false; G.town.stash[k]--; (p.pack = p.pack || {})[k] = (p.pack[k] || 0) + 1; tlog(`${p.short} took 1 ${k} from the stash.`); suspectTake(p); return true; }
+const canBuild = k => { const b = BUILDS[k]; if (b.once && G.town.built[k]) return false; if (b.tonight && G.town.fire) return false; return Object.entries(b.cost).every(([m, n]) => G.town.stash[m] >= n); };
+function buildIt(p, k) { if (!canBuild(k)) return false; const b = BUILDS[k]; for (const [m, n] of Object.entries(b.cost)) G.town.stash[m] -= n; if (b.tonight) G.town.fire = 1; else { G.town.def += b.def; G.town.built[k] = (G.town.built[k] || 0) + 1; } tlog(`${p.short} built: ${b.name}.`); return true; }
+function barDoor(p) { if (G.town.stash.timber < 1 || G.town.stash.rope < 1 || p.barred === (G.night || 0) + 1) return false; G.town.stash.timber--; G.town.stash.rope--; tlog(`${p.short} took 1 timber and 1 rope from the stash.`); suspectTake(p); p.barred = (G.night || 0) + 1; return true; }
+// a bot at the worksite: the faithful put in and build; the evil sometimes give, sometimes steal
+function stashBot(p) { const ev = team(p) === 'evil', H = hordeSize((G.night || 0) + 1);
+  if (!ev || rnd() < .45) deposit(p);
+  if (ev) { if (rnd() < .4) { const ks = Object.keys(G.town.stash).filter(k => G.town.stash[k]); for (let n = 0; n < 1 + (rnd() < .4) && ks.length; n++) takeMat(p, pick(ks)); } return; }
+  for (let n = 0; n < 1; n++) { const k = canBuild('gate') ? 'gate' : townDef() < H + 2 && canBuild('fire') && G.town.def < H ? 'fire' : canBuild('pal') ? 'pal' : canBuild('spikes') ? 'spikes' : null; if (!k || (townDef() >= H + 4 && rnd() < .6)) break; buildIt(p, k); }
+  if ((p.heard >= 1 || p.claimed) && rnd() < .35) barDoor(p); }
+// the stash panel: what is in it, what you carry, what can be built, the log
+function showStash() { const me = you(), T = G.town; if (!T) return; const near = nearStash(me) && me.alive && G.phase === 'day', H = hordeSize((G.night || 0) + 1);
+  const ico = { timber: '▤', nails: '⟂', rope: '§', pitch: '●' };
+  let h = `<div class="hd" style="font-size:34px"><span class="cap">T</span>he Stash</div><p class="sub">The worksite by the gate. Walls tonight: <b>${townDef()}</b>${T.last ? ` · last night ${T.last.n} of the dead came` : ''}. Whatever is put in or taken out is written in the log for all to read.${near ? '' : ' <b>Go to the worksite by the gate to use it.</b>'}</p>`;
+  h += `<div class="row wrap">${Object.entries(T.stash).map(([k, v]) => `<span class="btn small ${near && v ? '' : 'off'}" ${near && v ? `data-stash="take:${k}"` : ''} title="Take one">${ico[k]} ${v} ${k}</span>`).join('')}</div>`;
+  h += `<p class="sub">You carry: ${matStr(me.pack) || 'nothing'}.</p><div class="row wrap"><span class="btn ${near && matStr(me.pack) ? 'go' : 'off'}" ${near ? 'data-stash="dep"' : ''}>Put it all in</span><span class="btn ${near && T.stash.timber && T.stash.rope && me.barred !== (G.night || 0) + 1 ? '' : 'off'}" ${near ? 'data-stash="bar"' : ''} title="Takes 1 timber and 1 rope. A sent Thrall cannot get in tonight; the Strigoi's bite still can.">${me.barred === (G.night || 0) + 1 ? 'Your door is barred tonight' : 'Bar my door tonight'}<small>1 timber · 1 rope</small></span></div>`;
+  h += `<p class="sub" style="margin-top:10px">Build (from the stash):</p><div class="row wrap">${Object.entries(BUILDS).map(([k, b]) => `<span class="btn small ${near && canBuild(k) ? 'go' : 'off'}" ${near ? `data-stash="build:${k}"` : ''}>${b.name}${b.once && T.built[k] ? ' (built)' : ''}<small>${matStr(b.cost)} · +${b.def}</small></span>`).join('')}</div>`;
+  h += `<p class="sub" style="margin-top:10px">The log:</p><div class="tlog">${T.log.slice(-14).map(l => `<p><small>Day ${l.d}</small> ${l.t}</p>`).join('') || '<p class="sub">Nothing written yet.</p>'}</div><div class="row"><span class="btn" data-stash="close">Close</span></div>`;
+  modal(h, 'stash'); }
+function stashAct(p, a) { if (a === 'close') { hideModal(); return; } if (a === 'open') return showStash(); if (!nearStash(p) || !p.alive || G.phase !== 'day') return showStash();
+  if (a === 'dep') deposit(p); else if (a === 'bar') barDoor(p); else if (a.startsWith('take:')) takeMat(p, a.slice(5)); else if (a.startsWith('build:')) buildIt(p, a.slice(6)); showStash(); renderClock(); }
 // the plague town plays the Strigoi's rules: he bites (the bitten turn in two nights unless cured) or sends a thrall to kill
 const STRIG = () => MAP.rules === 'strigoi';
 ROLES.scrub.turned = 1;
@@ -1199,7 +1235,7 @@ function simulateNight(choice) { if (choice && 'room' in choice) G.nightChoices[
   const paths = {}, evilWalk = {};
   if (STRIG()) {
     if (sentBy && sent) { let cur = [sentBy.x, sentBy.y], full = [cur]; const v = sent; full = full.concat(findPath(cur[0], cur[1], v.x, v.y)); cur = [v.x, v.y];
-      if (protects.includes(v.id)) log.protect = v.id; else { v.alive = false; dead.push(v.id); log.kills.push(v.id); G.bodies.push({ id: v.id, x: v.x, y: v.y, room: roomAt(v.x, v.y), face: (rnd() * 8) | 0, examined: {}, killer: sentBy.id }); }
+      if (protects.includes(v.id) || v.barred === G.night) { log.protect = v.id; if (v.barred === G.night) G.nightNote[v.id] = { text: 'In the night someone tried your barred door, a long time, and went away.', cure: 1 }; } else { v.alive = false; dead.push(v.id); log.kills.push(v.id); G.bodies.push({ id: v.id, x: v.x, y: v.y, room: roomAt(v.x, v.y), face: (rnd() * 8) | 0, examined: {}, killer: sentBy.id }); }
       full = full.concat(findPath(cur[0], cur[1], sentBy.x, sentBy.y)); paths[sentBy.id] = densify(full); evilWalk[sentBy.id] = [v.id]; movers.push(sentBy.id);
       (G.nightNote[sentBy.id] = G.nightNote[sentBy.id] || { text: '', evil: 1 }).text += `Your master sent you to ${v.name} in the night. ${v.alive ? 'Someone was watching over him; you came back with nothing.' : 'You did what you were sent to do.'} `; }
     if (bite) { let cur = [E.x, E.y], full = [cur]; const v = bite; full = full.concat(findPath(cur[0], cur[1], v.x, v.y)); cur = [v.x, v.y];
@@ -1225,14 +1261,21 @@ function simulateNight(choice) { if (choice && 'room' in choice) G.nightChoices[
     const yard = pts.filter(([x, y]) => roomAt(x, y) === 'yard');
     if (yard.length) { yard.forEach(([x, y], k) => { if (k % 2 === 0) G.prints.push([x + (k % 4 ? .12 : -.12), y, p.foot]); }); if (!(isE && G.clock >= 4)) { const [x, y] = yard[(yard.length * (.3 + rnd() * .4)) | 0]; addSpot(x + .3, y + .2, traceFor(p, 'print', 'yard', dead), isE); } }
     const rooms = roomsOnPath(pts).filter(r => r !== 'yard' && r !== p.night);
-    if (isE) { for (const tid of evilWalk[pid]) { const b = G.bodies.find(b => b.id === tid) || G.players[tid]; addSpot(b.x + .9, b.y + .5, traceFor(p, 'thread', roomAt(b.x, b.y), dead), true); }
-      if (p.item !== 'none' && rooms.length) { const r = pick(rooms), [x, y] = pointIn(r, .6); addSpot(x, y, traceFor(p, p.item === 'candle' ? 'wax' : 'soot', r, dead), true); } }
+    // the Strigoi comes softly to a bite: half the time no thread, never his light
+    const soft = STRIG() && p.role === 'enemy';
+    if (isE) { for (const tid of evilWalk[pid]) { if (soft && rnd() < .5) continue; const b = G.bodies.find(b => b.id === tid) || G.players[tid]; addSpot(b.x + .9, b.y + .5, traceFor(p, 'thread', roomAt(b.x, b.y), dead), true); }
+      if (p.item !== 'none' && rooms.length && !soft) { const r = pick(rooms), [x, y] = pointIn(r, .6); addSpot(x, y, traceFor(p, p.item === 'candle' ? 'wax' : 'soot', r, dead), true); } }
     else if (p.item !== 'none' && p.walkTo) { const [x, y] = pointIn(p.walkTo, .6); addSpot(x, y, traceFor(p, p.item === 'candle' ? 'wax' : 'soot', p.walkTo, dead), false); }
     p.walkTo = null; }
   // the Scrubber removes one of the Enemy's traces
   if (S && S.alive) { const ev = G.spots.filter(s => s.evil); if (ev.length && rnd() < .8) { const s = pick(ev); G.spots.splice(G.spots.indexOf(s), 1); } }
   // the Forger lays a false trace that fits the brother he chose
   for (const [fid, tid] of Object.entries(frameT)) { const f = G.players[fid], t = G.players[tid]; if (!f.alive || !t || !t.alive || !G.players[fid].turnedNight || G.night === f.turnedNight) continue; const r = pick(['chapel', 'refect', 'script', 'tower']), [x, y] = pointIn(r, .6), kind = t.item !== 'none' && rnd() < .5 ? (t.item === 'candle' ? 'wax' : 'soot') : 'thread'; addSpot(x, y, traceFor(t, kind, r, dead), false); G.spots[G.spots.length - 1].forged = true; }
+  // the dead at the walls
+  if (STRIG() && G.town) { const Hn = hordeSize(G.night), D = townDef(); let breach = null;
+    if (Hn > D) { const pool = L.filter(q => q.alive && !dead.includes(q.id)), w = pool.map(q => 1 + Math.max(0, q.y - 17) / 3 + Math.max(0, q.x - 24) / 3 + (P.rooms[roomAt(q.x, q.y)].outside ? 8 : 0)); let r = rnd() * w.reduce((a, b) => a + b, 0), v = pool[0]; for (let k = 0; k < pool.length; k++) { r -= w[k]; if (r <= 0) { v = pool[k]; break; } }
+      if (v) { breach = v.id; v.alive = false; dead.push(v.id); G.bodies.push({ id: v.id, x: v.x, y: v.y, room: roomAt(v.x, v.y), face: (rnd() * 8) | 0, examined: {}, horde: 1 }); } }
+    G.town.last = { n: Hn, def: D, breach, night: G.night }; G.town.fire = 0; log.horde = G.town.last; tlog(`Night ${G.night}: ${Hn} of the dead came at the walls (${D}). ${breach != null ? `They came over. ${G.players[breach].short} was taken.` : 'The walls held.'}`); }
   // the bitten show it: blood on the pillow, a fever heard in the night
   if (STRIG()) for (const p of L.filter(q => q.alive && q.bitten)) { const [x, y] = [p.x + .6, p.y + .4];
     const c = rnd() < .55 ? clue('body', `Blood on a pillow in the ${RN(roomAt(p.x, p.y))}, two small drops. Whoever slept there wears a ${p.habit} cloak.`, ids(TRAIT.habit(p.habit).filter(q => q.alive && !dead.includes(q.id))))
@@ -1240,6 +1283,10 @@ function simulateNight(choice) { if (choice && 'room' in choice) G.nightChoices[
     addSpot(x, y, c, false); }
   // empty spots
   for (let k = 0; k < 7; k++) { const r = pick(RK), [x, y] = pointIn(r, .7); addSpot(x, y, null, false); }
+  // materials: in the town and, richer, out in the fields
+  if (STRIG()) { const MK = ['timber', 'timber', 'nails', 'rope', 'pitch'], inT = RK.filter(r => !P.rooms[r].outside), outF = RK.filter(r => P.rooms[r].outside);
+    for (let k = 0; k < 6; k++) { const [x, y] = pointIn(pick(inT), .7); addSpot(x, y, null, false); G.spots[G.spots.length - 1].mat = { [pick(MK)]: 1 }; }
+    for (let k = 0; k < 6 && outF.length; k++) { const [x, y] = pointIn(pick(outF), .7); addSpot(x, y, null, false); const a = pick(MK), b = pick(MK); G.spots[G.spots.length - 1].mat = a === b ? { [a]: 2 } : { [a]: 1, [b]: 1 }; } }
   // dawn information for each gifted brother
   const info = {};
   const gh = G.lastHanged; G.lastHanged = null;
@@ -1280,13 +1327,14 @@ function dawn() {
   for (const p of G.players) { p.path = []; p.state = 'idle'; p.ready = false; p.plan = null; p.searchN = 0; p.ask = false; p.wait = 4 + rnd() * 10; }
   // bodies examined by role
   for (const b of G.bodies) if (b.clues == null) { const v = G.players[b.id], E = b.killer != null ? G.players[b.killer] : G.players.find(p => p.role === 'enemy'), rel = E.tall === v.tall ? 'his own height' : (E.tall ? 'taller' : 'shorter');
+    if (b.horde) { b.clues = { all: clue('body', `${v.name}, torn apart in the ${RN(b.room)}. The dead came over the wall for him. No hand of the town did this.`, []), infirm: clue('body', `Reading ${v.short}'s body: teeth and nails, many of them. The dead, not the Strigoi's own.`, []) }; continue; }
     b.clues = { all: clue('body', `${v.name}, dead in the ${RN(b.room)}. Struck from behind; no cry was heard.`, []), infirm: clue('body', `Reading ${v.short}'s body: struck from behind by someone ${rel === 'his own height' ? 'of his own height' : rel + ' than him'}.`, ids(G.players.filter(p => p.id !== b.id && (rel === 'his own height' ? p.tall === v.tall : rel === 'taller' ? p.tall && !v.tall : !p.tall && v.tall)))) }; }
   // your role info into your casebook
   G.timers = []; forHumans(() => { const ni = G.nightInfo[G.you]; if (ni) addCase(ni); const nn = (G.nightNote || {})[G.you]; if (nn) addCase(clue('info', nn.text.trim(), nn.set || [], { src: 'role' })); });
   // bots: their role info becomes their knowledge, and maybe a claim
   for (const p of living()) if (!isHuman(p.id)) { const ni = G.nightInfo[p.id]; if (ni) learn(p, ni, 1.4); }
   G.timer = DAY_LEN; if (checkEnd()) return; G.ready = {}; forHumans(showDawn); saveGame(); }
-function startDay() { if (STRIG()) for (const p of living()) if (!isHuman(p.id) && p.bitten && !p.holy && team(p) === 'good' && rnd() < .6) p.goHoly = true;
+function startDay() { if (STRIG()) for (const p of living()) { if (!isHuman(p.id) && p.bitten && !p.holy && team(p) === 'good' && rnd() < .6) p.goHoly = true; if (!isHuman(p.id) && rnd() < .25) p.goStash = true; }
  for (const p of living()) if (p.role === 'scribe' && !isHuman(p.id)) { const t = topSus(p); const kept = t ? (isHuman(t.id) ? (G.cases[t.id] || []).filter(c => c.found && !c.shared) : (t.held || [])) : []; if (kept.length) learn(p, pick(kept), 1.2); }
   G.phase = 'day'; G.ready = {}; forHumans(hideModal); renderTop(); if (!G.demo) toastAll('The bell for Prime. Search the house before dusk.');
   // dawn talk: claims and info
@@ -1324,6 +1372,7 @@ function botThink(p, dt) {
   if (!p.alive || isHuman(p.id)) return;
   if (p.state === 'search') { p.st -= dt; if (p.st <= 0) { p.state = 'idle'; finishSearch(p, p.plan.spot); p.plan = null; } return; }
   if (p.path.length) return;
+  if (STRIG() && p.goStash && MAP.stash) { if (nearStash(p)) { p.goStash = false; stashBot(p); p.wait = 2 + rnd() * 3; return; } p.path = findPath(p.x, p.y, MAP.stash[0] + rnd() - .5, MAP.stash[1] + rnd() * .6); return; }
   if (p.goHoly) { if (roomAt(p.x, p.y) === 'chapel') { p.goHoly = false; takeHoly(p); p.wait = 3; return; } if (!p.holy && p.bitten) { const [tx, ty] = pointIn('chapel', .9); p.path = findPath(p.x, p.y, tx, ty); return; } p.goHoly = false; }
   if (p.plan && p.plan.spot && !p.plan.spot.searched && Math.hypot(p.x - p.plan.spot.x, p.y - p.plan.spot.y) < 1.1) { p.state = 'search'; p.st = SEARCH_T + 2; p.plan.spot.busy = p.id; face(p, p.plan.spot.x - p.x, p.plan.spot.y - p.y); return; }
   if (p.wait > 0) { p.wait -= dt; return; }
@@ -1336,6 +1385,7 @@ function botThink(p, dt) {
 }
 function finishSearch(p, s) { s.busy = null; if (s.searched) return; s.searched = true; s.by = p.id; p.searchN++;
   if (isHuman(p.id)) { asSeat(p.id, () => foundCard(s)); return; }
+  if (s.mat) { p.pack = p.pack || {}; for (const k in s.mat) p.pack[k] = (p.pack[k] || 0) + s.mat[k]; if (rnd() < .7) p.goStash = true; }
   const c = s.clue; if (!c) return;
   if (team(p) === 'evil') { if (c.set.some(id => team(G.players[id]) === 'evil') && s.evil) { s.taken = true; return; } later(2 + rnd() * 3, () => { if (p.alive) { say(p, `Found something: ${c.text}`); broadcast(c, p, 1, `Found something: ${c.text}`); } }); return; }
   learn(p, c, 1.3); if (rnd() < .3) { (p.held = p.held || []).push(c); return; } later(1.5 + rnd() * 3, () => { if (!p.alive) return; const line = `${pick(['Look here.', 'Brothers, listen.', 'I found this.'])} ${c.text}`; say(p, line); broadcast(c, p, 1, line); }); }
@@ -1511,7 +1561,7 @@ function doSearch() { const me = you(), s = nearSpot(); if (!s || !me.alive) ret
 function doExamine() { const b = nearBody(); if (!b || !you().alive) return; b.examined[G.you] = true; addCase(b.clues.all); if (you().role === 'infirm') addCase(b.clues.infirm); flash(`You kneel by ${G.players[b.id].short}.`); renderActs(); }
 // a faithful brother who finds something real hears a small chime: the rising fourth of the faithful's theme, on its cloister chimes
 function sfx(k) { if (remote()) return NETH() && NETH().toSeat(G.you, { t: 'sfx', k }); if (k === 'chime' && window.sfxChime) sfxChime(); }
-function foundCard(s) { const c = s.clue; if (!c) { flash(pick(EMPTY)); return; } addCase({ ...c, found: true }); modal(`<div class="hd"><span class="cap">F</span>ound</div><p class="big">${c.text}</p>${toLine(c.set)}<p class="sub">${team(you()) === 'evil' && c.set.includes(G.you) ? 'It points at you. No one else has seen it.' : 'Only you know this.'}</p>${team(you()) === 'good' ? `<p class="sub"><b>Tell the table</b> and everyone learns it, but so does he: you are marked, and the evil have the day to answer it. <b>Whisper</b> it to one brother. Or <b>keep it</b> and lay it before the Hearing, where it counts double.</p>` : ''}<div class="row wrap"><span class="btn ${team(you()) === 'evil' && c.set.includes(G.you) ? '' : 'go'}" data-share="${c.id}">Tell the table</span>${team(you()) === 'good' ? `<span class="btn" data-wlist="${c.id}">Whisper…</span>` : ''}<span class="btn ${team(you()) === 'evil' && c.set.includes(G.you) ? 'go' : ''}" data-close>${team(you()) === 'evil' ? 'Bury it' : 'Keep it for the Hearing'}</span></div>`, 'found'); }
+function foundCard(s) { const c = s.clue; if (!c && s.mat) { const me = you(); me.pack = me.pack || {}; for (const k in s.mat) me.pack[k] = (me.pack[k] || 0) + s.mat[k]; flash(`You find ${matStr(s.mat)}. Carry it to the stash at the worksite.`); renderActs(); return; } if (!c) { flash(pick(EMPTY)); return; } addCase({ ...c, found: true }); modal(`<div class="hd"><span class="cap">F</span>ound</div><p class="big">${c.text}</p>${toLine(c.set)}<p class="sub">${team(you()) === 'evil' && c.set.includes(G.you) ? 'It points at you. No one else has seen it.' : 'Only you know this.'}</p>${team(you()) === 'good' ? `<p class="sub"><b>Tell the table</b> and everyone learns it, but so does he: you are marked, and the evil have the day to answer it. <b>Whisper</b> it to one brother. Or <b>keep it</b> and lay it before the Hearing, where it counts double.</p>` : ''}<div class="row wrap"><span class="btn ${team(you()) === 'evil' && c.set.includes(G.you) ? '' : 'go'}" data-share="${c.id}">Tell the table</span>${team(you()) === 'good' ? `<span class="btn" data-wlist="${c.id}">Whisper…</span>` : ''}<span class="btn ${team(you()) === 'evil' && c.set.includes(G.you) ? 'go' : ''}" data-close>${team(you()) === 'evil' ? 'Bury it' : 'Keep it for the Hearing'}</span></div>`, 'found'); }
 
 // ---------------------------------------------------------------- what you do with what you know
 // Tell the table: everyone learns it, but he hears it too. You are marked, and in daylight the evil have the rest of the day to answer it.
@@ -1581,7 +1631,8 @@ function renderChat() { if (remote()) return; const me = G.you, W = myW(); if (W
 function openWhisper(k) { if (document.body.classList.contains('pad')) padTab('table'); if (TB.hid) tableToggle(); k = k === 'all' ? 'all' : +k; if (k !== 'all' && !CW.tabs.includes(k)) CW.tabs.push(k); CW.tab = k; delete CW.unread[k]; renderChat(); renderBrothers(); const i = $('chat').querySelector('input'); if (i) i.focus(); }
 document.addEventListener('click', e => { const tb = e.target.closest('[data-tbl],[data-allroles]'); if (tb) { e.stopPropagation(); if (tb.dataset.tbl) tableToggle(); else showRoles(); return; } const w = e.target.closest('[data-wsp],[data-ct]'); if (!w) return; e.stopPropagation(); openWhisper(w.dataset.wsp != null ? w.dataset.wsp : w.dataset.ct); }, true);
 function renderRole() { if (remote()) return; const me = you(), R = ROLES[me.role]; const ev = team(me) === 'evil', mate = ev && me.role !== 'empty' ? G.players.find(p => p.id !== me.id && team(p) === 'evil' && p.role !== 'husk') : null; $('role').innerHTML = `<div class="k" style="${ev ? 'color:#e05a4a' : ''}">${ev ? 'EVIL' : 'FAITHFUL'}${me.alive ? '' : ' · DEAD'}</div><span class="drop">${R.name[0]}</span><div class="t">${R.name.slice(1)}</div><p>${R.text}</p>${mate ? `<p class="sub">Your ${ROLES[mate.role].name}: <b style="color:${mate.col}">${mate.short}</b>. Bluff as the <b>${me.bluff}</b>.</p>` : ''}${me.claimed ? `<p class="sub">You have claimed ${ev ? 'to be the ' + me.claimed : 'your gift openly'}.</p>` : ''}<span class="allr" data-allroles="1" title="Every role in the house (R)">All roles</span>`; }
-function renderClock() { if (remote()) return; $('clockv').dataset.v = G.clock; clockCandle($('clockv'), G.clock, 8); const n = G.clock; $('clocknote').innerHTML = n >= 8 ? 'The candle has guttered. <b>He takes two every night.</b>' : n >= 7 ? `Notch ${n} of 8. <b>He hungers every night now.</b> At 8, twice a night.` : n >= 4 ? `Notch ${n} of 8. <b>He leaves no prints in the snow.</b> At 7 he hungers every night; at 8, twice.` : `Notch ${n} of 8. He hungers every second night. A notch each night, two if no one hangs; one back when evil hangs. At 4 he leaves no prints; at 7 he hungers every night.`; }
+function renderClock() { if (remote()) return; $('clockv').dataset.v = G.clock; clockCandle($('clockv'), G.clock, 8); const n = G.clock; $('clocknote').innerHTML = n >= 8 ? 'The candle has guttered. <b>He takes two every night.</b>' : n >= 7 ? `Notch ${n} of 8. <b>He hungers every night now.</b> At 8, twice a night.` : n >= 4 ? `Notch ${n} of 8. <b>He leaves no prints in the snow.</b> At 7 he hungers every night; at 8, twice.` : `Notch ${n} of 8. He hungers every second night. A notch each night, two if no one hangs; one back when evil hangs. At 4 he leaves no prints; at 7 he hungers every night.`;
+  if (STRIG() && G.town) $('clocknote').innerHTML += `<br><b>Walls ${townDef()}</b> · the dead tonight: about ${hordeSize((G.night || 0) + (G.phase === 'night' || G.phase === 'day' || G.phase === 'dusk' || G.phase === 'dawn' ? 1 : 0))}${G.town.last ? ` · last night ${G.town.last.n}` : ''}.`; }
 function renderTop() { if (remote()) return; const ph = { dawn: 0, day: 1, dusk: 2, night: 3, nightsim: 3, over: 3 }[G.phase] || 0; $('day').textContent = G.day ? `Day the ${ORD[G.day - 1]}` : 'The First Night'; document.querySelectorAll('#phases span').forEach((s, i) => s.classList.toggle('on', i === ph)); }
 // every role in the house, as illuminated cards. The set is the same every game, so showing it gives nothing away.
 const ROLE_ORDER = [['enemy', 1], ...TURNED.map(k => [k, 1]), ...['infirm', 'tracker', 'archiv', 'confess', 'grave', 'bell', 'watch', 'precent', 'prior', 'scribe', 'sacrist', 'penit', 'cellar', 'novice', 'lay'].map(k => [k, 1])];
@@ -1595,7 +1646,7 @@ const TB = { hid: false, unread: false, seen: 0 };
 function tableToggle() { TB.hid = !TB.hid; document.body.classList.toggle('notable', TB.hid); if (!TB.hid) TB.unread = false; renderActs(); if (!TB.hid) { renderChat(); const i = $('chat').querySelector('input'); if (i) i.focus(); } }
 function renderActs() { if (remote()) return; const me = you(); let h = '';
   if (G.phase === 'day') { const s = nearSpot(), b = nearBody();
-    if (me.alive) { h += me.state === 'search' ? `<span class="btn go">Searching…<small><i class="bar"><i style="width:${(1 - me.st / SEARCH_T) * 100}%"></i></i></small></span>` : `<span class="btn ${s ? 'go' : 'off'}" data-act="search">Search<small>${s ? 'here · E' : 'find a glint'}</small></span>`; h += `<span class="btn ${b ? 'go' : 'off'}" data-act="examine">Examine<small>${b ? G.players[b.id].short : 'a body'}</small></span>`; if (STRIG() && !me.holy) { const inC = roomAt(me.x, me.y) === 'chapel'; h += `<span class="btn ${inC ? '' : 'off'}" data-act="holy">Holy water<small>${inC ? (team(me) === 'evil' ? 'it would burn you' : 'once · all will see') : 'at the church'}</small></span>`; } }
+    if (me.alive) { h += me.state === 'search' ? `<span class="btn go">Searching…<small><i class="bar"><i style="width:${(1 - me.st / SEARCH_T) * 100}%"></i></i></small></span>` : `<span class="btn ${s ? 'go' : 'off'}" data-act="search">Search<small>${s ? 'here · E' : 'find a glint'}</small></span>`; h += `<span class="btn ${b ? 'go' : 'off'}" data-act="examine">Examine<small>${b ? G.players[b.id].short : 'a body'}</small></span>`; if (STRIG() && !me.holy) { const inC = roomAt(me.x, me.y) === 'chapel'; h += `<span class="btn ${inC ? '' : 'off'}" data-act="holy">Holy water<small>${inC ? (team(me) === 'evil' ? 'it would burn you' : 'once · all will see') : 'at the church'}</small></span>`; } if (STRIG() && G.town) { const ns = nearStash(me); h += `<span class="btn ${ns ? 'go' : ''}" data-stash="open">The stash<small>${ns ? (matStr(me.pack) ? 'put in what you carry' : 'build · take · log') : 'log · walls ' + townDef()}</small></span>`; } }
     else h += '<span class="btn off">You are dead<small>silent, but you keep one vote</small></span>';
     const rung = G.rang || {}, LH = humansNow().filter(id => G.players[id].alive), nr = LH.filter(id => rung[id]).length; h += rung[G.you] ? `<span class="btn off">Dusk rung<small>${nr} of ${LH.length} have rung</small></span>` : `<span class="btn" data-act="dusk">Ring for dusk<small>${LH.length > 1 ? (nr ? nr + ' of ' + LH.length + ' have rung' : 'when all have rung') : 'end the day'}</small></span>`; }
   if (!G.demo) h += `<span class="sep"></span><span class="btn tbl ${TB.hid ? '' : 'on'}" data-tbl="1" title="Show or hide the Table (C)"><svg width="16" height="14" viewBox="0 0 14 12"><path d="M1 1h12v7H6l-3 3V8H1z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>The Table<small>${TB.hid ? 'show · C' : 'hide · C'}</small>${TB.hid && TB.unread ? '<i class="udot"></i>' : ''}</span>`;
@@ -1614,6 +1665,7 @@ setInterval(cdTick, 200);
 function modal(html, cls = '') { G.lastModal[G.you] = { html, cls }; if (remote()) return NETH() && NETH().toSeat(G.you, { t: 'modal', html, cls }); const m = $('modal'); m.className = 'v p ' + cls; m.innerHTML = html; m.style.display = 'block'; $('veil').style.display = cls === 'found' ? 'none' : 'block'; $('pop').style.display = 'none'; document.body.classList.toggle('hear', cls === 'hear'); drawIcons(m); cdArm(m); if (document.body.classList.contains('pad') && PAD.tab !== 'hands') { const t = document.querySelector('#padbar [data-pt=hands]'); if (t) t.classList.add('ping'); } }
 function hideModal() { G.lastModal[G.you] = null; if (remote()) return NETH() && NETH().toSeat(G.you, { t: 'hide' }); $('modal').style.display = 'none'; $('veil').style.display = 'none'; document.body.classList.remove('hear'); }
 function showDawn() { renderAll(); const lg = G.nightLog, me = you(); let h = `<div class="hd" style="font-size:40px"><span class="cap">D</span>awn of the ${ORD[G.day - 1]} Day</div>`;
+  if (lg.horde) h += `<p class="big" style="color:${lg.horde.breach != null ? '#e05a4a' : '#b8c0a0'}">In the night ${lg.horde.n} of the dead came at the walls. ${lg.horde.breach != null ? `There were only ${lg.horde.def} to hold them: they came over.` : `The walls held (${lg.horde.def}).`}</p>`;
   if (lg.dead.length) h += lg.dead.map(id => `<p class="big"><i class="chip" style="background:${G.players[id].col}"></i> <b>${G.players[id].name}</b> lies dead in the ${RN(G.bodies.find(b => b.id === id).room)}.</p>`).join('');
   else h += `<p class="big">No one was taken in the night.${lg.protect != null ? ' Someone was watched over.' : ''}</p>`;
   if (me.diedDay === G.day) h += '<p class="big" style="color:#e05a4a">It was you. You walk the halls now as a ghost. The dead do not speak, but you keep one vote at the Hearing.</p>';
@@ -1675,7 +1727,7 @@ function renderAll() { if (remote()) return; if (G.screen) { renderTop(); render
 
 // clicks: things that only change this screen are done here; everything else is an action, run by the host as the seat that asked
 const LOCAL_ONLY = d => d.b != null || d.mark != null || d.wlist != null || d.close != null || d.go === 'menu' || d.go === 'swap';
-document.addEventListener('click', e => { const t = e.target.closest('[data-present],[data-wlist],[data-whisper],[data-share],[data-close],[data-go],[data-act],[data-b],[data-ask],[data-mark],[data-vote],[data-accuse],[data-room],[data-protect],[data-follow],[data-kill],[data-turn],[data-nom],[data-ring],[data-frame],[data-hush],[data-pardon],[data-scribe],[data-bite],[data-send],[data-thrall]'); if (!t) { if (!e.target.closest('#pop')) $('pop').style.display = 'none'; return; } const d = { ...t.dataset };
+document.addEventListener('click', e => { const t = e.target.closest('[data-present],[data-wlist],[data-whisper],[data-share],[data-close],[data-go],[data-act],[data-b],[data-ask],[data-mark],[data-vote],[data-accuse],[data-room],[data-protect],[data-follow],[data-kill],[data-turn],[data-nom],[data-ring],[data-frame],[data-hush],[data-pardon],[data-scribe],[data-bite],[data-send],[data-thrall],[data-stash]'); if (!t) { if (!e.target.closest('#pop')) $('pop').style.display = 'none'; return; } const d = { ...t.dataset };
   act(d); });
 // send an action to the host, or run it here
 function act(d) { const N = NETH(); if (N && N.guest && !LOCAL_ONLY(d)) { N.act(d); if (d.whisper || d.share) hideModal(); if (d.ask) $('pop').style.display = 'none'; return; } handle(d); }
@@ -1689,7 +1741,7 @@ function handle(d) { const me = G.you, h = G.hearing;
   if (d.wsay && canWhisper(me, +d.to)) { G.wchat.push({ from: me, to: +d.to, text: String(d.wsay).slice(0, 200).replace(/</g, '&lt;'), t: G.t }); if (G.wchat.length > 200) G.wchat.shift(); setTimeout(renderChat); }
   if (d.walk && G.phase === 'day') { const [x, y] = d.walk.split(',').map(Number), p = you(); if (p.state !== 'search' && isFinite(x) && isFinite(y)) { p.kdir = null; p.path = findPath(p.x, p.y, x, y); } }
   if (d.kdir != null) { const [x, y] = String(d.kdir).split(',').map(Number); you().kdir = x || y ? [x, y] : null; if (!(x || y) && you().state === 'walk' && !you().path.length) you().state = 'idle'; }
-  if (d.act === 'search') doSearch(); if (d.act === 'examine') doExamine(); if (d.act === 'holy') takeHoly(G.players[me]);
+  if (d.act === 'search') doSearch(); if (d.act === 'examine') doExamine(); if (d.act === 'holy') takeHoly(G.players[me]); if (d.stash) stashAct(G.players[me], d.stash);
   if (d.act === 'dusk' && G.phase === 'day') { G.rang = G.rang || {}; G.rang[me] = true; const L = humansNow().filter(id => G.players[id].alive), n = L.filter(id => G.rang[id]).length; if (n >= L.length) startHearing(); else { toastAll(`${who(me)} rings for dusk (${n} of ${L.length}).`); renderActs(); } }
   if (d.b) selectBrother(+d.b);
   if (d.ask) { askAlibi(+d.ask); if (!remote()) $('pop').style.display = 'none'; }
@@ -1942,7 +1994,7 @@ function renderScreen(force) { if (!G.screen) return; let el = $('scr'); if (!el
   else if (G.phase === 'night' && G.day === 0) h = `<div class="sc1"><span class="cap">T</span>he House is Dealt</div><p class="sc2">${ORDN(G.players.length)[0].toUpperCase() + ORDN(G.players.length).slice(1)} brothers, snowed in. One of them is not a brother at all. Look at your phone, and keep it to yourself.</p>${rdy()}`;
   else if (G.phase === 'night') h = `<div class="sc1"><span class="cap">C</span>ompline</div><p class="sc2">Choose on your phone where you will spend the night.</p>${rdy()}`;
   else if (G.phase === 'dawn') { const lg = G.nightLog || { dead: [] }; h = `<div class="sc1"><span class="cap">D</span>awn of the ${ORD[G.day - 1]} Day</div>${lg.dead.length ? lg.dead.map(id => { const b = G.bodies.find(q => q.id === id); return `<p class="sc2">${nm(id)} lies dead${b ? ' in the ' + RN(b.room) : ''}.</p>`; }).join('') : `<p class="sc2">No one was taken in the night.${lg.protect != null ? ' Someone was watched over.' : ''}</p>`}<p class="sc3">The candle burns to notch ${G.clock} of 8.</p>${rdy()}`; }
-  else if (G.phase === 'day') { const rung = G.rang || {}, LH = hs.filter(id => G.players[id].alive), nr = LH.filter(id => rung[id]).length; h = `<p class="sc2 one">Find your brother. Search the glints with your phone. ${LH.length ? `<b>${nr} of ${LH.length}</b> have rung for dusk.` : ''}</p>`; }
+  else if (G.phase === 'day') { const rung = G.rang || {}, LH = hs.filter(id => G.players[id].alive), nr = LH.filter(id => rung[id]).length; h = `<p class="sc2 one">Find your brother. Search the glints with your phone. ${LH.length ? `<b>${nr} of ${LH.length}</b> have rung for dusk.` : ''}${STRIG() && G.town ? ` Walls <b>${townDef()}</b>, the dead tonight about <b>${hordeSize((G.night || 0) + 1)}</b>.` : ''}</p>`; }
   else if (G.phase === 'dusk' && G.hearing) { const H = G.hearing, need = Math.ceil(living().length / 2);
     if (H.result) { const r = H.result; h = `<div class="sc1"><span class="cap">T</span>he Hearing</div>` + (r.hanged != null ? `<p class="sc2">${nm(r.hanged)} is hanged in the cloister.</p>` : `<p class="sc2">${H.acc.some(a => a.out === 'spared') ? 'He is spared.' : H.nomFail === 'tie' ? 'The names are split; no one goes up.' : 'Too few name anyone; no one goes up.'} No one hangs: the candle burns twice tonight.</p>`) + rdy(); }
     else if (H.stage === 'nom') { const T = nomTally(); h = `<div class="sc1"><span class="cap">T</span>he Hearing</div><p class="sc2">${H.round === 1 ? 'Who should go up before the brothers?' : 'He is spared. One more may go up.'} Name him on your phone.</p><div class="sct">${T.length ? T.map(([id, by]) => `<span>${nm(id)} · ${by.length}</span>`).join('') : '<span class="n">no one named yet</span>'}</div>${rdy()}`; }
@@ -1992,7 +2044,7 @@ async function loadMap(key, first) { key = MAPS[key] ? key : 'monastery'; if (MA
 // a new game on this machine (alone, or as the host): deal the brothers, warm their sprites, show each human his role
 function newGame(opt) { seed = opt.seed || seed; G.opt = opt; G.demo = !!opt.demo; document.body.classList.toggle('demo', G.demo); Object.assign(VIEW, { fogOff: G.demo, noRing: G.demo, cine: G.demo, camT: null, extra: [] }); Object.assign(G, { day: 0, phase: 'night', clock: 0, spots: [], bodies: [], prints: [], chat: [], timer: 0, sel: null, hearing: null, over: null, log: [], night: 0, noHang: false, timers: [], nightLog: null, nightInfo: {}, lastHanged: null,
     humans: opt.humans || [0], away: {}, names: opt.names || {}, cases: {}, nightChoices: {}, ready: {}, lastModal: {}, rang: {}, inheritNote: false, wchat: [] }); LOCAL = 0; G.you = 0; G.screen = !!opt.screen; if (G.screen) { LOCAL = -1; G.you = -1; } document.body.classList.toggle('screen', G.screen); SCR.k = ''; Object.assign(CW, { tab: 'all', tabs: [], unread: {}, seen: 0 });
-  turnTexts(); makeBrothers(); for (const p of G.players) { [p.x, p.y] = pointIn('dorm'); p.night = 'dorm'; }
+  turnTexts(); G.town = STRIG() ? TOWN0() : null; makeBrothers(); for (const p of G.players) { [p.x, p.y] = pointIn('dorm'); p.night = 'dorm'; }
   warmAll(); hideModal(); VISK = ''; renderAll(); forHumans(showIntro); saveGame(); }
 // behind the menu: the house going about its day, nobody's eyes, the camera drifting
 function demoGame() { newGame({ demo: true, humans: [], seed: (Date.now() % 2147483000) + 1 }); G.headless = true; simulateNight({}); G.headless = false; startDay(); G.timer = 1e9; G.demoT = 0; VIEW.camT = MAP.center.slice(); }
@@ -2065,8 +2117,8 @@ function pub() { return { ph: G.phase === 'cine' ? 'nightsim' : G.phase, day: G.
   pl: G.players.map(p => [Math.round(p.x * 100) / 100, Math.round(p.y * 100) / 100, p.face, p.state, Math.round(p.dist * 100) / 100, p.alive ? 1 : 0, p.claimed, Math.round((p.heard || 0) * 10) / 10, p.diedDay || 0, p.ghostVote ? 1 : 0, Math.round((p.st || 0) * 10) / 10]) }; }
 function heavy(seat) { const me = G.players[seat], ev = me.role && HGAME.ROLES[me.role].team === 'evil';
   return { spots: JSON.stringify(G.spots.map(s => [s.x, s.y, s.searched ? 1 : 0, s.busy != null ? 1 : 0, s.room])), prints: JSON.stringify(G.prints), bodies: JSON.stringify(G.bodies.map(b => ({ id: b.id, x: b.x, y: b.y, room: b.room, face: b.face, examined: b.examined }))),
-    chat: JSON.stringify(G.chat), wch: JSON.stringify((G.wchat || []).filter(m => m.from === seat || m.to === seat)), hearing: JSON.stringify(G.hearing), table: JSON.stringify({ rang: G.rang || {}, ready: G.ready, names: G.names, humans: G.humans, away: G.away, inherit: G.inheritNote }),
-    mine: JSON.stringify({ role: me.role, wasRole: me.wasRole, bluff: me.bluff, inherited: me.inherited, mates: ev && me.role !== 'empty' ? G.players.filter(p => p.id !== seat && HGAME.ROLES[p.role].team === 'evil').map(p => [p.id, p.role]) : [], cases: G.cases[seat] || [], over: G.over ? G.players.map(p => p.role) : null }) }; }
+    chat: JSON.stringify(G.chat), wch: JSON.stringify((G.wchat || []).filter(m => m.from === seat || m.to === seat)), hearing: JSON.stringify(G.hearing), town: JSON.stringify(G.town || null), table: JSON.stringify({ rang: G.rang || {}, ready: G.ready, names: G.names, humans: G.humans, away: G.away, inherit: G.inheritNote }),
+    mine: JSON.stringify({ pack: me.pack || {}, role: me.role, wasRole: me.wasRole, bluff: me.bluff, inherited: me.inherited, mates: ev && me.role !== 'empty' ? G.players.filter(p => p.id !== seat && HGAME.ROLES[p.role].team === 'evil').map(p => [p.id, p.role]) : [], cases: G.cases[seat] || [], over: G.over ? G.players.map(p => p.role) : null }) }; }
 function snapTo(seat, all) { const pid = H.seatPeer[seat]; if (!pid) return; const L = H.last[seat] || (H.last[seat] = {}), hv = heavy(seat), out = { t: 'snap', pub: H.pubNow };
   for (const k in hv) if (all || L[k] !== hv[k]) { out[k] = hv[k]; L[k] = hv[k]; } send(pid, out); }
 H.tick = dt => { if (H.guest) return guestTick(dt); if (!H.host || !H.started) return; H.snapT += dt; if (H.snapT < .1) return; H.snapT = 0;
@@ -2123,9 +2175,9 @@ function guestSnap(m) { const P = m.pub; if (!P) return; H.pub = P; const cine =
   if (m.bodies && !cine) G.bodies = JSON.parse(m.bodies);
   if (m.chat) { G.chat = JSON.parse(m.chat); re = true; }
   if (m.wch) { G.wchat = JSON.parse(m.wch); re = true; }
-  if (m.hearing) G.hearing = JSON.parse(m.hearing);
+  if (m.hearing) G.hearing = JSON.parse(m.hearing); if (m.town) { G.town = JSON.parse(m.town); re = true; }
   if (m.table) { const T = JSON.parse(m.table); G.rang = T.rang; G.ready = T.ready; G.names = T.names; G.humans = T.humans; G.away = T.away; G.inheritNote = T.inherit; re = true; }
-  if (m.mine) { const M = JSON.parse(m.mine), me = G.players[H.seat]; me.role = M.role; me.wasRole = M.wasRole; me.bluff = M.bluff; me.inherited = M.inherited; for (const p of G.players) if (p.id !== H.seat && !M.over) p.role = 'unknown'; for (const [id, r] of M.mates) G.players[id].role = r; if (M.over) M.over.forEach((r, i) => G.players[i].role = r); G.cases[H.seat] = M.cases; re = true; }
+  if (m.mine) { const M = JSON.parse(m.mine), me = G.players[H.seat]; me.pack = M.pack; me.role = M.role; me.wasRole = M.wasRole; me.bluff = M.bluff; me.inherited = M.inherited; for (const p of G.players) if (p.id !== H.seat && !M.over) p.role = 'unknown'; for (const [id, r] of M.mates) G.players[id].role = r; if (M.over) M.over.forEach((r, i) => G.players[i].role = r); G.cases[H.seat] = M.cases; re = true; }
   if (re || m.spots) { HGAME.renderAll(); if (document.body.classList.contains('pad')) HGAME.padHead(); } }
 function guestTick(dt) { for (const p of G.players) if (p.tx != null && G.phase !== 'cine') { const k = Math.min(1, dt * 10); p.x += (p.tx - p.x) * k; p.y += (p.ty - p.y) * k; } }
 function guestLost() { if (!H.started) { H.msg = 'The host has gone.'; H.hostPeer = null; MENU.draw(); return; }
