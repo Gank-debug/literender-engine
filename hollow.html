@@ -1042,7 +1042,7 @@ new MutationObserver(ms => { if (!MAP.words) return; for (const m of ms) { if (m
 // greater numbers; if they outnumber the defences, they come over and take someone. Rope and timber can also bar your own door.
 const BUILDS = { pal: { name: 'Palisade section', cost: { timber: 2, rope: 1 }, def: 2 }, spikes: { name: 'Spikes in the ditch', cost: { nails: 2, timber: 1 }, def: 2 },
   gate: { name: 'Gate bar', cost: { timber: 3, nails: 2 }, def: 4, once: 1 }, fire: { name: 'Pitch fires on the wall (tonight only)', cost: { pitch: 2 }, def: 3, tonight: 1 } };
-const TOWN0 = () => ({ stash: { timber: 2, nails: 1, rope: 1, pitch: 0 }, log: [], built: {}, def: 6, fire: 0, last: null });
+const TOWN0 = () => ({ stash: { timber: 2, nails: 1, rope: 1, pitch: 0 }, log: [], built: {}, def: 8, fire: 0, last: null });
 const townDef = () => G.town ? G.town.def + (G.town.fire ? BUILDS.fire.def : 0) : 0;
 const hordeSize = n => Math.round((4 + (n - 1) * 4.6 + G.clock) * (+QS.get('hz') || MAP.hz || 1));
 const matStr = o => Object.entries(o || {}).filter(([, v]) => v).map(([k, v]) => `${v} ${k}`).join(', ');
