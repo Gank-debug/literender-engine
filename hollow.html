@@ -1798,6 +1798,9 @@ function frame() {
     if (p.hidden) continue; list.push({ d: p.x + p.y, f: () => { const pose = p.poseO || (p.state === 'walk' ? 'walk' : p.state === 'search' ? 'work' : 'idle'), fr = p.frO != null ? p.frO : pose === 'walk' ? Math.floor(p.dist * 2.2) % 4 : pose === 'work' ? Math.floor(tt * 3) % 2 : Math.floor(tt / 1.6 + p.id) % 2; blit(img, spr(nightO(p), p.face, pose, fr), p.x, p.y, p.x + p.y + .6, ghost ? [.7, .8, 1.1] : (VIEW.extra && VIEW.extra.length ? lightAt(p.x, p.y).map(v => v * VIEW.auraAt(p.x, p.y)) : lightAt(p.x, p.y)).map(v => nightDim(p) ? Math.min(.16, v * .14) : v), ghost ? .4 : 1); } }); }
   for (const e of (VIEW.extra || [])) if (e.dark) { const [cx, cy] = isoP(e.x, e.y, 18), R = e.dark * 10 * (e.fade == null ? 1 : .55 + .45 * Math.min(1, e.fade * 1.6)), k0 = (e.depth == null ? .82 : e.depth) * (e.fade == null ? 1 : Math.min(1, e.fade * 1.6));
     for (let Y = Math.max(0, cy - R | 0); Y < Math.min(VIEW.H, cy + R); Y++) for (let X = Math.max(0, cx - R | 0); X < Math.min(W, cx + R); X++) { const dx = (X - cx) / R, dy = (Y - cy) / (R * .75), d = dx * dx + dy * dy; if (d >= 1) continue; const f = 1 - k0 * Math.pow(1 - d, 1.4), o = (Y * W + X) * 4; D[o] *= f; D[o + 1] *= f; D[o + 2] *= f * 1.04; } }
+  // the Walls: beyond the stakes it is black; the further out, the blacker
+  if (VIEW.outDark) { const oy = VIEW.outDark, sc = VIEW.scale, x0 = Math.max(0, VIEW.cam[0] - 4 | 0), y0 = Math.max(0, VIEW.cam[1] - 4 | 0), x1 = Math.min(W, x0 + cv.width / sc + 10 | 0), y1 = Math.min(VIEW.H, y0 + cv.height / sc + 10 | 0);
+    for (let Y = y0; Y < y1; Y++) for (let k = Y * W + x0, e = Y * W + x1; k < e; k++) { const c = CELLPX[k], cy = c < 0 ? oy + 9 : (c / GW | 0) * CS; if (cy <= oy) continue; const f = Math.max(.07, .55 - (cy - oy) * .22), o = k * 4; D[o] *= f; D[o + 1] *= f; D[o + 2] *= f; } }
   VIEW.auraAt = (x, y) => { let f = 1; for (const e of (VIEW.extra || [])) if (e.dark) { const d = Math.hypot(x - e.x, y - e.y) / (e.dark * .55); if (d < 1) f *= 1 - .75 * (1 - d) * (1 - d); } return f; };
   for (const e of (VIEW.extra || [])) list.push({ d: e.x + e.y, f: () => (e.fade != null && e.fade < 1) ? blitFade(img, e.s, e.x, e.y, e.x + e.y + .6, e.lt || lightAt(e.x, e.y), e.fade) : blit(img, e.s, e.x, e.y, e.x + e.y + .6, e.lt || lightAt(e.x, e.y), e.a == null ? 1 : e.a) });
   list.sort((a, b) => a.d - b.d).forEach(o => o.f());
@@ -2144,7 +2147,7 @@ const NIGHT = (() => {
     // wear the clothes of the town's own dead. The walls hold, or they give at the gate and the dead come through.
     if (STRIG() && lg.horde && MAP.G && window.TKIT) { const H = lg.horde, WL = MAP.G.WALL, GT = MAP.G.GATE, wy = WL[3], gone = G.players.filter(p => !p.alive && !lg.dead.includes(p.id)), breach = H.breach != null;
       const N = Math.min(34, Math.max(9, Math.round(H.n * 1.1))), r = k => hs(k * 7 + G.night * 31, 3);
-      out.push({ len: breach ? 10 : 9, init() { VIEW.fogOff = true; VIEW.camT = [(GT[0] + GT[1]) / 2 - .5, wy + .5];
+      out.push({ len: breach ? 10 : 9, init() { VIEW.fogOff = true; VIEW.outDark = wy + .35; VIEW.camT = [(GT[0] + GT[1]) / 2 - .5, wy + .5];
           this.d = Array.from({ length: N }, (_, k) => { const x = (GT[0] + GT[1]) / 2 + (r(k) - .5) * 26, gate = breach && k < 6, tx = gate ? GT[0] + .6 + r(k + 50) * (GT[1] - GT[0] - 1.2) : x + (r(k + 9) - .5) * 1.5, ty = gate ? wy - 3 - r(k + 70) * 3 : wy + .7 + r(k + 3) * .8;
             const wear = gone.length && r(k + 90) < .35 ? gone[k % gone.length] : null;
             return { x, y: wy + 3.2 + r(k + 5) * 1.6, tx, ty, gate, sp: .55 + r(k + 11) * .35, delay: r(k + 13) * 2.8, face: 0, f: 0, seed: k, wear, at: false }; }); },
@@ -2154,9 +2157,9 @@ const NIGHT = (() => {
               if (dd > .1) { const m = Math.min(dd, d.sp * dt); d.x += dx / dd * m; d.y += dy / dd * m; d.face = faceOf(dx, dy); d.f += m * 2.4; d.at = false; } else d.at = true; }
             const sway = d.at ? Math.sin(t * 3 + d.seed) * .06 : 0, fr = Math.floor(d.f) % 4, lt = lightAt(d.x, d.y);
             const sp = d.wear ? spr(d.wear.o, d.face, d.at ? 'idle' : 'walk', d.at ? 0 : fr) : TKIT.dead('neighbour', d.face, d.at ? 'idle' : 'walk', d.at ? (Math.floor(t * 4 + d.seed) % 4) : fr, d.seed);
-            L.push({ s: sp, x: d.x + sway, y: d.y, lt: d.wear ? lt.map((q, i) => q * [.55, .66, .55][i]) : lt }); }
+            const dk = d.y > wy + .35 ? Math.max(.1, .6 - (d.y - wy - .35) * .25) : 1; L.push({ s: sp, x: d.x + sway, y: d.y, lt: (d.wear ? lt.map((q, i) => q * [.55, .66, .55][i]) : lt).map(q => q * dk) }); }
           VIEW.extra = L; if (breach && t > 5.6) OV.red = Math.max(OV.red, Math.min(.45, (t - 7.6) * .3)); OV.fade = Math.max(OV.fade, (t - (breach ? 8.8 : 7.8)) * 1.1); },
-        end() { VIEW.extra = []; VIEW.fogOff = false; OV.red = 0; } }); }
+        end() { VIEW.extra = []; VIEW.fogOff = false; VIEW.outDark = null; OV.red = 0; } }); }
     // ---- Lauds
     out.push({ len: 2.4, init() {}, tick() { OV.fade = 1; OV.cap = 'Lauds'; OV.sub = 'The bell is rung.'; }, end() {} });
     return out; }
