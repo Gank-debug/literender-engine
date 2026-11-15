@@ -2140,6 +2140,23 @@ const NIGHT = (() => {
           if (h > 2.2) { OV.red = Math.max(0, .85 - (h - 2.2) * 1.4); OV.fade = h < 3 ? .55 : Math.min(1, .55 + (h - 3) * 1.2); } },
         end() { if (window.musicTake) musicTake('off'); VIEW.extra = []; VIEW.fogFrom = null; candle(v, false); v.cineAlive = false; if (body) body.cineHide = false; kneel(v, false); OV.red = 0; OV.dim = 0; OV.candle = .3; } });
       if (lg.targets.length > 1) out.push({ len: 2.6, init() {}, tick() { OV.fade = 1; OV.cap = 'And again, before Lauds.'; OV.sub = ''; }, end() {} }); }
+    // ---- the Walls (the town): the dead come out of the dark beyond the gate in the night's numbers and press at the stakes; some of them
+    // wear the clothes of the town's own dead. The walls hold, or they give at the gate and the dead come through.
+    if (STRIG() && lg.horde && MAP.G && window.TKIT) { const H = lg.horde, WL = MAP.G.WALL, GT = MAP.G.GATE, wy = WL[3], gone = G.players.filter(p => !p.alive && !lg.dead.includes(p.id)), breach = H.breach != null;
+      const N = Math.min(34, Math.max(9, Math.round(H.n * 1.1))), r = k => hs(k * 7 + G.night * 31, 3);
+      out.push({ len: breach ? 10 : 9, init() { VIEW.fogOff = true; VIEW.camT = [(GT[0] + GT[1]) / 2 - .5, wy + .5];
+          this.d = Array.from({ length: N }, (_, k) => { const x = (GT[0] + GT[1]) / 2 + (r(k) - .5) * 26, gate = breach && k < 6, tx = gate ? GT[0] + .6 + r(k + 50) * (GT[1] - GT[0] - 1.2) : x + (r(k + 9) - .5) * 1.5, ty = gate ? wy - 3 - r(k + 70) * 3 : wy + .7 + r(k + 3) * .8;
+            const wear = gone.length && r(k + 90) < .35 ? gone[k % gone.length] : null;
+            return { x, y: wy + 3.2 + r(k + 5) * 1.6, tx, ty, gate, sp: .55 + r(k + 11) * .35, delay: r(k + 13) * 2.8, face: 0, f: 0, seed: k, wear, at: false }; }); },
+        tick(dt) { OV.cap = 'The Walls'; OV.fade = Math.max(0, 1 - t * 2); const L = [];
+          OV.sub = t < 2.6 ? `Out past the gate, in the dark: ${H.n} of the dead.` : t < 5.6 ? 'They come to the stakes, and they lean on them, and they push.' : breach ? 'At the gate, something gives.' : `The walls hold (${H.def}). At first light they go back into the dark.`;
+          for (const d of this.d) { if ((d.delay -= dt) <= 0) { const gx = breach && d.gate && t > 5.6 ? d.tx : d.tx, gy = d.gate && !(breach && t > 5.6) ? wy + .8 : d.ty, dx = gx - d.x, dy = gy - d.y, dd = Math.hypot(dx, dy);
+              if (dd > .1) { const m = Math.min(dd, d.sp * dt); d.x += dx / dd * m; d.y += dy / dd * m; d.face = faceOf(dx, dy); d.f += m * 2.4; d.at = false; } else d.at = true; }
+            const sway = d.at ? Math.sin(t * 3 + d.seed) * .06 : 0, fr = Math.floor(d.f) % 4, lt = lightAt(d.x, d.y);
+            const sp = d.wear ? spr(d.wear.o, d.face, d.at ? 'idle' : 'walk', d.at ? 0 : fr) : TKIT.dead('neighbour', d.face, d.at ? 'idle' : 'walk', d.at ? (Math.floor(t * 4 + d.seed) % 4) : fr, d.seed);
+            L.push({ s: sp, x: d.x + sway, y: d.y, lt: d.wear ? lt.map((q, i) => q * [.55, .66, .55][i]) : lt }); }
+          VIEW.extra = L; if (breach && t > 5.6) OV.red = Math.max(OV.red, Math.min(.45, (t - 7.6) * .3)); OV.fade = Math.max(OV.fade, (t - (breach ? 8.8 : 7.8)) * 1.1); },
+        end() { VIEW.extra = []; VIEW.fogOff = false; OV.red = 0; } }); }
     // ---- Lauds
     out.push({ len: 2.4, init() {}, tick() { OV.fade = 1; OV.cap = 'Lauds'; OV.sub = 'The bell is rung.'; }, end() {} });
     return out; }
