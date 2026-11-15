@@ -1282,15 +1282,24 @@ const scene = function (t = 0, N = 4) {
       else c = plank(x, y, n, r === CANTEEN || r === BANK ? 1 : .8, r !== CANTEEN && r !== BANK);
       const ao = Math.min(x - r[0], y - r[1]); return [ao < 1 ? sh(c, .62 + ao * .38) : c, 1]; }
     let road = 9; for (const [a, b] of ROADS) road = Math.min(road, segd(x, y, a, b)); const mud = vn(x * .45 + 5, y * .45);
+    if (inside && L.d2n) { let c = mix(sh(DUST, .8 + n * .18), sh(SAND, .85 + n * .15), vn(x * .5, y * .5));
+      if (road < 1.4) { c = mix(c, sh([150, 116, 80], .8 + n * .2), .7); if (Math.abs(road - .7) < .12) c = sh(c, .72); }
+      if (vn(x * 1.3 + 7, y * 1.3) > .8) c = mix(c, [120, 104, 82], .5); if (vn(x * .7 + 40, y * .7) > .7) c = mix(c, sh([110, 100, 70], .8 + n * .2), .5);
+      const ao = Math.min(x - WALL[0], y - WALL[1]); if (ao < 1.2) c = sh(c, .6 + ao * .33); return [c, 0]; }
     if (inside) { const cx = x * 2.4 + (Math.floor(y * 2.4) % 2) * .5, cy = y * 2.4, dx = cx - Math.floor(cx) - .5, dy = cy - Math.floor(cy) - .5, rr = Math.hypot(dx, dy);
       let c = rr < .4 ? sh([150, 142, 126], .75 + hs(Math.floor(cx), Math.floor(cy)) * .3 - rr * .5 + (dy < -.15 ? .12 : 0)) : [58, 50, 42];
       const lane = road < 1.5; if (!lane) c = mix(c, sh([110, 88, 62], .8 + n * .25), Math.min(1, Math.max(0, (mud - .42) * 4)));     // off the lanes the cobbles drown in mud
       if (!lane && vn(x * .7 + 40, y * .7) > .6) c = mix(c, sh([62, 72, 42], .7 + n * .25), .75);                                  // grass taking it back
       if (!lane && mud > .84) return [[40, 50, 52], 0];                                                                         // standing water
+      if (L.plaza) { const pd = Math.hypot((x - L.plaza[0]) * .8, y - L.plaza[1]) - L.plaza[2] + (vn(x * .8, y * .8) - .5) * 1.2; if (pd < 0) c = mix(c, sh([146, 120, 86], .78 + n * .22 + (Math.sin(x * 3.1 + y * 1.3) > .93 ? -.15 : 0)), Math.min(.85, -pd * .8)); }
       const ao = Math.min(x - WALL[0], y - WALL[1]); if (ao < 1.2) c = sh(c, .6 + ao * .33); return [c, 0]; }
     const fur = Math.abs(Math.sin((x + y * .15) * 2.6)), g = vn(x * 2.1 + 11, y * 2.1), near = Math.min(x - WALL[0] + 4, y - WALL[1] + 4, WALL[2] + 5 - x, WALL[3] + 6 - y) > 0;
     let c = mix(sh([104, 94, 64], .74 + n * .25), sh([66, 54, 38], .8 + n * .2), fur > .75 ? .8 : .2 + g * .2); if (!near) c = sh(mix(c, [40, 38, 30], .5), .7);
     let wr = 9; for (const [a, b] of M.paths) wr = Math.min(wr, segd(x, y, a, b)); for (const q of M.pois) wr = Math.min(wr, Math.hypot(x - q.x, y - q.y) - q.r + 1);
+    if (L.d2n) { const du = Math.sin(x * .32 + Math.sin(y * .21) * 2.2) * .5 + .5, rip = Math.sin((x * 1.7 + y * .9) * 2.4 + vn(x * .3, y * .3) * 3) > .97, far = Math.max(0, Math.max(WALL[0] - 3 - x, WALL[1] - 3 - y, x - WALL[2] - 3, y - WALL[3] - 5)) * .012;
+      c = mix(sh(SAND, .76 + n * .14), sh(OCHRE, .68 + n * .12), du * .55); if (rip) c = sh(c, .86); if (vn(x * .9 + 3, y * .9) > .82) c = mix(c, [120, 104, 86], .55); c = sh(c, 1 - Math.min(.25, far));
+      if (wr < 1.1 + (vn(x * 1.3, y * 1.3) - .5) * .5 || (road < 1.2 && y > WALL[3] && y < WALL[3] + 7)) c = mix(c, sh([140, 112, 80], .82 + n * .2), .6);
+      const dp = Math.hypot((x - 12.5) * .8, y - 64); if (dp < 2.6) c = dp < 1.7 ? sh([34, 30, 28], .9 + n * .2) : mix(c, [196, 194, 182], .7 - (dp - 1.7) * .6); return [c, 0]; }
     if (road < 1.3 + (vn(x, y) - .5) * .5 && y > WALL[3] && y < WALL[3] + 6) c = mix(c, sh([96, 78, 56], .85 + n * .2), .8);
     const fo = Math.max(WALL[0] - 2 - x, WALL[1] - 2 - y, x - WALL[2] - 2, y - WALL[3] - 4); if (fo > 0) { let f2 = mix(sh([46, 42, 30], .7 + n * .3), sh([40, 54, 34], .7 + n * .3), g); c = mix(c, sh(f2, Math.max(.8, 1 - fo * .01)), Math.min(1, fo * .6)); if (wr < 1.1 + (vn(x * 1.3, y * 1.3) - .5) * .5) c = mix(c, sh([74, 62, 44], .75 + n * .2), .7); }
     const dp = Math.hypot((x - 12.5) * .8, y - 64); if (dp < 2.6) c = dp < 1.7 ? sh([34, 30, 28], .9 + n * .2) : mix(c, [196, 194, 182], .7 - (dp - 1.7) * .6);   // the lime pit
@@ -1299,7 +1308,9 @@ const scene = function (t = 0, N = 4) {
   P.sight = []; let tk = 0; for (let y = -3; y < 76; y += 1.5) for (let x = -3; x < 52; x += 1.5) { const jx = x + (hs(tk, 1) - .5) * 1.2, jy = y + (hs(tk, 2) - .5) * 1.2; tk++;
     const out = jx < WALL[0] - (window.__TC || 2.2) || jy < WALL[1] - (window.__TC || 2.2) || jx > WALL[2] + 2.2 || jy > WALL[3] + 4.4; if (!out || hs(tk, 5) < .22) continue;
     let wr = 9; for (const [a, b] of M.paths) wr = Math.min(wr, segd(jx, jy, a, b)); if (wr < 1.7) continue; if (M.pois.some(q => Math.hypot(jx - q.x, jy - q.y) < q.r + .6)) continue; if (jy > WALL[3] && jy < WALL[3] + 5.6 && jx > WALL[0] - 2 && jx < WALL[2] + 2) continue;
-    tree(jx, jy, tk); if (jx > 1 && jx < 47 && jy > 1 && jy < 71.6) { block(jx - .35, jy - .35, .7, .7); P.sight.push([jx, jy]); } }
+    if (L.d2n) { if (hs(tk, 9) < .35) continue; const kind = hs(tk, 11); if (kind < .5) deadTree(jx, jy, tk, 22 + hs(tk, 12) * 22); else if (kind < .85) { const w = .6 + hs(tk, 13) * .7, d2 = .5 + hs(tk, 14) * .6, h = 5 + hs(tk, 15) * 9; add(jx + jy + .5, () => { S.E = 0; box(jx - w / 2, jy - d2 / 2, 0, w, d2, h, sh([112, 98, 78], .8), (u, z) => sh(stone(u, z, [[124, 108, 84], [110, 96, 76], [98, 86, 70]], 6, 3), .75), (u, z) => sh(stone(u, z, [[124, 108, 84], [110, 96, 76], [98, 86, 70]], 6, 3), .55)); }); }
+      else { for (let i = 0; i < 3; i++) low(jx - .7 + i * .5, jy, .5, .5, 4 + hs(tk + i, 3) * 16, STN, [150, 140, 124]); } }
+    else tree(jx, jy, tk); if (jx > 1 && jx < 47 && jy > 1 && jy < 71.6) { block(jx - .35, jy - .35, .7, .7); P.sight.push([jx, jy]); } }
   for (let i = 0; i < 6; i++) deadTree(-1 - hs(i, 1) * 2.4, 2 + i * 7, i + 3, 46); drawAll();
   S.Z = 1;
   OFF('CHURCH');
@@ -1326,11 +1337,22 @@ const scene = function (t = 0, N = 4) {
   OFF('null');
   // ---- the houses: one for each, plank walls and tin roofs, a door, a cot inside
   const MARK = [1, 4, 8, 10], XMARK = u => ({ u, z: 6, w: 13, h: 15, f: (a, c) => { a |= 0; c |= 0; const d1 = Math.abs(a - 6 - (c - 7) * .8), d2 = Math.abs(a - 6 + (c - 7) * .8); return d1 < 1.2 || d2 < 1.2 ? sh([150, 28, 26], .85 + hs(a, c) * .2) : null; } });
-  HOUSES.forEach((r, i) => { const lg = i % 3 === 1, W1 = lg ? logW(i + 11, 30) : plankW(i + 11, 30), W2 = lg ? logW(i + 31, 30) : plankW(i + 31, 30), RF = lg ? mossy : thatch; backN(r, 30, W1, [...(MARK.includes(i) ? [XMARK(8)] : [])], RF); backW(r, 30, W2, [], RF);
+  // cottages (Die2Nite-style homes, closed): walls all round, a door and a lit window, a stepped thatch roof and a chimney
+  if (L.cottage) HOUSES.forEach((r, i) => { const lg = !L.d2n && i % 3 === 1, W1 = lg ? logW(i + 11, 30) : L.d2n && i % 2 ? plankOld(i + 11) : plankW(i + 11, 30), W2 = lg ? logW(i + 31, 30) : plankW(i + 31, 30), RF = L.d2n ? (i % 2 ? tinOld : thatch) : lg ? mossy : thatch, lit = hs(i, 41) < .6;
+    const doorF = (u, z) => { if (u > 11 && u < 27 && z < 22) return (u < 12.5 || u > 25.5 || z > 20.5) ? sh(TIMD, .7) : sh([86, 62, 42], .75 + (Math.floor(u / 3) % 2 ? .1 : 0) + (Math.abs(u - 23) < 1 && Math.abs(z - 11) < 1 ? .5 : 0));
+      if (u > 30 && u < 37 && z > 11 && z < 21) return (u < 31 || u > 36 || z < 12 || z > 20 || Math.abs(u - 33.5) < .6 || Math.abs(z - 16) < .6) ? sh(TIMD, .7) : lit ? [226, 170, 92] : [30, 32, 36];
+      if (MARK.includes(i) && u > 2 && u < 9 && z > 6 && z < 26) { const d1 = Math.abs(u - 5.5 - (z - 16) * .35), d2 = Math.abs(u - 5.5 + (z - 16) * .35); if (d1 < .9 || d2 < .9) return [150, 28, 26]; } return W1(u, z); };
+    const sideF = (u, z) => (u > 14 && u < 22 && z > 11 && z < 21) ? ((u < 15 || u > 21 || z < 12 || z > 20 || Math.abs(u - 18) < .6) ? sh(TIMD, .7) : lit ? [210, 156, 84] : [30, 32, 36]) : sh(W2(u, z), .9);
+    add(r[2] + r[3] - .2, () => { S.E = 0; box(r[0], r[1], 0, 4, 4, 30, [70, 56, 40], doorF, sideF);
+      box(r[2] - 1.3, r[1] + .5, 30, .7, .7, 34, null, (u, z) => sh(stone(u, z, STN, 4, 3), .8), (u, z) => sh(stone(u, z, STN, 4, 3), .65));
+      for (let k = 0; k < 9; k++) { const dd = 4.8 - k * .56, y0 = r[1] - .4 + k * .28; box(r[0] - .22, y0, 30 + k * 3.4, 4.44, dd, 3.4, RF, (u, z) => sh(RF(u, z + k * 4), .82), k < 1 ? (u, z) => sh(RF(u, z), .6) : (u, z) => sh(W2(u + 7, z + 30 + k * 3), .78)); }
+      if (i % 4 === 1) { const [sx, sy] = iso(r[2] - .95, r[1] + .85, 66); smoke(sx, sy, 26, [92, 94, 90]); } });
+    if (lit) light(r[0] + 3.4, r[3] + .6, 14, 30, .55); });
+  else HOUSES.forEach((r, i) => { const lg = i % 3 === 1, W1 = lg ? logW(i + 11, 30) : plankW(i + 11, 30), W2 = lg ? logW(i + 31, 30) : plankW(i + 31, 30), RF = lg ? mossy : thatch; backN(r, 30, W1, [...(MARK.includes(i) ? [XMARK(8)] : [])], RF); backW(r, 30, W2, [], RF);
     B(r[0] + .4, r[1] + .5, 0, 1.4, 2.4, 3, TIMD, (u, v) => u < 6 ? [184, 176, 156] : sh([150, 128, 82], .85 + hs(u | 0, v | 0) * .15)); B(r[2] - 1.4, r[1] + .4, 0, 1, .7, 4, [110, 84, 56]);
     if (i % 3 === 0) candle(r[2] - .9, r[1] + .7, 4, 30, .5); block(r[2] - 1.4, r[1] + .4, 1, .7); });
   // the low front walls of every building, with door posts (the tall back walls are drawn above)
-  for (const [x0, y0, x1, y1, ...doors] of P.walls.filter(w => w.low)) { const vert = x0 === x1, a0 = vert ? y0 : x0, a1 = vert ? y1 : x1, cuts = [a0]; doors.forEach(d => cuts.push(d[0], d[1])); cuts.push(a1);
+  for (const [x0, y0, x1, y1, ...doors] of P.walls.filter(w => w.low && !(L.cottage && HOUSES.some(h => (w[0] === h[2] && w[1] === h[1]) || (w[1] === h[3] && w[0] === h[0]))))) { const vert = x0 === x1, a0 = vert ? y0 : x0, a1 = vert ? y1 : x1, cuts = [a0]; doors.forEach(d => cuts.push(d[0], d[1])); cuts.push(a1);
     for (let i = 0; i < cuts.length; i += 2) { const s0 = cuts[i], s1 = cuts[i + 1]; if (s1 - s0 < .05) continue; if (vert) low(x0 - .2, s0, .4, s1 - s0, 8, STN, [120, 100, 76]); else low(s0, y0 - .2, s1 - s0, .4, 8, STN, [120, 100, 76]); }
     for (const d of doors) for (const q of d) { S.E = 0; if (vert) box(x0 - .3, q - .3 + (q === d[1] ? .3 : 0), 0, .6, .3, 20, TIM, TIMD, sh(TIMD, .8)); else box(q - .3 + (q === d[1] ? .3 : 0), y0 - .3, 0, .3, .6, 20, TIM, TIMD, sh(TIMD, .8)); } }
   drawAll();
@@ -1349,6 +1371,13 @@ const scene = function (t = 0, N = 4) {
   for (const x of [GATE[0] - 1.4, GATE[1]]) { B(x, WALL[3] - .7, 0, 1.4, 1.4, 34, [104, 80, 54]); B(x - .2, WALL[3] - .9, 34, 1.8, 1.8, 3, [130, 104, 72]); lamp(x + .7, WALL[3] + .4, 70, .9); }
   B(GATE[0] - .2, WALL[3] - .3, 30, GATE[1] - GATE[0] + .4, .5, 4, TIMD);
   add(GATE[0] + WALL[3] + 2, () => { S.E = 0; for (let i = 0; i < 6; i++) box(GATE[0] - 1 + i * .5, WALL[3] + 1 + (i % 2) * .4, 0, .2, 1.6, 6, [140, 130, 120], [110, 100, 92], [90, 82, 76]); });
+  // Die2Nite: the defences outside the stakes, a row of sharpened spikes leaning out, and junk barricades heaped at the corners
+  if (L.spikes) { let q = 0; const spike = (x, y, k) => add(x + y + .2, () => { S.E = 0; const [sx, sy] = iso(x, y); const h = 14 + (hs(k, 2) * 6 | 0); for (let j = 0; j < h; j++) { const ox = j * .55; px(sx + ox, sy - j, sh([150, 118, 80], .8 + hs(k, 1) * .2)); if (j < h - 3) px(sx + ox + 1, sy - j, sh([110, 84, 56], .8)); } });
+    for (let x = WALL[0] - .6; x <= WALL[2] + .6; x += .8) if (x < GATE[0] - 1.6 || x > GATE[1] + 1.6) { spike(x, WALL[3] + 1.4, q++); spike(x + .4, WALL[3] + 2.1, q++); }
+    for (let y = WALL[1]; y <= WALL[3] + 1; y += .8) { spike(WALL[2] + 1.4, y, q++); spike(WALL[0] - 1.4, y, q++); }
+    for (const [x, y] of [[WALL[0] - .5, WALL[3] + .8], [WALL[2] + .6, WALL[3] + .8], [GATE[0] - 2.6, WALL[3] + 1.6], [GATE[1] + 1.4, WALL[3] + 1.6]]) { block(x - .6, y - .6, 1.6, 1.2);
+      add(x + y + 1, () => { S.E = 0; for (let k = 0; k < 7; k++) box(x - .6 + hs(k, 3) * .8, y - .6 + hs(k, 4) * .6, (k >> 1) * 3, .6 + hs(k, 5) * .9, .5 + hs(k, 6) * .5, 3 + hs(k, 7) * 3, [[120, 96, 66], [110, 104, 96], [90, 72, 50]][k % 3], [[100, 80, 56], [96, 90, 84], [76, 60, 42]][k % 3], [[80, 64, 44], [80, 76, 70], [62, 48, 34]][k % 3]); }); }
+    drawAll(); }
   OFF('WELL');
   // ---- the square: the well, the workshop and its scaffold, the pyre, the dead cart (the gallows is the game's own, at MAP.gibbet)
   { light(24, 21, 10, 110, 1.0); block(23, 20, 2, 2); block(26.6, 29.2, 3.3, 1.5);
@@ -1378,8 +1407,8 @@ const scene = function (t = 0, N = 4) {
     drawAll(); }
   OFF('null');
   // moonlight through the gaps over each clearing, so the places can be found by day and seen a little
-  for (const q of M.pois) light(q.x, q.y, 60, q.r * 40, 1.1, [.75, .88, 1]);
-  for (const [a, b] of M.paths) for (let t2 = .25; t2 < 1; t2 += .5) light(a[0] + (b[0] - a[0]) * t2, a[1] + (b[1] - a[1]) * t2, 60, 90, .7, [.75, .88, 1]);
+  for (const q of M.pois) light(q.x, q.y, 60, q.r * 40, L.d2n ? .6 : 1.1, [.75, .88, 1]);
+  for (const [a, b] of M.paths) for (let t2 = .25; t2 < 1; t2 += .5) light(a[0] + (b[0] - a[0]) * t2, a[1] + (b[1] - a[1]) * t2, 60, 90, L.d2n ? .35 : .7, [.75, .88, 1]);
   // ---- the woods: the old farm, the hunter's hut, the woodcutters' camp, the plague pit, the old shrine, the wreck
   { const ruin = (x, y, w, d, s) => { for (let i = 0; i < w; i += .5) { if (hs(i * 3 + s, 9) < .25) continue; const h = 4 + hs(i * 7 + s, 3) * 18; low(x + i, y, .5, .5, h, STN, [120, 112, 100]); block(x + i, y, .5, .5); } for (let j = .5; j < d; j += .5) { if (hs(j * 5 + s, 8) < .25) continue; const h = 4 + hs(j * 9 + s, 5) * 14; low(x, y + j, .5, .5, h, STN, [120, 112, 100]); block(x, y + j, .5, .5); } };
     ruin(7.4, 48, 5, 3.6, 1); for (let x = 12.4; x < 13.6; x += .5) { const xx = x; add(xx + 51.6, () => { S.E = 0; box(xx, 51.4, 0, .15, .15, 8, TIMD, TIMD, TIMD); }); }   // the farmhouse, fallen in
@@ -1401,15 +1430,16 @@ const scene = function (t = 0, N = 4) {
   MAPS[key].scene = scene;
 };
 
-// The plague town as built: the Hamlet. Wide and shallow (36 x 21): church, tavern, apothecary and watch house along the north,
-// homes in two rows either side of a small square, the gate to the south. The materials are all out in the woods.
-mkTown('town', 'The Plague Town', { WALL: [6, 14, 42, 35], GATE: [22, 26], CHURCH: [7.5, 15.5], TAVERN: [16, 15.5], APOTH: [26, 15.5], WATCH: [34, 15.5],
-  HOUSES: [[7.5, 23.8], [12, 23.8], [28, 23.8], [32.5, 23.8], [37, 23.8], [7.5, 29.8], [12, 29.8], [28, 29.8], [32.5, 29.8], [37, 29.8]],
-  WELL: [23, 22], SHOP: [16.6, 24.4], PYRE: [17, 30.6], CART: [30, 36.6], GDN: [12, 36.4], TOWER: [39.6, 13.8],
-  roads: [[[24, 35], [24, 20.5]], [[8, 22.9], [41, 22.9]], [[8, 28.9], [41, 28.9]], [[24, 50], [24, 35]]],
-  lamps: [[21.6, 22], [26.4, 22], [21.6, 28.4], [26.4, 28.4], [24.8, 33.6], [15.4, 23]], trees: [[20.8, 33.6, 3], [41, 34, 1]], dead: [] });
-Object.assign(MAPS.town, { stash: [18.7, 23.6], gibbet: [25.4, 31.4], gather: [11, 19.5], hangFrom: [23.4, 26], center: [24, 25], drift: [8, 5], complineCam: [11, 24],
-  hordeW: q => 1 + Math.max(0, q.y - 24) / 3 });
+// The plague town as built: the Crossing, in the Die2Nite look. Two streets cross at the well in a dirt square; the church, tavern,
+// apothecary and watch house along the north; ten plank-and-tin cottages in two blocks; spikes outside the stakes; the Wastes beyond.
+mkTown('town', 'The Plague Town', { WALL: [5, 12, 43, 38.5], GATE: [22, 26], CHURCH: [6.5, 13.5], TAVERN: [14.5, 13.5], APOTH: [27, 13.5], WATCH: [35.5, 13.5], cottage: 1, spikes: 1, d2n: 1, plaza: [24, 24.6, 4.6],
+  HOUSES: [[6.2, 26], [11.1, 26], [16, 26], [6.2, 32.2], [11.1, 32.2], [16, 32.2], [32.3, 26], [37.2, 26], [32.3, 32.2], [37.2, 32.2]],
+  WELL: [23, 23.6], SHOP: [27.4, 27.6], PYRE: [28.4, 33.2], CART: [30, 40.2], GDN: [11, 40.4], TOWER: [40.6, 11.8],
+  roads: [[[24, 38.5], [24, 19]], [[6, 23.6], [42, 23.6]], [[24, 50], [24, 38.5]]],
+  lamps: [[21.6, 21.8], [26.4, 21.8], [21.6, 27.4], [26.4, 27.4], [24.8, 37], [13.6, 24.8], [34.4, 24.8]], trees: [], dead: [[20.4, 35.6], [42, 37.4], [5.8, 21]] });
+Object.assign(MAPS.town, { stash: [29.5, 26.9], gibbet: [20.8, 31], gather: [10, 17.5], hangFrom: [24, 28], center: [24, 26], drift: [8, 6], complineCam: [10, 21.5],
+  hordeW: q => 1 + Math.max(0, q.y - 28) / 3 });
+MAPS.town.plan.rooms.fields.name = 'The Wastes';
 
 
 const IC={
@@ -1515,7 +1545,7 @@ new MutationObserver(ms => { if (!MAP.words) return; for (const m of ms) { if (m
 // greater numbers; if they outnumber the defences, they come over and take someone. Rope and timber can also bar your own door.
 const BUILDS = { pal: { name: 'Palisade section', cost: { timber: 2, rope: 1 }, def: 2 }, spikes: { name: 'Spikes in the ditch', cost: { nails: 2, timber: 1 }, def: 2 },
   gate: { name: 'Gate bar', cost: { timber: 3, nails: 2 }, def: 4, once: 1 }, tower: { name: 'Watchtower lookout', cost: { timber: 3, rope: 2 }, def: 1, once: 1, see: 1 }, fire: { name: 'Pitch fires on the wall (tonight only)', cost: { pitch: 2 }, def: 3, tonight: 1 } };
-const TOWN0 = () => ({ stash: { timber: 2, nails: 1, rope: 1, pitch: 0 }, log: [], built: {}, def: 8, fire: 0, last: null, holy: 2 });
+const TOWN0 = () => ({ stash: { timber: 2, nails: 1, rope: 1, pitch: 0 }, log: [], built: {}, def: 8, fire: 0, last: null, holy: 2, gate: 0, homes: {}, wound: {}, roam: [] });
 const townDef = () => G.town ? G.town.def + (G.town.fire ? BUILDS.fire.def : 0) : 0;
 const hordeSize = n => Math.round((4 + (n - 1) * 4.6 + G.clock) * (+QS.get('hz') || MAP.hz || 1));
 const matStr = o => Object.entries(o || {}).filter(([, v]) => v).map(([k, v]) => `${v} ${k}`).join(', ');
@@ -1548,6 +1578,40 @@ function stashAct(p, a) { if (a === 'close' || a === 'open' || !nearStash(p) || 
   if (a === 'dep') deposit(p); else if (a === 'bar') barDoor(p); else if (a.startsWith('take:')) takeMat(p, a.slice(5)); else if (a.startsWith('build:')) buildIt(p, a.slice(6)); if (isHuman(p.id)) asSeat(p.id, () => renderCase()); renderClock(); }
 function stashTick() { if (!STRIG() || !G.town || G.you < 0) return; const ns = nearStash(you()) + '|' + matStr(you().pack) + '|' + G.phase; if (ns !== you()._ns) { you()._ns = ns; renderCase(); renderActs(); } }
 document.addEventListener('click', e => { const t = e.target.closest('[data-ptgo]'); if (t) padTab(t.dataset.ptgo); });
+// ---- Die2Nite: the gate is a lever, your own house can be shored up, and the dead roam the far Wastes by day
+// The gate: open at cockcrow, shut only by a hand at the lever (and the log names the hand). Left open at night, the dead walk in.
+const LEVER = () => MAP.G ? [MAP.G.GATE[0] - 1.3, MAP.G.WALL[3] - 1.1] : null;
+const GATEC = () => MAP.G ? [(MAP.G.GATE[0] + MAP.G.GATE[1]) / 2, MAP.G.WALL[3]] : null;
+const hasGate = () => !!(STRIG() && G.town && MAP.wastes && MAP.G);
+const nearLever = p => { const L = LEVER(); return !!(hasGate() && p && p.alive && !p.banished && G.phase === 'day' && L && !P.rooms[roomAt(p.x, p.y)].outside && Math.hypot(p.x - L[0], p.y - L[1]) < 2.4); };
+function setGate(p, open) { if (!nearLever(p) || !!G.town.gate === !!open) return false; G.town.gate = open ? 1 : 0; tlog(`${p.short} ${open ? 'opened' : 'shut'} the gate.`); toastAll(`${p.short} ${open ? 'opened' : 'shut'} the gate.`); renderClock(); return true; }
+// your own house: shore it up with what you carry (any two things); the dead go for the weakest homes, and the log says whose
+const HOME_MAX = 3, homeLv = p => (G.town && G.town.homes && G.town.homes[p.id]) || 0, atHome = p => !!(P.rooms.dorm && P.rooms.dorm.rs && placeAt(p.x, p.y) === homeKey(p));
+function fortify(p, free) { if (!STRIG() || !G.town || !p.alive || homeLv(p) >= HOME_MAX || G.phase !== 'day' && !free) return false; if (!free && (!atHome(p) || packN(p) < 2)) return false;
+  let n = 2; for (const k of ['timber', 'nails', 'rope', 'pitch']) while (n && p.pack[k]) { p.pack[k]--; n--; } if (n) return false;
+  (G.town.homes = G.town.homes || {})[p.id] = homeLv(p) + 1; tlog(`${p.short}'s house was shored up (${homeLv(p)} of ${HOME_MAX}).`); for (const b of living()) if (!isHuman(b.id) && team(b) === 'good' && b.id !== p.id && townDef() < hordeSize((G.night || 0) + 1)) b.sus[p.id] += .15; return true; }
+// the dead out in the Wastes: one or two hang about each far place by day; alone, they catch you; with a neighbour by you, they back off
+const ROAM_SP = 1.55;
+function roamSpawn() { if (!hasGate() || !MAP.pois) return; const g = GATEC(), far = MAP.pois.filter(q => Math.hypot(q.x - g[0], q.y - g[1]) > 24), mid = MAP.pois.filter(q => { const d = Math.hypot(q.x - g[0], q.y - g[1]); return d > 15 && d <= 24; });
+  const R = []; for (const q of far) for (let k = 0; k < 1 + (G.day >= 3); k++) R.push({ x: q.x + (rnd() - .5) * 3, y: q.y + (rnd() - .5) * 3, hx: q.x, hy: q.y, hr: q.r + 3.5, tx: q.x, ty: q.y, ch: null, cd: 0, f: 0, face: 0, k: R.length });
+  if (G.day >= 4) for (const q of mid) R.push({ x: q.x + (rnd() - .5) * 3, y: q.y + (rnd() - .5) * 3, hx: q.x, hy: q.y, hr: q.r + 3, tx: q.x, ty: q.y, ch: null, cd: 0, f: 0, face: 0, k: R.length });
+  G.town.roam = R; G.town.wound = {}; }
+function roamTick(dt) { const T = G.town; if (!T || !T.roam || G.phase !== 'day') return; const L = living().filter(q => !q.hidden && q.role !== 'enemy' && P.rooms[roomAt(q.x, q.y)].outside);
+  for (const d of T.roam) { d.cd = Math.max(0, d.cd - dt); let tx = d.tx, ty = d.ty, sp = ROAM_SP * .45;
+    const v = d.cd ? null : L.filter(q => Math.hypot(q.x - d.x, q.y - d.y) < 5.5 && Math.hypot(q.x - d.hx, q.y - d.hy) < d.hr + 4).sort((a, b) => Math.hypot(a.x - d.x, a.y - d.y) - Math.hypot(b.x - d.x, b.y - d.y))[0];
+    if (v) { tx = v.x; ty = v.y; sp = ROAM_SP; if (d.ch !== v.id && isHuman(v.id)) asSeat(v.id, () => flash('Something comes out from among the dead trees. Run, or stand with someone.')); if (d.ch !== v.id && !isHuman(v.id) && MAP.stash) { v.plan = null; v.state = 'walk'; v.path = findPath(v.x, v.y, MAP.stash[0], MAP.stash[1]); } d.ch = v.id; } else { d.ch = null; if (Math.hypot(d.tx - d.x, d.ty - d.y) < .3 || rnd() < dt * .08) { const a = rnd() * 6.28, r = rnd() * d.hr; d.tx = d.hx + Math.cos(a) * r; d.ty = d.hy + Math.sin(a) * r; } }
+    const dx = tx - d.x, dy = ty - d.y, dd = Math.hypot(dx, dy); if (dd > .05) { const m = Math.min(dd, sp * dt); d.x += dx / dd * m; d.y += dy / dd * m; face(d, dx, dy); d.f += m * 2.4; }
+    if (v && dd < .75) { const pal = L.find(q => q.id !== v.id && Math.hypot(q.x - v.x, q.y - v.y) < 3.5);
+      if (pal) { d.cd = 6; const a = Math.atan2(d.y - v.y, d.x - v.x); d.x += Math.cos(a) * 2.5; d.y += Math.sin(a) * 2.5; for (const q of [v, pal]) if (isHuman(q.id)) asSeat(q.id, () => flash(`You and ${q.id === v.id ? pal.short : v.short} drive it back into the trees.`)); continue; }
+      d.cd = 9; const a = Math.atan2(d.y - v.y, d.x - v.x); d.x += Math.cos(a) * 3; d.y += Math.sin(a) * 3; wound(v); } } }
+function wound(v) { const T = G.town; T.wound = T.wound || {}; const pk = v.pack || {}, had = matStr(pk);
+  if (had) { G.spots.push({ x: v.x + .4, y: v.y + .3, room: roomAt(v.x, v.y), clue: null, evil: false, searched: false, by: null, taken: false, mat: { ...pk }, poi: 'dropped' }); v.pack = {}; }
+  if (T.wound[v.id] === G.day) { v.alive = false; G.bodies.push({ id: v.id, x: v.x, y: v.y, room: roomAt(v.x, v.y), face: (rnd() * 8) | 0, examined: {}, horde: 1 }); tlog(`${v.short} was found torn apart out in the Wastes.`); toastAll(`Something screams out in the Wastes.`); checkEnd(); return; }
+  T.wound[v.id] = G.day; if (!isHuman(v.id)) { v.goHome = true; v.noOut = G.day; } if (isHuman(v.id)) asSeat(v.id, () => flash(`It catches you. You tear free, bleeding${had ? ', and drop what you carried' : ''}. Again today, and you will not get up.`)); }
+function roamDraw() { const T = G.town; if (!T || !T.roam || G.phase !== 'day' || VIEW.cine || NIGHT.on() || !window.TKIT) { if (VIEW._roam) { VIEW.extra = []; VIEW._roam = 0; } return; } const out = [];
+  for (const d of T.roam) { const c = cell(d.x, d.y); if (!(FOG === 'off' || G.screen || VIS[c[1] * GW + c[0]] > .35)) continue; const fr = Math.floor(d.f) % 4; out.push({ s: TKIT.dead('neighbour', d.face, 'walk', fr, d.k + 3), x: d.x, y: d.y, lt: lightAt(d.x, d.y).map(v => Math.max(v, .62)) }); }
+  VIEW.extra = out; VIEW._roam = 1; }
+
 // the plague town plays the Strigoi's rules: he bites (the bitten turn in two nights unless cured) or sends a thrall to kill
 const STRIG = () => MAP.rules === 'strigoi';
 ROLES.scrub.turned = 1;
@@ -1762,11 +1826,12 @@ function simulateNight(choice) { if (choice && 'room' in choice) G.nightChoices[
   // the Forger lays a false trace that fits the brother he chose
   for (const [fid, tid] of Object.entries(frameT)) { const f = G.players[fid], t = G.players[tid]; if (!f.alive || !t || !t.alive || !G.players[fid].turnedNight || G.night === f.turnedNight) continue; const r = pick(['chapel', 'refect', 'script', 'tower']), [x, y] = pointIn(r, .6), kind = t.item !== 'none' && rnd() < .5 ? (t.item === 'candle' ? 'wax' : 'soot') : 'thread'; addSpot(x, y, traceFor(t, kind, r, dead), false); G.spots[G.spots.length - 1].forged = true; }
   // the dead at the walls
-  if (STRIG() && G.town) { const Hn = hordeSize(G.night), D = townDef(); let breach = null;
-    if (Hn > D) { const pool = L.filter(q => q.alive && !dead.includes(q.id) && q.role !== 'enemy'), // the dead pass the Strigoi by: he is one of them
-      w = pool.map(q => (MAP.hordeW ? MAP.hordeW(q) : 1 + Math.max(0, q.y - 17) / 3 + Math.max(0, q.x - 24) / 3) + (P.rooms[roomAt(q.x, q.y)].outside ? 8 : 0)); let r = rnd() * w.reduce((a, b) => a + b, 0), v = pool[0]; for (let k = 0; k < pool.length; k++) { r -= w[k]; if (r <= 0) { v = pool[k]; break; } }
-      if (v) { breach = v.id; v.alive = false; dead.push(v.id); G.bodies.push({ id: v.id, x: v.x, y: v.y, room: roomAt(v.x, v.y), face: (rnd() * 8) | 0, examined: {}, horde: 1 }); } }
-    G.town.last = { n: Hn, def: D, breach, night: G.night }; G.town.fire = 0; log.horde = G.town.last; tlog(`${Hn} of the dead came at the walls (${D}). ${breach != null ? `They came over. ${G.players[breach].short} was taken.` : 'The walls held.'}`, G.night); }
+  if (STRIG() && G.town) { const Hn = hordeSize(G.night), open = hasGate() && G.town.gate, D = open ? Math.floor(townDef() / 2) : townDef(); let breach = null; const taken = [];
+    const nv = Hn > D ? (open ? Math.max(1, Math.min(2, Math.ceil((Hn - D) / 10))) : 1) : 0;
+    for (let k = 0; k < nv; k++) { const pool = L.filter(q => q.alive && !dead.includes(q.id) && q.role !== 'enemy'); if (!pool.length) break; // the dead pass the Strigoi by: he is one of them
+      const w = pool.map(q => ((MAP.hordeW ? MAP.hordeW(q) : 1 + Math.max(0, q.y - 17) / 3 + Math.max(0, q.x - 24) / 3) + (P.rooms[roomAt(q.x, q.y)].outside ? 8 : 0)) / (q.night === 'dorm' ? 1 + 1.4 * homeLv(q) : 1)); let r = rnd() * w.reduce((a, b) => a + b, 0), v = pool[0]; for (let j = 0; j < pool.length; j++) { r -= w[j]; if (r <= 0) { v = pool[j]; break; } }
+      if (v) { if (breach == null) breach = v.id; taken.push(v.id); v.alive = false; dead.push(v.id); G.bodies.push({ id: v.id, x: v.x, y: v.y, room: roomAt(v.x, v.y), face: (rnd() * 8) | 0, examined: {}, horde: 1 }); } }
+    G.town.last = { n: Hn, def: D, breach, taken, open: !!open, night: G.night }; G.town.fire = 0; log.horde = G.town.last; tlog(`${open ? 'The gate stood open. ' : ''}${Hn} of the dead came ${open ? 'through the gate' : `at the walls (${D})`}. ${taken.length ? `They came ${open ? 'in' : 'over'}. ${taken.map(id => G.players[id].short).join(' and ')} ${taken.length > 1 ? 'were' : 'was'} taken.` : 'The walls held.'}`, G.night); }
   // the watchtower: whoever slept outside the walls, and whatever crossed the open square in the dark
   if (STRIG() && G.town && G.town.built.tower) { const outs = L.filter(q => q.night === 'fields'), seen = [];
     if (outs.length) seen.push(`${outs.map(q => q.short).join(', ')} slept outside the walls.`);
@@ -1833,7 +1898,7 @@ function dawn() {
   // bots: their role info becomes their knowledge, and maybe a claim
   for (const p of living()) if (!isHuman(p.id)) { const ni = G.nightInfo[p.id]; if (ni) learn(p, ni, 1.4); }
   G.timer = DAY_LEN; if (checkEnd()) return; G.ready = {}; forHumans(showDawn); saveGame(); }
-function startDay() { G.gateWarn = false; for (const p of G.players) p.lockedOut = false; G.dayBite = null; for (const p of G.players) { p.goHome = false; p.dayPut = 0; p.dayOut = 0; } if (STRIG()) for (const p of living()) { if (!isHuman(p.id) && p.bitten && !p.holy && team(p) === 'good' && G.town && G.town.holy > 0 && rnd() < .45) p.goHoly = true; if (!isHuman(p.id) && rnd() < .25) p.goStash = true; }
+function startDay() { G.gateWarn = false; for (const p of G.players) { p.lockedOut = false; p.gateGo = false; } if (hasGate()) { G.town.gate = 1; const gb = living().filter(q => !isHuman(q.id) && team(q) === 'good' && !q.banished), eb = living().filter(q => !isHuman(q.id) && team(q) === 'evil' && !q.banished); G.town.keeper = gb.length && rnd() < .85 ? pick(gb).id : null; G.town.sab = eb.length && rnd() < .35 ? pick(eb).id : null; G.town.sabMode = rnd() < .5 ? 'early' : 'late'; roamSpawn(); } G.dayBite = null; for (const p of G.players) { p.goHome = false; p.dayPut = 0; p.dayOut = 0; } if (STRIG()) for (const p of living()) { if (!isHuman(p.id) && p.bitten && !p.holy && team(p) === 'good' && G.town && G.town.holy > 0 && rnd() < .45) p.goHoly = true; if (!isHuman(p.id) && rnd() < .25) p.goStash = true; }
  for (const p of living()) if (p.role === 'scribe' && !isHuman(p.id)) { const t = topSus(p); const kept = t ? (isHuman(t.id) ? (G.cases[t.id] || []).filter(c => c.found && !c.shared) : (t.held || [])) : []; if (kept.length) learn(p, pick(kept), 1.2); }
   G.phase = 'day'; G.ready = {}; forHumans(hideModal); renderTop(); if (!G.demo) toastAll('The bell for Prime. Search the house before dusk.');
   // dawn talk: claims and info
@@ -1867,11 +1932,20 @@ function takeHoly(p) { if (!STRIG() || !p || !p.alive || p.holy || G.phase !== '
   if (team(p) === 'evil') { say(null, `${p.short} takes the holy water at the church, and screams: it burns him. He is the Strigoi's.`, 'sys'); for (const b of living()) if (!isHuman(b.id) && b.id !== p.id && team(b) === 'good') b.sus[p.id] += 6; if (isHuman(p.id)) asSeat(p.id, () => flash('It burns.')); }
   else { const was = !!p.bitten; p.bitten = null; say(null, `${p.short} takes the holy water at the church.`, 'sys'); if (isHuman(p.id)) asSeat(p.id, () => flash(was ? 'The cold leaves your neck. You are clean.' : 'It tastes of stone and nothing more: there was nothing in you to cure.')); }
   renderActs(); }
+// bots at the lever: the day's gatekeeper (a faithful bot, most days) shuts it at dusk once the others are in, and opens it to a knock;
+// an evil bot, some days, shuts it early on those still out, or opens it again at the last moment
+function gateBot(p) { if (!hasGate() || G.phase !== 'day' || p.banished) return false; const T = G.town, outs = living().filter(q => q._out && !q.banished && q.id !== p.id), g = GATEC();
+  let want = null; if (T.keeper === p.id && team(p) === 'good') { if (T.gate && (G.timer < 12 || (G.timer < 30 && !outs.length))) want = 0; else if (!T.gate && G.timer > 6 && outs.some(q => Math.hypot(q.x - g[0], q.y - g[1]) < 4)) want = 1; }
+  if (want == null && T.keeper == null && team(p) === 'good' && T.gate && G.timer < 10) { const L0 = LEVER(); if (Math.hypot(p.x - L0[0], p.y - L0[1]) < 9) want = 0; }
+  if (T.sab === p.id && team(p) === 'evil') { if (T.sabMode === 'early' && T.gate && G.timer < 55 && G.timer > 22 && outs.some(q => team(q) === 'good')) want = 0; if (T.sabMode === 'late' && !T.gate && G.timer < 9) want = 1; }
+  if (want == null || p._out) { p.gateGo = false; return false; } if (nearLever(p)) { setGate(p, !!want); p.path = []; p.gateGo = false; p.wait = 1; return true; }
+  if (p.gateGo && p.path.length) return true; const L = LEVER(); p.path = findPath(p.x, p.y, L[0] + .3, L[1] - .3); p.gateGo = true; return true; }
 function botThink(p, dt) {
   if (!p.alive || isHuman(p.id)) return;
   if (p.role === 'enemy' && G.phase === 'day' && !G.dayBite && rnd() < dt * .5) { const v = dayBiteTarget(p); if (v) dayBite(p, v); }
   if (STRIG() && MAP.carry && !roomFor(p) && !p.goStash) p.goStash = true;
   if (p.state === 'search') { p.st -= dt; if (p.st <= 0) { p.state = 'idle'; finishSearch(p, p.plan.spot); p.plan = null; } return; }
+  if (gateBot(p)) return;
   if (p.path.length) return;
   if (p.goHome) { if (!P.rooms[roomAt(p.x, p.y)].outside) { p.goHome = false; } else { p.path = findPath(p.x, p.y, MAP.stash[0] + rnd() * 2 - 1, MAP.stash[1] - 2 + rnd()); return; } }
   if (STRIG() && p.goStash && MAP.stash) { if (nearStash(p)) { p.goStash = false; stashBot(p); p.wait = 2 + rnd() * 3; return; } p.path = findPath(p.x, p.y, MAP.stash[0] + rnd() - .5, MAP.stash[1] + rnd() * .6); return; }
@@ -1880,9 +1954,9 @@ function botThink(p, dt) {
   if (p.wait > 0) { p.wait -= dt; return; }
   const body = G.bodies.find(b => !b.examined[p.id] && b.clues); if (body && rnd() < .35) { if (Math.hypot(p.x - body.x, p.y - body.y) < 1.6) { body.examined[p.id] = true; if (p.role === 'infirm') { const c = body.clues.infirm; learn(p, c, 1.3); later(1 + rnd() * 2, () => { if (!p.alive) return; if (!p.claimed) p.claimed = 'Infirmarer'; const line = `I am the Infirmarer. ${c.text.replace('Reading', 'I read')}`; say(p, line); broadcast(c, p, 1, line); }); } p.wait = 2; return; } p.path = findPath(p.x, p.y, body.x + .8, body.y + .4); return; }
   // choose: evil brothers go first to traces that betray them
-  p.plan = null; let spots = G.spots.filter(s => !s.searched && !G.players.some(q => q !== p && q.plan && q.plan.spot === s));
+  p.plan = null; let spots = G.spots.filter(s => !s.searched && !G.players.some(q => q !== p && q.plan && q.plan.spot === s)); if (STRIG() && p.noOut === G.day) spots = spots.filter(s => !P.rooms[roomAt(s.x, s.y)].outside);
   if (team(p) === 'evil') { const bad = spots.filter(s => s.clue && s.clue.set.some(id => team(G.players[id]) === 'evil') && s.evil); if (bad.length && rnd() < .85) spots = bad; }
-  if (spots.length && rnd() < (MAP.pois ? .85 : .55)) { spots.sort((a, b) => Math.hypot(a.x - p.x, a.y - p.y) - Math.hypot(b.x - p.x, b.y - p.y)); const s = spots[rnd() < .7 ? 0 : Math.min(spots.length - 1, 1)]; p.plan = { spot: s }; p.path = findPath(p.x, p.y, s.x, s.y); }
+  if (spots.length && rnd() < (MAP.pois ? .85 : .55)) { const risk = s => { if (!G.town || !G.town.roam || !G.town.roam.some(d => Math.hypot(d.hx - s.x, d.hy - s.y) < d.hr + 2)) return 0; return living().some(q => q.id !== p.id && Math.hypot(q.x - s.x, q.y - s.y) < 8) ? 2 : 14; }; spots.sort((a, b) => Math.hypot(a.x - p.x, a.y - p.y) + risk(a) - Math.hypot(b.x - p.x, b.y - p.y) - risk(b)); const s = spots[rnd() < .7 ? 0 : Math.min(spots.length - 1, 1)]; p.plan = { spot: s }; p.path = findPath(p.x, p.y, s.x, s.y); }
   else { const r = pick(RK), [x, y] = pointIn(r); p.path = findPath(p.x, p.y, x, y); p.wait = 4 + rnd() * 8; }
 }
 // ---- the woods by day: alone with someone, out past the gate and out of sight of anyone else, the Strigoi can bite (once a day, and then not that night)
@@ -1907,6 +1981,7 @@ function step(p, dt) { if (!p.path.length) { if (p.state === 'walk') p.state = '
 function startHearing() { if (G.phase !== 'day') return;
   if (STRIG() && G.town && MAP.wastes) { const outs = living().filter(p => (p.dayOut || 0) > 12 && !p.banished); // the day's account: who went out, what each brought back
     if (outs.length) tlog('Past the gate today: ' + outs.map(p => `${p.short} (${p.dayPut ? 'put in ' + p.dayPut : 'put in nothing'})`).join(', ') + '.');
+    if (hasGate()) { if (G.town.gate) tlog('Dusk, and the gate still stands open.'); for (const p of living()) if (!isHuman(p.id) && packN(p) >= 2 && homeLv(p) < HOME_MAX && (team(p) === 'evil' ? rnd() < .45 : rnd() < .12)) fortify(p, true); }
     const shut = living().filter(p => p._out && !p.banished); for (const p of shut) { p.lockedOut = true; p.path = []; } if (shut.length) tlog(`The gate shut on ${shut.map(p => p.short).join(', ')}: a night in the Wastes.`);
     for (const p of outs) if (!p.dayPut && p.dayOut > 25) for (const b of living()) if (!isHuman(b.id) && team(b) === 'good' && b.id !== p.id) b.sus[p.id] += .35; }
   G.rang = {}; G.phase = 'dusk'; G.timers = []; for (const p of G.players) { p.path = []; p.state = 'idle'; }
@@ -2000,7 +2075,8 @@ function updateVis() { const me = VIEW.fogFrom ? { x: VIEW.fogFrom[0], y: VIEW.f
     if (!sees(ci, cj, i, j)) continue; raw[j * GW + i] = Math.min(1, (R - d) / 6); }
   // soften the edge
   for (let j = 0; j < GH; j++) for (let i = 0; i < GW; i++) { let s = 0, n = 0; for (let d = -1; d <= 1; d++) for (let e = -1; e <= 1; e++) { const a = j + d, b = i + e; if (a < 0 || b < 0 || a >= GH || b >= GW) continue; s += raw[a * GW + b]; n++; } VIS[j * GW + i] = Math.max(raw[j * GW + i] * .7, s / n); } }
-const seen = p => FOG === 'off' || G.screen || VIEW.fogOff || (p.id === G.you && !VIEW.fogFrom) || G.phase === 'over' || VIS[cell(p.x, p.y)[1] * GW + cell(p.x, p.y)[0]] > .35;
+const inHouse = p => !!(STRIG() && P.rooms.dorm && P.rooms.dorm.rs && /^h\d+$/.test(placeAt(p.x, p.y)));
+const seen = p => (!inHouse(p) || p.id === G.you || G.screen || VIEW.fogOff || G.phase === 'over' || placeAt(p.x, p.y) === placeAt(you().x, you().y)) && seenR(p), seenR = p => FOG === 'off' || G.screen || VIEW.fogOff || (p.id === G.you && !VIEW.fogFrom) || G.phase === 'over' || VIS[cell(p.x, p.y)[1] * GW + cell(p.x, p.y)[0]] > .35;
 function darkenFog(D) { if (FOG === 'off' || VISK === 'off') return; const W = VIEW.W, F = .24, sc = VIEW.scale;
   // only the part of the house the camera shows
   const x0 = Math.max(0, VIEW.cam[0] - 4 | 0), y0 = Math.max(0, VIEW.cam[1] - 4 | 0), x1 = Math.min(W, x0 + cv.width / sc + 10 | 0), y1 = Math.min(VIEW.H, y0 + cv.height / sc + 10 | 0);
@@ -2020,7 +2096,7 @@ function blit(data, s, x, y, depth, lt, alpha = 1) { const D = data.data, W = VI
 const ANON = { robe: [30, 28, 34], col: [30, 28, 34], hood: 1, ht: 1, w: 1, boot: [30, 26, 24], beard: 0 };
 const nightDim = p => VIEW.anon && VIEW.nightMode === 'dark' && p.id !== G.you && p.id !== VIEW.anonKeep;
 function nightO(p) { if (VIEW.nightMode === 'dark') return p.o; if (!VIEW.anon || p.id === G.you || p.id === VIEW.anonKeep) return p.o; if (p._anK !== p.o) { p._anK = p.o; p._an = { ...p.o, ...ANON, prop: p._o ? 'candle' : undefined }; } return p._an; }
-function frame() {
+function frame() { if (STRIG()) roamDraw();
   const W = VIEW.W, bg = VIEW.frames[VIEW.fi]; img.data.set(bg); updateVis();
   const D = img.data, put = (x, y, c, a = 1) => { x |= 0; y |= 0; if (x < 0 || y < 0 || x >= W || y >= VIEW.H) return; const o = (y * W + x) * 4; D[o] += (c[0] - D[o]) * a; D[o + 1] += (c[1] - D[o + 1]) * a; D[o + 2] += (c[2] - D[o + 2]) * a; };
   // prints in the snow
@@ -2062,7 +2138,7 @@ function frame() {
   for (const p of G.players) { if (VIEW.cine || !p.alive || !seen(p)) continue; const near = G.screen || Math.hypot(p.x - me.x, p.y - me.y) < 6 || p.id === G.sel; if (!near || p.id === G.you) continue; const [sx, sy] = isoP(p.x, p.y, 60); const X = (sx - cx) * sc, Y = (sy - cy) * sc; ctx.fillStyle = 'rgba(10,8,8,.7)'; const w = ctx.measureText(p.short).width + 10; ctx.fillRect(X - w / 2, Y - sc * 4, w, sc * 6); ctx.fillStyle = p.col; ctx.fillRect(X - w / 2, Y + sc * 2 - 2, w, 2); ctx.fillStyle = '#ece2c8'; ctx.fillText(p.short, X, Y + sc); if (p.state === 'search') { ctx.fillStyle = '#e0b85a'; ctx.fillText('searching…', X, Y - sc * 6); } }
   // room names, faint
   ctx.font = `${Math.max(14, sc * 6)}px "Jacquard 24"`;
-  for (const k of (VIEW.cine ? [] : RK)) RRS(k).forEach((r, i) => { const rs = P.rooms[k].rs, own = rs && G.players[i]; if (rs && (!own || i >= G.players.length)) return; const [sx, sy] = isoP((r[0] + r[2]) / 2, (r[1] + r[3]) / 2); const X = (sx - cx) * sc, Y = (sy - cy) * sc; if (X < -100 || Y < -40 || X > cv.width + 100 || Y > cv.height + 40) return; ctx.fillStyle = 'rgba(236,226,200,.22)'; ctx.fillText(rs ? own.short : P.rooms[k].name, X, Y); }); if (!VIEW.cine && MAP.pois) for (const q of MAP.pois) { const [sx, sy] = isoP(q.x, q.y), X = (sx - cx) * sc, Y = (sy - cy) * sc; if (X < -100 || Y < -40 || X > cv.width + 100 || Y > cv.height + 40) continue; ctx.fillStyle = 'rgba(200,214,180,.2)'; ctx.fillText(q.name, X, Y); }
+  for (const k of (VIEW.cine ? [] : RK)) RRS(k).forEach((r, i) => { const rs = P.rooms[k].rs, own = rs && G.players[i]; if (rs && (k !== 'dorm' || !own || i >= G.players.length)) return; const [sx, sy] = isoP((r[0] + r[2]) / 2, (r[1] + r[3]) / 2); const X = (sx - cx) * sc, Y = (sy - cy) * sc; if (X < -100 || Y < -40 || X > cv.width + 100 || Y > cv.height + 40) return; ctx.fillStyle = 'rgba(236,226,200,.22)'; ctx.fillText(rs ? own.short + (homeLv(own) ? ' ' + '▮'.repeat(homeLv(own)) : '') : P.rooms[k].name, X, Y); }); if (!VIEW.cine && hasGate()) { const g = GATEC(), [sx, sy] = isoP(g[0], g[1] - .6), X = (sx - cx) * sc, Y = (sy - cy) * sc; ctx.fillStyle = G.town.gate ? 'rgba(236,226,200,.4)' : 'rgba(224,90,74,.75)'; ctx.fillText(G.town.gate ? 'the gate · open' : 'the gate · shut', X, Y); } if (!VIEW.cine && MAP.pois) for (const q of MAP.pois) { const [sx, sy] = isoP(q.x, q.y), X = (sx - cx) * sc, Y = (sy - cy) * sc; if (X < -100 || Y < -40 || X > cv.width + 100 || Y > cv.height + 40) continue; ctx.fillStyle = 'rgba(200,214,180,.2)'; ctx.fillText(q.name, X, Y); }
   VIEW.cx = cx; VIEW.cy = cy;
 }
 
@@ -2182,7 +2258,7 @@ const TB = { hid: false, unread: false, seen: 0 };
 function tableToggle() { TB.hid = !TB.hid; document.body.classList.toggle('notable', TB.hid); if (!TB.hid) TB.unread = false; renderActs(); if (!TB.hid) { renderChat(); const i = $('chat').querySelector('input'); if (i) i.focus(); } }
 function renderActs() { if (remote()) return; const me = you(); let h = '';
   if (G.phase === 'day') { const s = nearSpot(), b = nearBody();
-    if (me.alive) { h += me.state === 'search' ? `<span class="btn go">Searching…<small><i class="bar"><i style="width:${(1 - me.st / SEARCH_T) * 100}%"></i></i></small></span>` : `<span class="btn ${s ? 'go' : 'off'}" data-act="search">${STRIG() ? 'Scavenge' : 'Search'}<small>${s ? (STRIG() ? (s.poi ? 'here · E' : 'this room · E') : 'here · E') : STRIG() ? (MAP.carry && !roomFor(me) ? 'your arms are full' : 'nothing left here') : 'find a glint'}</small></span>`; h += (me.role === 'enemy' && MAP.pois ? (() => { const v = dayBiteTarget(me); return `<span class="btn ${v ? 'go' : 'off'}" data-act="daybite">Bite<small>${G.dayBite ? 'you have fed today' : v ? v.short + ' · no one sees' : 'alone with one, in the woods'}</small></span>`; })() : '') + `<span class="btn ${b ? 'go' : 'off'}" data-act="examine">Examine<small>${b ? G.players[b.id].short : 'a body'}</small></span>`; if (STRIG() && !me.holy && G.town) { const inC = roomAt(me.x, me.y) === 'chapel' && G.town.holy > 0; h += `<span class="btn ${inC ? '' : 'off'}" data-act="holy">Holy water<small>${!G.town.holy ? 'the font is dry' : inC ? (team(me) === 'evil' ? 'it would burn you' : G.town.holy + ' left · all will see') : G.town.holy + ' left · at the church'}</small></span>`; } if (STRIG() && G.town && document.body.classList.contains('pad') && nearStash(me)) h += `<span class="btn go" data-ptgo="case">The stash<small>${matStr(me.pack) ? 'put in what you carry' : 'build · take'}</small></span>`; }
+    if (me.alive) { h += me.state === 'search' ? `<span class="btn go">Searching…<small><i class="bar"><i style="width:${(1 - me.st / SEARCH_T) * 100}%"></i></i></small></span>` : `<span class="btn ${s ? 'go' : 'off'}" data-act="search">${STRIG() ? 'Scavenge' : 'Search'}<small>${s ? (STRIG() ? (s.poi ? 'here · E' : 'this room · E') : 'here · E') : STRIG() ? (MAP.carry && !roomFor(me) ? 'your arms are full' : 'nothing left here') : 'find a glint'}</small></span>`; h += (me.role === 'enemy' && MAP.pois ? (() => { const v = dayBiteTarget(me); return `<span class="btn ${v ? 'go' : 'off'}" data-act="daybite">Bite<small>${G.dayBite ? 'you have fed today' : v ? v.short + ' · no one sees' : 'alone with one, in the woods'}</small></span>`; })() : '') + `<span class="btn ${b ? 'go' : 'off'}" data-act="examine">Examine<small>${b ? G.players[b.id].short : 'a body'}</small></span>`; if (STRIG() && !me.holy && G.town) { const inC = roomAt(me.x, me.y) === 'chapel' && G.town.holy > 0; h += `<span class="btn ${inC ? '' : 'off'}" data-act="holy">Holy water<small>${!G.town.holy ? 'the font is dry' : inC ? (team(me) === 'evil' ? 'it would burn you' : G.town.holy + ' left · all will see') : G.town.holy + ' left · at the church'}</small></span>`; } if (hasGate()) { const nl = nearLever(me); h += `<span class="btn ${nl ? 'go' : 'off'}" data-act="gate">${G.town.gate ? 'Shut the gate' : 'Open the gate'}<small>${nl ? 'the lever · all will know' : G.town.gate ? 'the gate stands open' : 'the gate is shut'}</small></span>`; } if (STRIG() && G.town && P.rooms.dorm && P.rooms.dorm.rs) { const ah = atHome(me), lv = homeLv(me), ok = ah && packN(me) >= 2 && lv < HOME_MAX; h += `<span class="btn ${ok ? 'go' : 'off'}" data-act="fortify">Shore up my house<small>${lv >= HOME_MAX ? 'as strong as it gets' : !ah ? `at your house · ${lv} of ${HOME_MAX}` : packN(me) < 2 ? 'carry two things home' : `two of what you carry · ${lv} of ${HOME_MAX}`}</small></span>`; } if (STRIG() && G.town && document.body.classList.contains('pad') && nearStash(me)) h += `<span class="btn go" data-ptgo="case">The stash<small>${matStr(me.pack) ? 'put in what you carry' : 'build · take'}</small></span>`; }
     else h += '<span class="btn off">You are dead<small>silent, but you keep one vote</small></span>';
     const rung = G.rang || {}, LH = humansNow().filter(id => G.players[id].alive), nr = LH.filter(id => rung[id]).length; h += rung[G.you] ? `<span class="btn off">Dusk rung<small>${nr} of ${LH.length} have rung</small></span>` : `<span class="btn" data-act="dusk">Ring for dusk<small>${LH.length > 1 ? (nr ? nr + ' of ' + LH.length + ' have rung' : 'when all have rung') : 'end the day'}</small></span>`; }
   if (!G.demo) h += `<span class="sep"></span><span class="btn tbl ${TB.hid ? '' : 'on'}" data-tbl="1" title="Show or hide the Table (C)"><svg width="16" height="14" viewBox="0 0 14 12"><path d="M1 1h12v7H6l-3 3V8H1z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>The Table<small>${TB.hid ? 'show · C' : 'hide · C'}</small>${TB.hid && TB.unread ? '<i class="udot"></i>' : ''}</span>`;
@@ -2277,7 +2353,7 @@ function handle(d) { const me = G.you, h = G.hearing;
   if (d.wsay && canWhisper(me, +d.to)) { G.wchat.push({ from: me, to: +d.to, text: String(d.wsay).slice(0, 200).replace(/</g, '&lt;'), t: G.t }); if (G.wchat.length > 200) G.wchat.shift(); setTimeout(renderChat); }
   if (d.walk && G.phase === 'day') { const [x, y] = d.walk.split(',').map(Number), p = you(); if (p.state !== 'search' && isFinite(x) && isFinite(y)) { p.kdir = null; p.path = findPath(p.x, p.y, x, y); } }
   if (d.kdir != null) { const [x, y] = String(d.kdir).split(',').map(Number); you().kdir = x || y ? [x, y] : null; if (!(x || y) && you().state === 'walk' && !you().path.length) you().state = 'idle'; }
-  if (d.act === 'search') doSearch(); if (d.act === 'examine') doExamine(); if (d.act === 'holy') takeHoly(G.players[me]); if (d.act === 'daybite') { const E = G.players[me], v = dayBiteTarget(E); if (v) dayBite(E, v); } if (d.stash) stashAct(G.players[me], d.stash);
+  if (d.act === 'search') doSearch(); if (d.act === 'examine') doExamine(); if (d.act === 'holy') takeHoly(G.players[me]); if (d.act === 'gate') { const gp = G.players[me]; setGate(gp, !G.town.gate); renderActs(); } if (d.act === 'fortify') { if (fortify(G.players[me])) { if (isHuman(me)) asSeat(me, () => renderCase()); renderActs(); } } if (d.act === 'daybite') { const E = G.players[me], v = dayBiteTarget(E); if (v) dayBite(E, v); } if (d.stash) stashAct(G.players[me], d.stash);
   if (d.act === 'dusk' && G.phase === 'day') { G.rang = G.rang || {}; G.rang[me] = true; const L = humansNow().filter(id => G.players[id].alive), n = L.filter(id => G.rang[id]).length; if (n >= L.length) startHearing(); else { toastAll(`${who(me)} rings for dusk (${n} of ${L.length}).`); renderActs(); } }
   if (d.b) selectBrother(+d.b);
   if (d.ask) { askAlibi(+d.ask); if (!remote()) $('pop').style.display = 'none'; }
@@ -2520,11 +2596,12 @@ function loop(ts) { requestAnimationFrame(loop); rafAt = bgAt = performance.now(
 function update(dt) { G.t += dt; if (G.phase === 'cine' || NIGHT.on()) { NIGHT.tick(dt); return; }
   const N = NETH(); if (N && N.guest) { N.tick(dt); if (G.phase === 'day') { renderActs(); $('timer').textContent = `${String(Math.floor(G.timer / 60)).padStart(2, '0')}:${String(Math.floor(G.timer % 60)).padStart(2, '0')}`; } else $('timer').textContent = '--:--'; return; }
   if (N && N.host) N.tick(dt); if (G.demo) demoTick(dt); if (G.screen) screenTick(dt);
-  if (G.phase === 'day') { G.timer -= dt; if (STRIG() && MAP.wastes && G.timer < 30 && !G.gateWarn) { G.gateWarn = true; for (const p of living()) { if (p._out && !p.banished && isHuman(p.id)) asSeat(p.id, () => flash('The dusk bell. The gate shuts soon: get inside the walls, or spend the night in the Wastes.')); if (p._out && !p.banished && !isHuman(p.id) && !(team(p) === 'evil' && rnd() < .3)) { if (p.state !== 'search') { p.plan = null; p.path = []; } p.wait = 0; p.goHome = true; } } }
+  if (G.phase === 'day') { G.timer -= dt; if (hasGate()) roamTick(dt); if (STRIG() && MAP.wastes && G.timer < 30 && !G.gateWarn) { G.gateWarn = true; for (const p of living()) { if (p._out && !p.banished && isHuman(p.id)) asSeat(p.id, () => flash('The dusk bell. The gate shuts soon: get inside the walls, or spend the night in the Wastes.')); if (p._out && !p.banished && !isHuman(p.id) && !(team(p) === 'evil' && rnd() < .3)) { if (p.state !== 'search') { p.plan = null; p.path = []; } p.wait = 0; p.goHome = true; } } }
     if (G.timer <= 0) { G.timer = 0; startHearing(); }
     for (let k = G.timers.length - 1; k >= 0; k--) if (G.timers[k][0] <= G.t) { const f = G.timers[k][1]; G.timers.splice(k, 1); f(); }
     if (!G.demo && LOCAL >= 0) keyMove(dt, G.players[LOCAL]); for (const id of humansNow()) if (id !== LOCAL && G.players[id].kdir) { const p = G.players[id]; keyMove(dt, p, p.kdir); p.walkKey = true; } else if (id !== LOCAL && G.players[id].walkKey) { G.players[id].walkKey = false; if (G.players[id].state === 'walk' && !G.players[id].path.length) G.players[id].state = 'idle'; }
-    if (STRIG() && G.town) { for (const p of G.players) { if (!p.alive) continue; if (p.banished && p.y < (MAP.fieldY || 28.4)) { p.y = MAP.fieldY || 28.4; p.path = []; p.kdir = null; } if (p.lockedOut && !P.rooms[roomAt(p.x, p.y)].outside) { p.y = MAP.fieldY || 28.4; p.path = []; p.kdir = null; } const o = !!P.rooms[roomAt(p.x, p.y)].outside; if (o && G.phase === 'day') { p.dayOut = (p.dayOut || 0) + dt; if (MAP.pois) for (const q of living()) if (q.id !== p.id && Math.hypot(q.x - p.x, q.y - p.y) < 3 && P.rooms[roomAt(q.x, q.y)].outside) (p.alone = p.alone || {})[q.id] = G.day; } if (p._out == null) p._out = o; else if (o !== p._out) { p._out = o; tlog(o ? `${p.short} went out of the gate.` : `${p.short} came back in through the gate.`); } }
+    if (STRIG() && G.town) { for (const p of G.players) { if (!p.alive) continue; if (p.banished && p.y < (MAP.fieldY || 28.4)) { p.y = MAP.fieldY || 28.4; p.path = []; p.kdir = null; } if (p.lockedOut && !P.rooms[roomAt(p.x, p.y)].outside) { p.y = MAP.fieldY || 28.4; p.path = []; p.kdir = null; } const o = !!P.rooms[roomAt(p.x, p.y)].outside; if (o && G.phase === 'day') { p.dayOut = (p.dayOut || 0) + dt; if (MAP.pois) for (const q of living()) if (q.id !== p.id && Math.hypot(q.x - p.x, q.y - p.y) < 3 && P.rooms[roomAt(q.x, q.y)].outside) (p.alone = p.alone || {})[q.id] = G.day; } if (p._out != null && o !== p._out && hasGate() && !G.town.gate && G.phase === 'day' && p._lx != null) { p.x = p._lx; p.y = p._ly; p.path = []; p.kdir = null; if (p.state === 'walk') p.state = 'idle'; if (isHuman(p.id) && (!p._gm || G.t - p._gm > 3)) { p._gm = G.t; asSeat(p.id, () => flash(p._out ? 'The gate is shut. Someone inside must open it: knock, and wait.' : 'The gate is shut. The lever is by the gate, on this side.')); } if (p._out && (!G.town.knock || G.t - G.town.knock > 12)) { G.town.knock = G.t; for (const h of humansNow()) if (h !== p.id && G.players[h].alive && !G.players[h]._out) asSeat(h, () => flash(`${p.short} is knocking at the gate.`)); } } p._lx = p.x; p._ly = p.y; const o2 = !!P.rooms[roomAt(p.x, p.y)].outside;
+      if (p._out == null) p._out = o2; else if (o2 !== p._out) { p._out = o2; tlog(o2 ? `${p.short} went out of the gate.` : `${p.short} came back in through the gate.`); } }
       if (G.town.log.length !== G.town._n) { G.town._n = G.town.log.length; renderCase(); }
       for (const id of humansNow()) asSeat(id, stashTick); }
     for (const id of humansNow()) { const me = G.players[id]; if (me.state === 'search') { me.st -= dt; if (me.st <= 0) { me.state = 'idle'; finishSearch(me, me.spot); } } }
@@ -2615,7 +2692,7 @@ function showIntro() { const R = ROLES[you().role], mate = R.team === 'evil' ? G
 
 // exposed for the test harness
 window.HGAME = { who, demoGame, newGame, loadGame, savesGet, saveGame, handle, asSeat, isHuman, showIntro, showDawn, showHearing, showNight, showEnd, renderAll, padInit, padHead, turnTexts, stashTick, loadMap, mapKey: () => MAP.key, setLocal: s => { LOCAL = s; G.you = s; }, getLocal: () => LOCAL, warmAll, sceneOn, ROLES, NIGHT, modal, hideModal, flash, VIEW };
-window.PROTO = { nomTally, NIGHT, frame: () => frame(), VIEW, lightAt, isoP, KIT: window.KIT, fogDbg: () => ({ VIS, VISK, CELLPX, WALLG }), evilClaim, shareClue, doSearch, doExamine, nearSpot, nearBody, team, maxSus, topSus, learn, update, G, simulateNight, startDay, startHearing, runVote, finishHearing, showNight, findPath, you, living };
+window.PROTO = { D2N: () => ({ setGate, nearLever, fortify, homeLv, atHome, roamTick, LEVER, GATEC, homeKey, placeAt }), nomTally, NIGHT, frame: () => frame(), VIEW, lightAt, isoP, KIT: window.KIT, fogDbg: () => ({ VIS, VISK, CELLPX, WALLG }), evilClaim, shareClue, doSearch, doExamine, nearSpot, nearBody, team, maxSus, topSus, learn, update, G, simulateNight, startDay, startHearing, runVote, finishHearing, showNight, findPath, you, living };
 })();
 
 // The Hollow Brother: the menu, and playing online.
