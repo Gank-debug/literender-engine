@@ -826,6 +826,7 @@ MAPS.town.female = ['Agnes', 'Elske', 'Griet', 'Hanne', 'Liesel'];
 MAPS.town.rules = 'strigoi';
 MAPS.town.music = 'town';
 MAPS.town.stash = [28.1, 27.7];
+MAPS.town.wastes = 1; // most materials lie out in the Wastes; the gate shuts at dusk
 MAPS.town.inc = 3; // nights from a bite to the turning (tsim 12 games: 2 nights → faithful 2 of 10; 3 nights → 5 of 10)
 MAPS.town.hz = 1.7; // the horde's size multiplier: tsim 16 games, faithful 9, 5.9 days, 10 breaches
 MAPS.town.thing = { tower: 'ladder', chapel: 'pew end', script: 'shelf corner', refect: 'bench', dorm: 'pallet', yard: 'well rope', fields: 'bleached bone' };
@@ -1070,22 +1071,24 @@ const hordeSize = n => Math.round((4 + (n - 1) * 4.6 + G.clock) * (+QS.get('hz')
 const matStr = o => Object.entries(o || {}).filter(([, v]) => v).map(([k, v]) => `${v} ${k}`).join(', ');
 const nearStash = p => !!(STRIG() && MAP.stash && p && !p.banished && Math.hypot(p.x - MAP.stash[0], p.y - MAP.stash[1]) < 2.8);
 function tlog(t, nt) { G.town.log.push({ d: G.day, nt, t, q: G.seq = (G.seq || 0) + 1 }); if (G.town.log.length > 80) G.town.log.shift(); }
-function deposit(p) { const pk = p.pack || {}; if (!Object.values(pk).some(v => v)) return false; for (const k in pk) G.town.stash[k] += pk[k]; tlog(`${p.short} put ${matStr(pk)} in the stash.`); p.pack = {}; return true; }
+function deposit(p) { const pk = p.pack || {}; if (!Object.values(pk).some(v => v)) return false; for (const k in pk) G.town.stash[k] += pk[k]; tlog(`${p.short} put ${matStr(pk)} in the stash.`); p.dayPut = (p.dayPut || 0) + Object.values(pk).reduce((a, b) => a + b, 0); p.pack = {}; return true; }
 const suspectTake = p => { for (const b of living()) if (!isHuman(b.id) && b.id !== p.id && team(b) === 'good') b.sus[p.id] += .2; };
-function takeMat(p, k) { if (!G.town.stash[k]) return false; G.town.stash[k]--; (p.pack = p.pack || {})[k] = (p.pack[k] || 0) + 1; tlog(`${p.short} took 1 ${k} from the stash.`); suspectTake(p); return true; }
+const witnesses = p => living().filter(q => q.id !== p.id && !q.banished && Math.hypot(q.x - MAP.stash[0], q.y - MAP.stash[1]) < 4.5);
+function tookLog(p, what) { const w = witnesses(p); if (w.length) { tlog(`${p.short} took ${what} from the stash (${w.slice(0, 2).map(q => q.short).join(' and ')} saw).`); suspectTake(p); } else { tlog(`Someone took ${what} from the stash.`); for (const b of living()) if (!isHuman(b.id) && team(b) === 'good' && b.id !== p.id) for (const q of living()) if (q.id !== b.id && Math.hypot(q.x - MAP.stash[0], q.y - MAP.stash[1]) < 9) b.sus[q.id] += .25; } }
+function takeMat(p, k) { if (!G.town.stash[k]) return false; G.town.stash[k]--; (p.pack = p.pack || {})[k] = (p.pack[k] || 0) + 1; tookLog(p, '1 ' + k); return true; }
 const canBuild = k => { const b = BUILDS[k]; if (b.once && G.town.built[k]) return false; if (b.tonight && G.town.fire) return false; return Object.entries(b.cost).every(([m, n]) => G.town.stash[m] >= n); };
 function buildIt(p, k) { if (!canBuild(k)) return false; const b = BUILDS[k]; for (const [m, n] of Object.entries(b.cost)) G.town.stash[m] -= n; if (b.tonight) G.town.fire = 1; else { G.town.def += b.def; G.town.built[k] = (G.town.built[k] || 0) + 1; } tlog(`${p.short} built: ${b.name}.`); return true; }
-function barDoor(p) { if (G.town.stash.timber < 1 || G.town.stash.rope < 1 || p.barred === (G.night || 0) + 1) return false; G.town.stash.timber--; G.town.stash.rope--; tlog(`${p.short} took 1 timber and 1 rope from the stash.`); suspectTake(p); p.barred = (G.night || 0) + 1; return true; }
+function barDoor(p) { if (G.town.stash.timber < 1 || G.town.stash.rope < 1 || p.barred === (G.night || 0) + 1) return false; G.town.stash.timber--; G.town.stash.rope--; tookLog(p, '1 timber and 1 rope'); p.barred = (G.night || 0) + 1; return true; }
 // a bot at the worksite: the faithful put in and build; the evil sometimes give, sometimes steal
 function stashBot(p) { const ev = team(p) === 'evil', H = hordeSize((G.night || 0) + 1);
-  if (!ev || rnd() < .45) deposit(p);
+  if (!ev) deposit(p); else if (rnd() < .6) { const pk = p.pack || {}, keep = {}; for (const k in pk) { const h = Math.floor(pk[k] / 2 + rnd() * .6); keep[k] = h; pk[k] -= h; } deposit(p); p.pack = keep; }
   if (ev) { if (rnd() < .4) { const ks = Object.keys(G.town.stash).filter(k => G.town.stash[k]); for (let n = 0; n < 1 + (rnd() < .4) && ks.length; n++) takeMat(p, pick(ks)); } return; }
   for (let n = 0; n < 1; n++) { const k = canBuild('tower') && rnd() < .7 ? 'tower' : canBuild('gate') ? 'gate' : townDef() < H + 2 && canBuild('fire') && G.town.def < H ? 'fire' : canBuild('pal') ? 'pal' : canBuild('spikes') ? 'spikes' : null; if (!k || (townDef() >= H + 4 && rnd() < .6)) break; buildIt(p, k); }
   if ((p.heard >= 1 || p.claimed) && rnd() < .35) barDoor(p); }
 // the stash panel: what is in it, what you carry, what can be built, the log
 function showStash() { const me = you(), T = G.town; if (!T) return; const near = nearStash(me) && me.alive && G.phase === 'day', H = hordeSize((G.night || 0) + 1);
   const ico = { timber: '▤', nails: '⟂', rope: '§', pitch: '●' };
-  let h = `<div class="hd" style="font-size:34px"><span class="cap">T</span>he Stash</div><p class="sub">The workshop in the square. Walls tonight: <b>${townDef()}</b>${T.last ? ` · last night ${T.last.n} of the dead came` : ''}. Whatever is put in or taken out is written in the log for all to read.${near ? '' : ' <b>Go to the worksite by the gate to use it.</b>'}</p>`;
+  let h = `<div class="hd" style="font-size:34px"><span class="cap">T</span>he Stash</div><p class="sub">The workshop in the square. Walls tonight: <b>${townDef()}</b>${T.last ? ` · last night ${T.last.n} of the dead came` : ''}. What is put in is written in the log with a name. What is taken is written too, but the name only if someone else at the workshop sees it.${near ? '' : ' <b>Go to the worksite by the gate to use it.</b>'}</p>`;
   h += `<div class="row wrap">${Object.entries(T.stash).map(([k, v]) => `<span class="btn small ${near && v ? '' : 'off'}" ${near && v ? `data-stash="take:${k}"` : ''} title="Take one">${ico[k]} ${v} ${k}</span>`).join('')}</div>`;
   h += `<p class="sub">You carry: ${matStr(me.pack) || 'nothing'}.</p><div class="row wrap"><span class="btn ${near && matStr(me.pack) ? 'go' : 'off'}" ${near ? 'data-stash="dep"' : ''}>Put it all in</span><span class="btn ${near && T.stash.timber && T.stash.rope && me.barred !== (G.night || 0) + 1 ? '' : 'off'}" ${near ? 'data-stash="bar"' : ''} title="Takes 1 timber and 1 rope. A sent Thrall cannot get in tonight; the Strigoi's bite still can.">${me.barred === (G.night || 0) + 1 ? 'Your door is barred tonight' : 'Bar my door tonight'}<small>1 timber · 1 rope</small></span></div>`;
   h += `<p class="sub" style="margin-top:10px">Build (from the stash):</p><div class="row wrap">${Object.entries(BUILDS).map(([k, b]) => `<span class="btn small ${near && canBuild(k) ? 'go' : 'off'}" ${near ? `data-stash="build:${k}"` : ''}>${b.name}${b.once && T.built[k] ? ' (built)' : ''}<small>${matStr(b.cost)} · +${b.def}</small></span>`).join('')}</div>`;
@@ -1324,8 +1327,8 @@ function simulateNight(choice) { if (choice && 'room' in choice) G.nightChoices[
   for (let k = 0; k < 7; k++) { const r = pick(RK), [x, y] = pointIn(r, .7); addSpot(x, y, null, false); }
   // materials: in the town and, richer, out in the fields
   if (STRIG()) { const MK = ['timber', 'timber', 'nails', 'rope', 'pitch'], inT = RK.filter(r => !P.rooms[r].outside), outF = RK.filter(r => P.rooms[r].outside);
-    G.spots = []; for (let k = 0; k < 10; k++) { const [x, y] = pointIn(pick(inT), .7); addSpot(x, y, null, false); G.spots[G.spots.length - 1].mat = { [pick(MK)]: 1 }; }
-    for (let k = 0; k < 8 && outF.length; k++) { const [x, y] = pointIn(pick(outF), .7); addSpot(x, y, null, false); const a = pick(MK), b = pick(MK); G.spots[G.spots.length - 1].mat = a === b ? { [a]: 2 } : { [a]: 1, [b]: 1 }; } }
+    const big = !!MAP.wastes, nIn = big ? +(QS.get('nin') || 3) : 10, nOut = big ? +(QS.get('nout') || 9) : 8; G.spots = []; for (let k = 0; k < nIn; k++) { const [x, y] = pointIn(pick(inT), .7); addSpot(x, y, null, false); G.spots[G.spots.length - 1].mat = { [pick(MK)]: 1 }; }
+    for (let k = 0; k < nOut && outF.length; k++) { const [x, y] = pointIn(pick(outF), .7); addSpot(x, y, null, false); const m = {}, n = big ? (y > 43.4 ? 2 + (rnd() < .5) : 1 + (rnd() < .5)) : 2; for (let j = 0; j < n; j++) { const a = pick(MK); m[a] = (m[a] || 0) + 1; } G.spots[G.spots.length - 1].mat = m; } }
   // dawn information for each gifted brother
   const info = {};
   const gh = G.lastHanged; G.lastHanged = null;
@@ -1373,7 +1376,7 @@ function dawn() {
   // bots: their role info becomes their knowledge, and maybe a claim
   for (const p of living()) if (!isHuman(p.id)) { const ni = G.nightInfo[p.id]; if (ni) learn(p, ni, 1.4); }
   G.timer = DAY_LEN; if (checkEnd()) return; G.ready = {}; forHumans(showDawn); saveGame(); }
-function startDay() { if (STRIG()) for (const p of living()) { if (!isHuman(p.id) && p.bitten && !p.holy && team(p) === 'good' && G.town && G.town.holy > 0 && rnd() < .45) p.goHoly = true; if (!isHuman(p.id) && rnd() < .25) p.goStash = true; }
+function startDay() { G.gateWarn = false; for (const p of G.players) { p.goHome = false; p.dayPut = 0; p.dayOut = 0; } if (STRIG()) for (const p of living()) { if (!isHuman(p.id) && p.bitten && !p.holy && team(p) === 'good' && G.town && G.town.holy > 0 && rnd() < .45) p.goHoly = true; if (!isHuman(p.id) && rnd() < .25) p.goStash = true; }
  for (const p of living()) if (p.role === 'scribe' && !isHuman(p.id)) { const t = topSus(p); const kept = t ? (isHuman(t.id) ? (G.cases[t.id] || []).filter(c => c.found && !c.shared) : (t.held || [])) : []; if (kept.length) learn(p, pick(kept), 1.2); }
   G.phase = 'day'; G.ready = {}; forHumans(hideModal); renderTop(); if (!G.demo) toastAll('The bell for Prime. Search the house before dusk.');
   // dawn talk: claims and info
@@ -1411,6 +1414,7 @@ function botThink(p, dt) {
   if (!p.alive || isHuman(p.id)) return;
   if (p.state === 'search') { p.st -= dt; if (p.st <= 0) { p.state = 'idle'; finishSearch(p, p.plan.spot); p.plan = null; } return; }
   if (p.path.length) return;
+  if (p.goHome) { if (!P.rooms[roomAt(p.x, p.y)].outside) { p.goHome = false; } else { p.path = findPath(p.x, p.y, MAP.stash[0] + rnd() * 2 - 1, MAP.stash[1] - 2 + rnd()); return; } }
   if (STRIG() && p.goStash && MAP.stash) { if (nearStash(p)) { p.goStash = false; stashBot(p); p.wait = 2 + rnd() * 3; return; } p.path = findPath(p.x, p.y, MAP.stash[0] + rnd() - .5, MAP.stash[1] + rnd() * .6); return; }
   if (p.goHoly) { if (roomAt(p.x, p.y) === 'chapel') { p.goHoly = false; takeHoly(p); p.wait = 3; return; } if (!p.holy && p.bitten) { const [tx, ty] = pointIn('chapel', .9); p.path = findPath(p.x, p.y, tx, ty); return; } p.goHoly = false; }
   if (p.plan && p.plan.spot && !p.plan.spot.searched && Math.hypot(p.x - p.plan.spot.x, p.y - p.plan.spot.y) < 1.1) { p.state = 'search'; p.st = SEARCH_T + 2; p.plan.spot.busy = p.id; face(p, p.plan.spot.x - p.x, p.plan.spot.y - p.y); return; }
@@ -1433,7 +1437,11 @@ function step(p, dt) { if (!p.path.length) { if (p.state === 'walk') p.state = '
   if (d <= m) { p.x = tx; p.y = ty; p.path.shift(); p.dist += d; } else { p.x += dx / d * m; p.y += dy / d * m; p.dist += m; } p.room = roomAt(p.x, p.y); }
 
 // ---------------------------------------------------------------- the hearing
-function startHearing() { if (G.phase !== 'day') return; G.rang = {}; G.phase = 'dusk'; G.timers = []; for (const p of G.players) { p.path = []; p.state = 'idle'; }
+function startHearing() { if (G.phase !== 'day') return;
+  if (STRIG() && G.town && MAP.wastes) { const outs = living().filter(p => (p.dayOut || 0) > 12 && !p.banished); // the day's account: who went out, what each brought back
+    if (outs.length) tlog('Past the gate today: ' + outs.map(p => `${p.short} (${p.dayPut ? 'put in ' + p.dayPut : 'put in nothing'})`).join(', ') + '.');
+    for (const p of outs) if (!p.dayPut && p.dayOut > 25) for (const b of living()) if (!isHuman(b.id) && team(b) === 'good' && b.id !== p.id) b.sus[p.id] += .35; }
+  G.rang = {}; G.phase = 'dusk'; G.timers = []; for (const p of G.players) { p.path = []; p.state = 'idle'; }
   for (const p of living()) if (!isHuman(p.id) && team(p) === 'good' && p.held && p.held.length) { for (const c of p.held) present(c, p); p.held = []; }
   G.hearing = { stage: 'nom', round: 1, noms: {}, acc: [], cur: -1, result: null }; botNoms(); G.ready = {}; forHumans(hideModal); showHearingAll(); }
 // the Hearing: the brothers first name one man to go up (most names, at least two). Then aye or nay: he hangs if half the living say aye.
@@ -1658,8 +1666,8 @@ function renderCase() { if (remote()) return; if (STRIG() && G.town) return rend
 // the town keeps no casebook: its side panel is the stash. On top, what is in it, what you carry, what can be built; below, the log,
 // the public record (who put in, who took, who built, who went out of the gate, what came at night) with your own notes in among it
 function renderLog() { const T = G.town, me = you(), near = nearStash(me) && me.alive && G.phase === 'day', ico = { timber: '▤', nails: '⟂', rope: '§', pitch: '●' }, tn = (G.night || 0) + (G.phase === 'night' ? 0 : 1);
-  const top = `<p class="sw">Walls <b>${townDef()}</b> · the dead tonight about <b>${hordeSize(tn)}</b>${near ? '' : ' · <i>at the workshop in the square</i>'}</p>
-    <div class="row wrap chips">${Object.entries(T.stash).map(([k, v]) => `<span class="btn small ${near && v ? '' : 'off'}" ${near && v ? `data-stash="take:${k}"` : ''} title="${near ? 'Take one (the log will say so)' : ''}">${ico[k]} ${v} ${k}</span>`).join('')}</div>
+  const gap = hordeSize(tn) - townDef(), top = `<p class="sw">Walls <b>${townDef()}</b> · the dead tonight about <b>${hordeSize(tn)}</b> · ${gap > 0 ? `<b style="color:#e07050">short by ${gap}</b>` : `holding by ${-gap}`}${near ? '' : ' · <i>at the workshop in the square</i>'}</p>
+    <div class="row wrap chips">${Object.entries(T.stash).map(([k, v]) => `<span class="btn small ${near && v ? '' : 'off'}" ${near && v ? `data-stash="take:${k}"` : ''} title="${near ? 'Take one (the log says something was taken; your name only if someone here sees)' : ''}">${ico[k]} ${v} ${k}</span>`).join('')}</div>
     <div class="row wrap"><span class="btn small ${near && matStr(me.pack) ? 'go' : 'off'}" ${near ? 'data-stash="dep"' : ''}>${matStr(me.pack) ? 'Put in ' + matStr(me.pack) : 'You carry nothing'}</span><span class="btn small ${near && T.stash.timber && T.stash.rope && me.barred !== (G.night || 0) + 1 ? '' : 'off'}" ${near ? 'data-stash="bar"' : ''} title="1 timber and 1 rope. A sent Thrall cannot get in tonight; the Strigoi's bite still can.">${me.barred === (G.night || 0) + 1 ? 'Door barred tonight' : 'Bar my door'}</span></div>
     <div class="bgrid">${Object.entries(BUILDS).map(([k, b]) => `<span class="btn small ${near && canBuild(k) ? 'go' : 'off'}" ${near ? `data-stash="build:${k}"` : ''} title="${b.name}: ${matStr(b.cost)}, +${b.def}${b.tonight ? ' tonight' : ''}">${b.name.replace(' (tonight only)', '')}${b.once && T.built[k] ? ' ✓' : ''}<small>${matStr(b.cost)} · +${b.def}</small></span>`).join('')}</div>`;
   const feed = T.log.map(l => ({ q: l.q || 0, h: `<p class="tl"><small>${l.nt ? 'Night ' + l.nt : 'Day ' + l.d}</small> ${l.t}</p>` }))
@@ -2022,10 +2030,11 @@ function loop(ts) { requestAnimationFrame(loop); rafAt = bgAt = performance.now(
 function update(dt) { G.t += dt; if (G.phase === 'cine' || NIGHT.on()) { NIGHT.tick(dt); return; }
   const N = NETH(); if (N && N.guest) { N.tick(dt); if (G.phase === 'day') { renderActs(); $('timer').textContent = `${String(Math.floor(G.timer / 60)).padStart(2, '0')}:${String(Math.floor(G.timer % 60)).padStart(2, '0')}`; } else $('timer').textContent = '--:--'; return; }
   if (N && N.host) N.tick(dt); if (G.demo) demoTick(dt); if (G.screen) screenTick(dt);
-  if (G.phase === 'day') { G.timer -= dt; if (G.timer <= 0) { G.timer = 0; startHearing(); }
+  if (G.phase === 'day') { G.timer -= dt; if (STRIG() && MAP.wastes && G.timer < 30 && !G.gateWarn) { G.gateWarn = true; for (const p of living()) { if (p._out && !p.banished && isHuman(p.id)) asSeat(p.id, () => flash('The dusk bell. The gate shuts soon: get inside the walls, or spend the night in the Wastes.')); if (p._out && !p.banished && !isHuman(p.id) && !(team(p) === 'evil' && rnd() < .3)) { if (p.state !== 'search') { p.plan = null; p.path = []; } p.wait = 0; p.goHome = true; } } }
+    if (G.timer <= 0) { G.timer = 0; startHearing(); }
     for (let k = G.timers.length - 1; k >= 0; k--) if (G.timers[k][0] <= G.t) { const f = G.timers[k][1]; G.timers.splice(k, 1); f(); }
     if (!G.demo && LOCAL >= 0) keyMove(dt, G.players[LOCAL]); for (const id of humansNow()) if (id !== LOCAL && G.players[id].kdir) { const p = G.players[id]; keyMove(dt, p, p.kdir); p.walkKey = true; } else if (id !== LOCAL && G.players[id].walkKey) { G.players[id].walkKey = false; if (G.players[id].state === 'walk' && !G.players[id].path.length) G.players[id].state = 'idle'; }
-    if (STRIG() && G.town) { for (const p of G.players) { if (!p.alive) continue; if (p.banished && p.y < (MAP.fieldY || 28.4)) { p.y = MAP.fieldY || 28.4; p.path = []; p.kdir = null; } const o = !!P.rooms[roomAt(p.x, p.y)].outside; if (p._out == null) p._out = o; else if (o !== p._out) { p._out = o; tlog(o ? `${p.short} went out of the gate.` : `${p.short} came back in through the gate.`); } }
+    if (STRIG() && G.town) { for (const p of G.players) { if (!p.alive) continue; if (p.banished && p.y < (MAP.fieldY || 28.4)) { p.y = MAP.fieldY || 28.4; p.path = []; p.kdir = null; } const o = !!P.rooms[roomAt(p.x, p.y)].outside; if (o && G.phase === 'day') p.dayOut = (p.dayOut || 0) + dt; if (p._out == null) p._out = o; else if (o !== p._out) { p._out = o; tlog(o ? `${p.short} went out of the gate.` : `${p.short} came back in through the gate.`); } }
       if (G.town.log.length !== G.town._n) { G.town._n = G.town.log.length; renderCase(); }
       for (const id of humansNow()) asSeat(id, stashTick); }
     for (const id of humansNow()) { const me = G.players[id]; if (me.state === 'search') { me.st -= dt; if (me.st <= 0) { me.state = 'idle'; finishSearch(me, me.spot); } } }
