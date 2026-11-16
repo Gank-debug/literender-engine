@@ -49,4 +49,4 @@ Project docs (in the claude.ai project "CATAN 2") hold the design history: `clau
 - The hive map draft ("The Stack") is a picture only.
 
 ## How GANK works
-Concise replies, a thinking partner; "draft" = show visuals/mp3s first; every build a single HTML, sent and pushed; back up before big edits (`file_backup_vN.js`); test before reporting; original music only (references are for mood). More in `INSTRUCTIONS.md` of the kit (`hollow_kit.zip`).
+Concise replies, a thinking partner; "draft" = show visuals/mp3s first; every build a single HTML, sent and pushed; back up before big edits (`file_backup_vN.js`); test before reporting; original music only (references are for mood). More in `INSTRUCTIONS.md` in this branch.
