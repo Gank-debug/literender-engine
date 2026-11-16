@@ -1,0 +1,10 @@
+const { chromium } = require('playwright');
+(async () => { const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 1400, height: 860 } }); const errs = []; p.on('pageerror', e => errs.push(e.message));
+  await p.goto('file://' + __dirname + '/hollow_brother_proto.html?scenes=off&map=town&seed=12&role=prior'); await p.waitForFunction(() => document.getElementById('load').style.display === 'none' && window.PROTO && PROTO.G && HGAME.mapKey() === 'town', null, { timeout: 120000 });
+  const r = await p.evaluate(async () => { const G = PROTO.G, X = PROTO.D2N(), q = s => document.querySelector(s), sl = ms => new Promise(r => setTimeout(r, ms));
+    q('[data-go="night"]')?.click(); await sl(200); q('[data-go="sleep"]')?.click(); await sl(300);
+    for (let k = 0; k < 10 && PROTO.NIGHT.on(); k++) { PROTO.NIGHT.skip(); await sl(100); } q('[data-go="day"]')?.click(); await sl(300);
+    const me = PROTO.you(); me.x = 24; me.y = 30; me.path = []; G.town.homes = { 1: 2, 3: 1 }; await sl(800); return [me.x, me.y, me.alive, me.hidden, X.placeAt(me.x, me.y)]; });
+  await p.screenshot({ path: '../shots/d2n_town.png' });
+  const r2 = await p.evaluate(async () => { const G = PROTO.G, sl = ms => new Promise(r => setTimeout(r, ms)), me = PROTO.you(), d = G.town.roam[2]; me.x = d.x + 3; me.y = d.y + 1; me.path = []; for (const q2 of G.players) if (q2.id !== me.id) { q2.x = 24; q2.y = 20; q2.path = []; } d.cd = 0; await sl(900); return [me.x, me.y, d.x, d.y]; });
+  await p.screenshot({ path: '../shots/d2n_roam.png' }); console.log(r, r2, errs); await b.close(); })();

@@ -1,0 +1,22 @@
+{"over":"good","day":7,"hangs":"-,-,-,-,-,enemy","clock":8,"found":10}
+{"over":"good","day":6,"hangs":"-,-,-,-,enemy","clock":8,"found":10}
+{"over":"evil","day":7,"hangs":"-,-,-,-,archiv,confess","clock":8,"found":8}
+{"over":"evil","day":6,"hangs":"-,novice,-,-,-","clock":8,"found":11}
+{"over":"good","day":6,"hangs":"-,-,-,-,enemy","clock":8,"found":10}
+{"over":"good","day":7,"hangs":"-,-,-,tracker,-,enemy","clock":8,"found":9}
+{"over":"good","day":5,"hangs":"-,-,-,enemy","clock":6,"found":9}
+{"over":"good","day":5,"hangs":"-,-,-,enemy","clock":6,"found":9}
+{"over":"good","day":7,"hangs":"-,-,-,-,-,enemy","clock":8,"found":8}
+{"over":"good","day":3,"hangs":"-,enemy","clock":2,"found":9}
+{"over":"evil","day":7,"hangs":"-,-,-,lay,-,-","clock":8,"found":10}
+{"over":"evil","day":6,"hangs":"-,-,-,archiv,tracker","clock":8,"found":9}
+{"over":"evil","day":6,"hangs":"-,-,-,confess,archiv","clock":8,"found":10}
+{"over":"evil","day":6,"hangs":"-,-,-,infirm,-","clock":8,"found":10}
+{"over":"evil","day":6,"hangs":"-,-,-,archiv,-","clock":8,"found":12}
+{"over":"good","day":6,"hangs":"-,-,-,-,enemy","clock":8,"found":10}
+{"over":"evil","day":6,"hangs":"-,-,-,grave,novice","clock":8,"found":12}
+{"over":"good","day":7,"hangs":"-,-,-,-,confess,enemy","clock":8,"found":9}
+{"over":"evil","day":7,"hangs":"-,-,archiv,-,scrub,-","clock":8,"found":11}
+{"over":"evil","day":6,"hangs":"-,-,-,grave,infirm","clock":8,"found":10}
+good wins 10 / 20 avg days 6.1
+[]

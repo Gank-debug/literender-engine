@@ -1,0 +1,10 @@
+const { chromium } = require('playwright');
+(async () => { const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 1600, height: 900 } }); const errs = []; p.on('pageerror', e => errs.push(e.message));
+  await p.goto('file://' + __dirname + '/hollow_brother_proto.html?seed=4&scenes=off&map=town'); await p.waitForFunction(() => document.getElementById('load').style.display === 'none' && HGAME.mapKey() === 'town', null, { timeout: 90000 });
+  await p.evaluate(async () => { HGAME.newGame({ seed: 9, humans: [0], forceEnemy: true, scenes: false, map: 'town' }); const G = PROTO.G; G.players[3].role = 'thrall'; G.players[3].wasRole = 'tracker'; G.players[5].bitten = 1; G.night = 2; G.day = 2; HGAME.showNight(); await new Promise(r => setTimeout(r, 200)); document.querySelector('#modal [data-send="6"]')?.click(); });
+  await p.waitForTimeout(400); await p.screenshot({ path: '../shots/strig_night.png' });
+  await p.evaluate(async () => { HGAME.newGame({ seed: 12, humans: [0], scenes: false, map: 'town' }); const G = PROTO.G; HGAME.hideModal(); G.nightLog = { dead: [], targets: [], protect: null, start: {} }; G.day = 1; G.phase = 'dawn'; G.nightInfo = {}; G.nightNote = { 0: { text: 'You woke cold, with two small wounds on your neck. You have been bitten. In two nights you will turn and serve the Strigoi, unless you are cured first: the Physician can bleed it out of you, or you can take the holy water at the church (the whole town will see).', bite: 1 } }; HGAME.showDawn(); });
+  await p.waitForTimeout(400); await p.screenshot({ path: '../shots/strig_bitten.png' });
+  await p.evaluate(async () => { HGAME.hideModal(); const G = PROTO.G; PROTO.startDay(); HGAME.hideModal(); const me = PROTO.you(); me.x = 4; me.y = 6; G.timer = 100; HGAME.renderAll(); });
+  await p.waitForTimeout(1500); await p.screenshot({ path: '../shots/strig_church.png' });
+  console.log(errs); await b.close(); })();

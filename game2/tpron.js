@@ -1,0 +1,5 @@
+const { chromium } = require('playwright');
+(async () => { const b = await chromium.launch(); const p = await b.newPage(); const errs = []; p.on('pageerror', e => errs.push(e.message));
+  await p.goto('file://' + __dirname + '/hollow_brother_proto.html?seed=4&scenes=off&map=town'); await p.waitForFunction(() => document.getElementById('load').style.display === 'none' && HGAME.mapKey() === 'town', null, { timeout: 90000 });
+  console.log(await p.evaluate(async () => { HGAME.newGame({ seed: 5, humans: [0], scenes: false, map: 'town' }); const d = document.createElement('div'); document.body.appendChild(d);
+    const out = []; for (const t of ['I followed Agnes: he never left the Row.', 'Hanne left his room in the night.', 'I saw Piet near that spot. Ask him why.', 'Brother Griet is dead in his cot. He hungers.', 'Agnes and Piet: one of them lied about his gift.']) { d.textContent = t; await new Promise(r => setTimeout(r, 30)); out.push(d.textContent); } return out; }), errs); await b.close(); })();

@@ -1,0 +1,11 @@
+const { chromium } = require('playwright');
+(async () => { const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 1600, height: 900 } }); const errs = []; p.on('pageerror', e => errs.push(e.message));
+  await p.goto('file://' + __dirname + '/hollow_brother_proto.html?seed=4&scenes=off&map=town'); await p.waitForFunction(() => document.getElementById('load').style.display === 'none' && HGAME.mapKey() === 'town', null, { timeout: 90000 });
+  const out = await p.evaluate(async () => { const w = ms => new Promise(r => setTimeout(r, ms)), G = PROTO.G, q = s => document.querySelector('#modal ' + s);
+    HGAME.newGame({ seed: 21, humans: [0], scenes: false, map: 'town' }); await w(100); q('[data-go="night"]')?.click(); await w(80);
+    for (const s of ['[data-protect]', '[data-follow]', '[data-ring]']) q(s)?.click(); await w(40); q('[data-go="sleep"]')?.click(); await w(150); q('[data-go="day"]')?.click(); await w(80);
+    for (let k = 0; k < 1500 && G.phase === 'day'; k++) PROTO.update(.05);
+    const me = PROTO.you(); me.x = 30.5; me.y = 4; me.path = []; HGAME.renderAll(); await w(100);
+    const s = PROTO.nearSpot(); const r = { spots: G.spots.length, glints: 0, scav: !!s, acts: document.getElementById('acts').innerText.replace(/\n/g, ' ') };
+    PROTO.doSearch(); for (let k = 0; k < 200 && me.state === 'search'; k++) PROTO.update(.05); r.pack = JSON.stringify(me.pack); r.flash = document.getElementById('flash').innerText; return r; });
+  console.log(out); await p.waitForTimeout(600); await p.screenshot({ path: '../shots/town_log.png' }); console.log(errs); await b.close(); })();

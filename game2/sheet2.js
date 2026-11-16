@@ -1,0 +1,15 @@
+// Two sheets: (1) every character of all three settings in eight facings; (2) an animated sheet of the poses.
+const { chromium } = require('playwright'); const fs = require('fs');
+(async () => { const b = await chromium.launch(); const p = await b.newPage(); p.on('pageerror', e => console.log(e.message));
+  await p.goto('file://' + __dirname + '/../game7/crown7.html'); await p.waitForTimeout(2000); await p.addScriptTag({ path: __dirname + '/kit2.js' });
+  const out = await p.evaluate(async () => { await document.fonts.ready; const K = 3, CH = 60, L = 170; let CW = 44;
+    const cell = (g, s, x, y, alt) => { g.fillStyle = alt ? '#302c28' : '#2b2824'; g.fillRect(x, y, CW * K, CH * K); g.fillStyle = 'rgba(0,0,0,.4)'; g.beginPath(); g.ellipse(x + CW * K / 2, y + (CH - 8) * K, 9 * K, 4.5 * K, 0, 0, 7); g.fill(); g.drawImage(s.canvas, x + (CW / 2 + s.ox) * K, y + (CH - 8 + s.oy) * K, s.w * K, s.h * K); };
+    const mk = rows => { const c = document.createElement('canvas'); c.width = L + CW * K * 8 + 12; c.height = 36 + CH * K * rows + 8; const g = c.getContext('2d'); g.imageSmoothingEnabled = false; g.fillStyle = '#262320'; g.fillRect(0, 0, c.width, c.height); g.font = '600 18px "Pixelify Sans"'; g.textBaseline = 'middle'; g.textAlign = 'center'; g.fillStyle = '#e9c46a'; KIT.DIRS.forEach((d, i) => g.fillText(d, L + i * CW * K + CW * K / 2, 18)); return [c, g]; };
+    const label = (g, r, a, bb) => { g.textAlign = 'left'; g.font = '600 15px "Pixelify Sans"'; g.fillStyle = '#f4ecd6'; g.fillText(a, 10, 36 + r * CH * K + CH * K / 2 - 9); g.fillStyle = '#9a917e'; g.fillText(bb, 10, 36 + r * CH * K + CH * K / 2 + 11); };
+    const all = Object.entries(KIT.CAST).flatMap(([set, l]) => l.map(o => [set, o])), [c1, g1] = mk(all.length);
+    all.forEach(([set, o], r) => { const { name, ...opt } = o; label(g1, r, name, set); for (let f = 0; f < 8; f++) cell(g1, KIT.person(opt, f), L + f * CW * K, 36 + r * CH * K, (f + r) % 2); });
+    CW = 66; const strip = ({ name, ...o }) => o, M = KIT.CAST.monastery, T = KIT.CAST.town, P = KIT.CAST.port;
+    const rows = [[M[0], 'idle', 'Idle', t => (t >> 2) % 2], [M[0], 'walk', 'Walk', t => t % 4], [M[1], 'work', 'Work', t => (t >> 1) % 2], [M[2], 'point', 'Accuse', t => (t >> 1) % 2], [M[4], 'pray', 'Pray', t => 0], [M[0], 'die', 'Die', t => [0, 1, 2, 3, 3, 3, 3, 3][t]], [T[0], 'walk', 'Walk', t => t % 4], [T[2], 'walk', 'Walk', t => t % 4], [T[1], 'walk', 'Walk', t => t % 4], [P[0], 'walk', 'Walk', t => t % 4], [P[2], 'die', 'Die', t => [0, 1, 2, 3, 3, 3, 3, 3][t]]];
+    const frames = []; for (let t = 0; t < 8; t++) { const [c, g] = mk(rows.length); rows.forEach(([o, pose, lab, ff], r) => { label(g, r, lab, o.name); for (let f = 0; f < 8; f++) cell(g, KIT.person(strip(o), f, pose, ff(t)), L + f * CW * K, 36 + r * CH * K, (f + r) % 2); }); frames.push(c.toDataURL()); }
+    return [c1.toDataURL(), frames]; });
+  const w = (n, u) => fs.writeFileSync(__dirname + '/' + n, Buffer.from(u.split(',')[1], 'base64')); w('cast_all.png', out[0]); out[1].forEach((u, i) => w('anim_' + i + '.png', u)); await b.close(); })();

@@ -1,0 +1,6 @@
+*.html
+!game7/shell.html
+__pycache__/
+*.mp3
+*.ogg
+walls_gif/

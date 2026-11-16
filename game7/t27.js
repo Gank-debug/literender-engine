@@ -1,0 +1,12 @@
+const { chromium } = require('playwright');
+const VARIANT = process.argv[2] || 'A';
+(async () => { const b = await chromium.launch(); const p = await b.newPage(); const errs = []; p.on('pageerror', e => errs.push(e.message));
+  await p.goto('file://' + __dirname + '/crown7.html'); await p.waitForTimeout(2500); const rows = [];
+  for (const seed of [11, 222, 3333, 44444, 555, 6060, 707, 8888, 919, 1010, 1111, 1212]) { await p.evaluate(seed => startGame(seed, ['red']), seed); await p.waitForTimeout(1200);
+    rows.push(await p.evaluate(([seed, V]) => { UI.toast = () => {}; lord('red').human = false; CQ.q = [];
+      if (V === 'B') { COST.monument = { ore: 2, clay: 2, grain: 2 }; window.monoCost = L => COST.monument; } if (V === 'C') { COST.monument = { ore: 4, clay: 4, grain: 3 }; }
+      while (G.phase === 'setup') { const L = curL(); if (G.setup.step === 'charter') { pickCharter(L, aiCharter(L)); continue; } setupVillage(L, aiSetupVillage(L)); setupRoad(L, aiSetupRoad(L)); }
+      let n = 0; while (!checkWin() && n < 1600) { if (n) nextLord(); const L = curL(); n++; if (!L.alive) continue; const r = rollDice(); if (r === 7) moveRobber(L, aiRobber(L)); aiCards(L); aiBuild(L); const be = aiBatterSpot(L); if (be) batterAI(L, be); for (let k = 0; k < 2; k++) { const ch = aiDeed(L); if (ch.kind === 'attack') { const D = defenders(ch.v); applyBattle(L, { v: ch.v, D }, skRun({ A: attackerSide(L), D }), ch.M.prev.get(ch.v)); } else if (ch.kind === 'move') L.army.v = ch.v; if (L.deed || !L.again) break; } }
+      const W = lord(G.winner), log = G.log.map(l => l.html); const bd = W ? { set: settlements(W.id).reduce((a, v) => a + v.level, 0), mono: monumentsOf(W.id).length, road: G.lh.road === W.id, host: G.lh.host === W.id, chron: W.cards.concat(W.fresh).filter(c => c === 'chronicle').length, taken: log.filter(h => /takes a (village|town) from/.test(h) && h.indexOf(PNAME[W.id]) >= 0).length } : null;
+      return { seed, round: G.round, winner: G.winner, alive: G.lords.filter(L => L.alive).length, captures: log.filter(h => /takes a (village|town) from|takes the last/.test(h)).length, outs: log.filter(h => /is out|are out/.test(h)).length, monos: G.tiles.filter(t => t.mono).length, monoLog: log.filter(h => /raises a monument|raise a monument/.test(h)).length, bd, ch: G.lords.map(L => L.charter).join(',') }; }, [seed, VARIANT])); }
+  for (const r of rows) console.log(JSON.stringify(r)); console.log('ERR', errs.slice(0, 3)); await b.close(); })();

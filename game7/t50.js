@@ -1,0 +1,12 @@
+const { chromium } = require('playwright');
+(async () => { const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 1440, height: 860 } }); const errs = []; p.on('pageerror', e => errs.push(e.message + (e.stack || '').split('\n')[1]));
+  await p.goto('file://' + __dirname + '/crown7.html'); await p.waitForTimeout(2500);
+  await p.fill('#shname', 'GANK'); await p.click('#shsw'); await p.click('[data-mycol="teal"]'); await p.waitForTimeout(200); await p.screenshot({ path: 'o_shelf.png' });
+  await p.click('#shplay'); await p.waitForTimeout(300); await p.click('[data-chm="pick"]'); await p.click('[data-chk="bandit"]'); await p.click('[data-bots="2"]'); await p.click('#lreroll'); await p.waitForTimeout(300); await p.screenshot({ path: 'o_page.png' });
+  await p.click('[data-info="charters"]'); await p.waitForTimeout(200); await p.screenshot({ path: 'o_info.png' }); await p.click('#linfox');
+  await p.click('[data-tab="host"]'); await p.waitForTimeout(600); await p.screenshot({ path: 'o_page_host.png' }); await p.click('[data-tab="join"]'); await p.waitForTimeout(300); await p.screenshot({ path: 'o_page_join.png' }); await p.click('[data-tab="menu"]'); await p.waitForTimeout(300);
+  console.log(await p.evaluate(() => JSON.stringify([LOBBY.view, LOBBY.chmode, LOBBY.chpick.length, LOBBY.bots, LOBBY.cols, LOBBY.lnames])));
+  await p.click('[data-chm="none"]'); await p.click('#lgo'); await p.waitForTimeout(3500);
+  console.log(await p.evaluate(() => JSON.stringify([G.setup.step, G.chset, G.bots, G.cols.red, lordName('red'), !!charterWho()])));
+  await p.evaluate(() => { $('toasts').innerHTML = ''; }); await p.screenshot({ path: 'o_atmo.png' });
+  console.log('ERR', errs.slice(0, 5)); await b.close(); })();

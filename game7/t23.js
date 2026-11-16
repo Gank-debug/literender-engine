@@ -1,0 +1,10 @@
+const { chromium } = require('playwright');
+(async () => { const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 1440, height: 860 } }); const errs = []; p.on('pageerror', e => errs.push(e.message));
+  await p.goto('file://' + __dirname + '/crown7.html'); await p.waitForTimeout(2500);
+  await p.click('[data-ls="blue:you"]'); await p.waitForTimeout(200);
+  await p.fill('[data-lpn="red"]', 'GANK'); await p.fill('[data-lpn="blue"]', 'Marla'); await p.click('[data-win="15"]'); await p.waitForTimeout(300);
+  await p.screenshot({ path: 'lobby_new.png' });
+  await p.click('#lgo'); await p.waitForTimeout(3000); await p.evaluate(() => { const b = [...document.querySelectorAll('button')].find(x => /go/.test(x.textContent)); if (b) b.click(); }); await p.waitForTimeout(800);
+  console.log(await p.evaluate(() => [G.win, JSON.stringify(G.names), winPts(), $('lords').innerText.slice(0, 200)]));
+  await p.screenshot({ path: 'names_bar.png' });
+  console.log('ERR', errs); await b.close(); })();

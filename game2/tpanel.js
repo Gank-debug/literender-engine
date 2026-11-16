@@ -1,0 +1,11 @@
+const { chromium } = require('playwright');
+(async () => { const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 1600, height: 900 } }); const errs = []; p.on('pageerror', e => errs.push(e.message));
+  await p.goto('file://' + __dirname + '/hollow_brother_proto.html?seed=4&scenes=off&map=town'); await p.waitForFunction(() => document.getElementById('load').style.display === 'none' && HGAME.mapKey() === 'town', null, { timeout: 90000 });
+  const out = await p.evaluate(async () => { const w = ms => new Promise(r => setTimeout(r, ms)), G = PROTO.G, q = s => document.querySelector('#modal ' + s);
+    HGAME.newGame({ seed: 23, humans: [0], scenes: false, map: 'town' }); await w(100); q('[data-go="night"]')?.click(); await w(80);
+    for (const s of ['[data-protect]', '[data-follow]', '[data-ring]']) q(s)?.click(); await w(40); q('[data-go="sleep"]')?.click(); await w(150); q('[data-go="day"]')?.click(); await w(80);
+    for (let k = 0; k < 900 && G.phase === 'day'; k++) PROTO.update(.05);
+    const me = PROTO.you(); me.x = 24.3; me.y = 23.2; me.path = []; me.pack = { timber: 2, rope: 1 }; for (let k = 0; k < 4; k++) PROTO.update(.05); await w(100);
+    document.querySelector('#case [data-stash="dep"]')?.click(); await w(100); document.querySelector('#case [data-stash="build:pal"]')?.click(); await w(150);
+    return { stash: JSON.stringify(G.town.stash), def: G.town.def, last: G.town.log.slice(-2).map(l => l.t) }; });
+  console.log(out); await p.waitForTimeout(500); await p.screenshot({ path: '../shots/town_stashpanel.png' }); console.log(errs); await b.close(); })();

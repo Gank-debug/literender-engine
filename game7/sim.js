@@ -1,0 +1,10 @@
+const { chromium } = require('playwright');
+(async () => { const b = await chromium.launch(); const p = await b.newPage(); await p.goto('file://' + __dirname + '/crown7.html'); await p.waitForTimeout(2500); await p.evaluate(() => startGame(5, ['red'])); await p.waitForTimeout(1500);
+  console.log(await p.evaluate(() => { const out = []; const run = (A, D, n = 200) => { let w = { A: 0, D: 0, D_hold: 0, A_fell: 0, D_fell: 0 }; for (let i = 0; i < n; i++) { const S = skRun({ A: { owner: 'red', units: A }, D: { owner: 'blue', units: D, guard: 0 } }); w[S.result]++; } return JSON.stringify(w); };
+    out.push('8 host vs village(2 militia): ' + run({ spear: 4, sword: 2, archer: 2 }, { militia: 2 }));
+    out.push('8 host vs town(4 mil+2 spear): ' + run({ spear: 4, sword: 2, archer: 2 }, { militia: 4, spear: 2 }));
+    out.push('12 host vs town: ' + run({ spear: 6, sword: 4, archer: 2 }, { militia: 4, spear: 2 }));
+    out.push('8 vs 8 field: ' + run({ spear: 4, sword: 2, archer: 2 }, { spear: 4, sword: 2, archer: 2 }));
+    out.push('8 host vs village + 6 host: ' + run({ spear: 4, sword: 2, archer: 2 }, { militia: 2, spear: 3, sword: 2, archer: 1 }));
+    return out.join('\n'); }));
+  await b.close(); })();

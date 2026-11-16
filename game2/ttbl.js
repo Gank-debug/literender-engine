@@ -1,0 +1,13 @@
+const { chromium } = require('playwright');
+(async () => { const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 1280, height: 800 } }); const errs = []; p.on('pageerror', e => errs.push(e.message));
+  await p.goto(`file://${__dirname}/hollow_brother_proto.html?seed=5&scenes=off`); await p.waitForFunction(() => document.getElementById('load').style.display === 'none' && window.HMENU, null, { timeout: 90000 });
+  await p.evaluate(() => { document.querySelector('#modal [data-go="night"]').click(); const q = document.querySelector('[data-protect],[data-follow]'); if (q) q.click(); document.querySelector('[data-go="sleep"]').click(); }); await p.waitForTimeout(400);
+  await p.evaluate(() => document.querySelector('[data-go="day"]').click()); await p.waitForTimeout(600);
+  await p.evaluate(() => document.querySelector('[data-tbl]').click()); await p.waitForTimeout(300);
+  await p.evaluate(() => { PROTO.G.headless = true; for (let k = 0; k < 400; k++) PROTO.update(.05); PROTO.G.headless = false; HGAME.renderAll(); }); await p.waitForTimeout(500);
+  console.log('hidden', await p.evaluate(() => getComputedStyle(document.getElementById('chat')).display), 'dot', await p.evaluate(() => !!document.querySelector('#acts .udot')));
+  await p.screenshot({ path: 'tbl_hidden.png' });
+  await p.keyboard.press('c'); await p.waitForTimeout(300); console.log('shown again', await p.evaluate(() => getComputedStyle(document.getElementById('chat')).display));
+  await p.evaluate(() => document.getElementById('chat').querySelector('input').blur());
+  await p.evaluate(() => document.querySelector('[data-allroles]').click()); await p.waitForTimeout(300); await p.screenshot({ path: 'roles_all.png' });
+  console.log(errs); await b.close(); })();

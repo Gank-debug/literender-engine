@@ -1,0 +1,11 @@
+const { chromium } = require('playwright'); const fs = require('fs');
+(async () => { const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 1440, height: 860 } }); const errs = []; p.on('pageerror', e => errs.push(e.message + (e.stack || '').split('\n')[1]));
+  await p.goto('file://' + __dirname + '/crown7.html'); await p.waitForTimeout(2500);
+  await p.click('.lsw[data-sw="red"]'); await p.waitForTimeout(200); await p.screenshot({ path: 'o_lobby_pick.png' });
+  await p.click('[data-pc="red:teal"]'); await p.click('.lsw[data-sw="blue"]'); await p.click('[data-pc="blue:rose"]'); await p.click('.lsw[data-sw="gold"]'); await p.click('[data-pc="gold:slate"]'); await p.waitForTimeout(200);
+  console.log(await p.evaluate(() => JSON.stringify(LOBBY.cols)));
+  await p.click('#lgo'); await p.waitForTimeout(3000); await p.evaluate(() => send({ type: 'charter', k: 'none', by: 'red' })); await p.waitForTimeout(1500);
+  await p.evaluate(fs.readFileSync(__dirname + '/../drafts7/inject.js', 'utf8').replace(/\/\/ --- road colourings[\s\S]*$/, ''));
+  await p.evaluate(() => { CQ.q = []; UI.toast = () => {}; ffwd(); $('toasts').innerHTML = ''; UI.cam.z = 1.4; const v = settlements('red')[0]; centerOn(v.vx + 80, v.vy); UI.camGoal = null; landChanged(); hud(); }); await p.waitForTimeout(900);
+  await p.screenshot({ path: 'o_cols_game.png' }); console.log(await p.evaluate(() => [G.cols, COLS.red, PNAME.red, lordName('blue')].map(x => JSON.stringify(x)).join(' ')));
+  console.log('ERR', errs.slice(0, 5)); await b.close(); })();

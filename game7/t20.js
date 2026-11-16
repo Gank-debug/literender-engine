@@ -1,0 +1,8 @@
+const { chromium } = require('playwright');
+(async () => { const b = await chromium.launch(); const p = await b.newPage(); const errs=[]; p.on('pageerror', e => errs.push(e.message));
+  await p.goto('file://' + __dirname + '/crown7.html'); await p.waitForTimeout(2500);
+  for (const seed of [11, 222, 3333, 44444, 555, 6060, 707, 8888]) { await p.evaluate(seed => startGame(seed, ['red']), seed); await p.waitForTimeout(1500); console.log(await p.evaluate(seed => { UI.toast = () => {}; lord('red').human = false; CQ.q = [];
+    while (G.phase === 'setup') { const L = curL(); if (G.setup.step === 'charter') { pickCharter(L, aiCharter(L)); continue; } setupVillage(L, aiSetupVillage(L)); setupRoad(L, aiSetupRoad(L)); }
+    let n = 0; while (!checkWin() && n < 1200) { if (n) nextLord(); const L = curL(); n++; if (!L.alive) continue; const r = rollDice(); if (r === 7) moveRobber(L, aiRobber(L)); aiCards(L); aiBuild(L); const be = aiBatterSpot(L); if (be) { batterAI(L, be); window.__bat = (window.__bat || 0) + 1; } const ch = aiDeed(L); if (ch.kind === 'attack') { const D = defenders(ch.v); applyBattle(L, { v: ch.v, D }, skRun({ A: attackerSide(L), D }), ch.M.prev.get(ch.v)); } else if (ch.kind === 'move') L.army.v = ch.v; }
+    return [seed, G.round, G.winner, G.lords.map(L => vp(L.id)), 'walls', G.edges.filter(e => e.wo).length, 'breached', G.edges.filter(e => e.wo && !e.whp).length, 'batters', window.__bat || 0].join(' '); }, seed)); }
+  console.log('ERR', errs); await b.close(); })();

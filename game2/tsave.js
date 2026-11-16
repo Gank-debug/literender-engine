@@ -1,0 +1,11 @@
+const { chromium } = require('playwright');
+(async () => { const b = await chromium.launch(); const c = await b.newContext({ viewport: { width: 1280, height: 800 } }); await c.addInitScript(() => { try { localStorage.setItem('hollow-scenes', '0'); } catch (e) {} }); const p = await c.newPage(); const errs = []; p.on('pageerror', e => errs.push(e.message));
+  const U = `file://${__dirname}/hollow_brother_proto.html`, js = sel => p.evaluate(sel => { const e = [...document.querySelectorAll(sel)].find(x => x.offsetParent); if (e) e.click(); return !!e; }, sel);
+  await p.goto(U); await p.waitForFunction(() => document.getElementById('load').style.display === 'none' && document.getElementById('hmenu'), null, { timeout: 90000 });
+  await p.click('[data-scenes="0"]'); await p.click('#hsolo'); await p.waitForTimeout(500); await js('#modal [data-go="night"]'); await p.waitForTimeout(400);
+  await p.evaluate(() => { const q = s => [...document.querySelectorAll(s)].find(e => e.offsetParent); for (const s of ['#modal [data-kill]', '#modal [data-protect]', '#modal [data-follow]']) { const e = q(s); if (e) e.click(); } }); await js('#modal [data-go="sleep"]'); await p.waitForTimeout(800);
+  const before = await p.evaluate(() => [G.day, G.phase, G.players.map(q => q.role).join(','), (G.cases[0] || []).length]);
+  await p.reload(); await p.waitForFunction(() => document.getElementById('load').style.display === 'none' && document.getElementById('hmenu'), null, { timeout: 90000 }); await p.waitForTimeout(500);
+  await p.screenshot({ path: 'save_menu.png' }); await p.click('[data-sv="0"]'); await p.waitForTimeout(800);
+  const after = await p.evaluate(() => [G.day, G.phase, G.players.map(q => q.role).join(','), (G.cases[0] || []).length]);
+  console.log('before', before, '\nafter ', after, 'same roles', before[2] === after[2]); console.log('modal', await p.evaluate(() => document.getElementById('modal').innerText.slice(-60)), await js('#modal [data-go="day"]')); await p.waitForTimeout(500); console.log('day runs', await p.evaluate(() => [G.phase, G.timer > 0])); console.log(errs); await b.close(); })();

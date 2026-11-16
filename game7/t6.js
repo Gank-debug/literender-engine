@@ -1,0 +1,8 @@
+const { chromium } = require('playwright');
+(async () => { const b = await chromium.launch(); const p = await b.newPage(); const errs=[]; p.on('pageerror', e => errs.push(e.message+(e.stack||'').split('\n')[1])); await p.goto('file://' + __dirname + '/crown7.html#1234'); await p.waitForTimeout(3500);
+ const sim = await p.evaluate(() => { UI.toast = () => {};  const out = []; for (let g = 0; g < 20; g++) { setupGame(5000 + g, [], g % 2 ? LORDS : LORDS.slice(0, 5)); G.lords[0].human = false; while (G.phase === 'setup') { const L = curL(); setupVillage(L, aiSetupVillage(L)); setupRoad(L, aiSetupRoad(L)); } let n = 0, battles = 0, caps = 0;
+    while (!checkWin() && n < 1200) { if (n) nextLord(); const L = curL(); n++; if (!L.alive) continue; const r = rollDice(); if (r === 7) moveRobber(L, aiRobber(L)); aiCards(L); aiBuild(L); const ch = aiDeed(L);
+      if (ch.kind === 'attack') { battles++; const stop = ch.M.prev.get(ch.v); let D = defenders(ch.v); const v = G.verts[ch.v]; if (v.wall > 0) { for (let i = 0; i < (L.army.units.cata || 0) * 2; i++) if (Math.random() < .45) v.wall = Math.max(0, v.wall - 25); D = defenders(ch.v); } const was = v.owner; const won = applyBattle(L, { v: ch.v, D }, skRun({ A: attackerSide(L), D }), stop); if (won && was) caps++; }
+      else if (ch.kind === 'move') L.army.v = ch.v; }
+    out.push([G.winner, G.round, battles, caps, G.lords.map(L => L.alive ? vp(L.id) : 'x').join('/')]); } return out; });
+ for (const r of sim) console.log(JSON.stringify(r)); const rs = sim.map(r => r[1]); console.log('avg rounds', rs.reduce((a,b)=>a+b)/rs.length); console.log(errs.slice(0,5)); await b.close(); })();

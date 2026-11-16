@@ -1,0 +1,14 @@
+const { chromium } = require('playwright');
+(async () => { const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 1680, height: 945 } }); const errs = []; p.on('pageerror', e => errs.push(e.message));
+  await p.goto('file://' + __dirname + '/crown7.html'); await p.waitForTimeout(3000);
+  await p.click('#shplay'); await p.click('#lgo'); await p.waitForTimeout(1500);
+  const waitIdle = async () => { for (let i = 0; i < 120; i++) { await p.waitForTimeout(300); if (await p.evaluate(() => myTurn() && !(UI.scene && UI.scene.kind))) return true; const sc = await p.evaluate(() => UI.scene && UI.scene.kind); if (sc === 'battle') await p.evaluate(() => { const b = document.querySelector('#btac [data-o="hold"]'); if (b) b.click(); }); } return false; };
+  await p.waitForTimeout(11000); await p.evaluate(() => { if (G.setup && G.setup.step === 'charter') send({ type: 'charter', k: 'merchant', by: charterWho().id }); });
+  const setup = async () => { await waitIdle(); await p.evaluate(() => { const L = me(); const v = G.verts.filter(canStartVillage).sort((a, b) => vertValue(b, L) - vertValue(a, L))[0]; send({ type: 'setupV', v: v.id }); }); await waitIdle(); await p.evaluate(() => send({ type: 'setupR', e: G.edges.filter(canStartRoad)[0].id })); };
+  await setup(); await setup(); await waitIdle();
+  for (let r = 0; r < 6; r++) { await p.evaluate(() => { const t = document.getElementById('tbroll'); if (t) t.click(); }); await waitIdle(); if (await p.evaluate(() => G.phase === 'robber')) { await p.evaluate(() => send({ type: 'robber', tile: aiRobber(me()), victim: null })); await waitIdle(); }
+    await p.evaluate(() => { Object.assign(me().res, { timber: 3, clay: 2, wool: 3, grain: 2, ore: 1 }); const e = G.edges.filter(e => canRoad(me().id, e))[0]; if (e) send({ type: 'build', k: 'road', id: e.id }); }); await waitIdle(); await p.evaluate(() => act('end')); await waitIdle(); }
+  await p.evaluate(() => { const t = document.getElementById('tbroll'); if (t) t.click(); }); await waitIdle();
+  await p.screenshot({ path: __dirname + '/../game2/hud_base.png' }); console.log(errs.slice(0, 5)); 
+  const html = await p.evaluate(() => ({ top: document.getElementById('top').outerHTML.slice(0, 1500), dock: document.getElementById('dock').outerHTML.slice(0, 1500) })); console.log(JSON.stringify(html).slice(0, 3000));
+  await b.close(); })();

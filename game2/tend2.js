@@ -1,0 +1,6 @@
+const { chromium } = require('playwright');
+(async () => { const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 1680, height: 945 } }); p.on('pageerror', e => console.log(e.message));
+  await p.goto('file://' + __dirname + '/hollow_brother_proto.html'); await p.waitForFunction(() => document.getElementById('load').style.display === 'none');
+  await p.evaluate(() => { const G = PROTO.G, q = s => document.querySelector(s); q('[data-go="night"]').click(); const a = q('[data-protect],[data-follow]'); if (a) a.click(); q('[data-go="sleep"]').click(); q(`[data-go="day"]`).click(); const E = G.players.find(p => p.role === `enemy`); G.players.forEach(b => { b.sus[E.id] = 5; }); PROTO.startHearing(); q('[data-go="vote"]').click(); });
+  await p.evaluate(() => { const q = s => document.querySelector(s); const G = PROTO.G, E = G.players.find(p => p.role === 'enemy'); if (!G.hearing.acc.length) { } for (let k = 0; k < 6; k++) { const v = q('[data-vote="1"]'); if (v) v.click(); const n = q('[data-go="next"]'); if (n) n.click(); } });
+  await p.waitForTimeout(900); await p.screenshot({ path: __dirname + '/pt_9end.png' }); console.log(await p.evaluate(() => PROTO.G.over)); await b.close(); })();
