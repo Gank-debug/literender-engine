@@ -102,7 +102,7 @@ const IMPACT={wand:{cleave:12},skel:{attack:9},root:{attack:9},skelh:{attack:9},
 const logEl=document.getElementById('log'); const logs=[]; function log(s){logs.unshift(s); logs.length=Math.min(logs.length,4); logEl.innerHTML=logs.map(x=>'<div>'+x+'</div>').join('');}
 const floats=[]; function pop(u,txt,col){floats.push({x:u.px,y:u.py,t:0,txt,col});}
 const WOUND={husk:['torn','gashed','barely standing','still'],eternal:['dented','cracked','buckling','fallen'],myc:['torn','split open','falling apart','in pieces']}, wound=u=>{ const w=WOUND[u.ch]||['cracked','splintered','crumbling','in pieces']; return u.dead?w[3]:u.hp>=u.max*.75?'unhurt':u.hp>=u.max*.5?w[0]:u.hp>=u.max*.25?w[1]:w[2]; };
-function damage(t,n,from,quiet){ if(t.dead)return; if(t.ward&&n>0){ t.ward=false; pop(t,'warded','#ffe9a0'); log('Divine Protection turns the blow aside from '+t.short+'.'); return; } t.hp=Math.max(0,t.hp-n); if(t.ch==='ranger'&&n>0&&t.focus){ t.focus=0; t.lock=null; log('The Ranger is struck and loses her focus.'); } pop(t,isHero(t)?'-'+n:'',isHero(t)?'#ff9a7a':'#ffd9a0');
+function damage(t,n,from,quiet){ if(t.dead)return; if(t.ch==='husk'&&t.baited&&from&&isHero(from)) huskTurn.sprung={round:round+1,hero:from}; if(t.ward&&n>0){ t.ward=false; pop(t,'warded','#ffe9a0'); log('Divine Protection turns the blow aside from '+t.short+'.'); return; } t.hp=Math.max(0,t.hp-n); if(t.ch==='ranger'&&n>0&&t.focus){ t.focus=0; t.lock=null; log('The Ranger is struck and loses her focus.'); } pop(t,isHero(t)?'-'+n:'',isHero(t)?'#ff9a7a':'#ffd9a0');
   if(t.hp<=0){ if(isHero(t)){t.hp=0; t.dead=true; t.mode='act'; setPose(t,'die'); t.done=null; log(t.name+' falls.'); if(!living().length) log('The party is lost to the dark.'); }
     else { t.dead=true; t.willRise=((t.ch==='skel'||t.ch==='skelh'||t.ch==='myc')&&Math.random()<.25)||(t.ch==='arb'&&Math.random()<.33); t.mode='act'; setPose(t,'die'); t.done=()=>{t.mode='dead';}; if(t.ch==='eternal') log('The Eternal Warrior falls, and stays down.'); else if(t.ch==='husk') log('A husk folds up and is still.'); else if(!quiet) log(t.ch==='myc'?'A mycelid comes apart in a wet heap.':'A shambler falls apart.'); } }
   else { if(t.ch==='wand'&&t.hp<=t.max*.3)t.low=true; if(t.mode!=='move'){const prev=t.mode; t.mode='act'; setPose(t,'hurt'); t.done=()=>{t.mode='idle'; setPose(t,idleOf(t));};} else t.flash=.25;
@@ -172,42 +172,35 @@ function eternalTurn(u,strike){ const D=bfs(u,u.curMove,true); let best=null,bs=
 // party's reach while it stays together, send one forward as bait to draw a hero out, and pull back to hide when badly hurt.
 // (Hook for later: when healing items exist, a husk with nothing better to do goes and takes them.)
 function huskTurn(u,strike){ const T=threatMap(), D=bfs(u,u.curMove,true), H=living(), husks=U.filter(v=>v.ch==='husk'&&!v.dead);
-  const grouped=H.length>1&&H.every(h=>H.some(o=>o!==h&&cheb(o,h.x,h.y)<=2)); const hurt=u.hp<=u.max*.3;
+  // husks are predators, not skirmishers: they attack whenever they can reach someone, and choose who with intent -
+  // kills first, then the isolated, the wounded and the pack's chosen prey, from the flank; they only refuse a spot that leaves them
+  // standing among three heroes, keep apart when they hit the Wanderer, and only break off when nearly dead
   const tiles=[...D].map(([k,[d]])=>{ const [a,b]=k.split(',').map(Number); return {a,b,d,thr:T.get(k)||0}; }).filter(t=>!fireSet.has(key(t.a,t.b)));
-  // 1) attack options: kills first, then the isolated, then the wounded; flanks preferred, never next to two heroes unless it is a kill
+  if(!huskTurn.prey||huskTurn.round!==round||huskTurn.prey.dead){ huskTurn.round=round; huskTurn.prey=H.slice().sort((p,q)=>((p.hp/p.max)-(isolated(p)?.3:0))-((q.hp/q.max)-(isolated(q)?.3:0)))[0]; }
+  const prey=huskTurn.prey, dying=u.hp<=u.max*.2;
+  if(dying){ let b=null,bs=-1e9; for(const t of tiles){ const md=Math.min(...H.map(h=>cheb(h,t.a,t.b))); const sc=-t.thr*30+md*3-t.d*.2; if(sc>bs){bs=sc;b=[t.a,t.b,null];} }
+    if(!u.fled){ u.fled=true; log('A torn husk drags itself back into the dark.'); } return goStrike(u,D,b,strike); }
   let atk=null,as=-1e9;
   for(const t of tiles) for(const h of H){ if(cheb(h,t.a,t.b)!==1)continue; const kill=h.hp<=u.dmg[1], likely=h.hp<=u.dmg[0];
-    const others=H.filter(o=>o!==h&&cheb(o,t.a,t.b)<=1).length; const pack=husks.filter(v=>v!==u&&cheb(h,v.x,v.y)===1).length;
-    let sc=(likely?80:kill?45:0)+(isolated(h)?40:0)+(1-h.hp/h.max)*25+pack*15+flankBonus(h,t.a,t.b)*8-others*(likely?5:30)-t.thr*2-t.d*.3;
+    const others=H.filter(o=>o!==h&&cheb(o,t.a,t.b)<=1).length; if(others>=2&&!likely)continue;
+    const pack=husks.filter(v=>v!==u&&cheb(h,v.x,v.y)===1).length, chain=h.ch==='wand'&&husks.some(v=>v!==u&&cheb(v,t.a,t.b)===1);
+    const sc=(likely?80:kill?45:0)+(h===prey?25:0)+(isolated(h)?30:0)+(1-h.hp/h.max)*25+pack*12+flankBonus(h,t.a,t.b)*8-others*12-(chain?20:0)-t.d*.2;
     if(sc>as){as=sc;atk=[t.a,t.b,h];} }
-  // the pack shares one prey per round: the weakest, most exposed hero
-  if(!huskTurn.prey||huskTurn.round!==round||huskTurn.prey.dead){ huskTurn.round=round; huskTurn.prey=H.slice().sort((p,q)=>((p.hp/p.max)-(isolated(p)?.3:0))-((q.hp/q.max)-(isolated(q)?.3:0)))[0]; }
-  const prey=huskTurn.prey, outnumbered=husks.length<H.length, badly=u.hp<=u.max*.3;
-  const reachOf=h=>{ let b=null,bs=-1e9; for(const t of tiles){ if(cheb(h,t.a,t.b)!==1)continue; let sc=flankBonus(h,t.a,t.b)*8-t.thr*2-t.d*.3; if(h.ch==='wand'&&husks.some(v=>v!==u&&cheb(v,t.a,t.b)===1)) sc-=25; if(sc>bs){bs=sc;b=[t.a,t.b,h];} } return b; };
-  // a hero who comes close gets attacked - husks are not cowards, only clever
-  const close=H.filter(h=>cheb(h,u.x,u.y)<=2).sort((p,q)=>(q===prey)-(p===prey)||p.hp-q.hp);
-  if(!badly&&close.length){ const a=reachOf(close[0]); if(a){ u.hitrun=outnumbered; return goStrike(u,D,a,strike); } }
-  // not outnumbered (2 husks against 2 heroes, 3 against 2...): the whole pack rushes the same prey
-  if(!badly&&!outnumbered&&prey){ const a=reachOf(prey); if(!u.saidGo&&a){ u.saidGo=true; log('The husks rush '+prey.short+' together.'); }
-    if(a) return goStrike(u,D,a,strike);
-    let b=null,bs=-1e9; for(const t of tiles){ const sc=-cheb(prey,t.a,t.b)*5-t.d*.2; if(sc>bs){bs=sc;b=[t.a,t.b,null];} } return goStrike(u,D,b,strike); }
-  // outnumbered: the careful game - commit only when the pack can finish the target or it stands alone
-  const later=husks.filter(v=>v===u||order.indexOf(v)>turnIdx), canReach=(v,h)=>{ const Dv=v===u?D:bfs(v,v.move,true); for(const k of Dv.keys()){ const [a,b]=k.split(',').map(Number); if(cheb(h,a,b)===1&&!fireSet.has(k))return true; } return false; };
-  let pack=0, expect=0; if(atk){ const h=atk[2]; pack=later.filter(v=>canReach(v,h)).length+husks.filter(v=>v!==u&&cheb(h,v.x,v.y)===1&&!later.includes(v)).length; expect=pack*9.5*.85; }
-  const committed=atk&&husks.some(v=>v!==u&&cheb(atk[2],v.x,v.y)===1);
-  const wantAttack=atk&&!badly&&(atk[2].hp<=u.dmg[0]||expect>=atk[2].hp*.9||(isolated(atk[2])&&pack>=2)||committed||(u.baited&&expect>=atk[2].hp*.6));
-  if(wantAttack&&atk[2].ch==='wand'){ const b2=reachOf(atk[2]); if(b2) atk=b2; }
-  if(wantAttack){ u.hitrun=true; u.baited=false; if(!u.saidGo&&(isolated(atk[2])||expect>=atk[2].hp*.9)){ u.saidGo=true; log(isolated(atk[2])?'The husks fall on the isolated '+atk[2].short+'.':'The husks converge on '+atk[2].short+'.'); } return goStrike(u,D,atk,strike); }
-  // 2) hit and run / hurt: get out of everyone's reach, as far as possible
-  const safest=()=>{ let b=null,bs=-1e9; for(const t of tiles){ const md=Math.min(...H.map(h=>cheb(h,t.a,t.b))); const sc=-t.thr*30+md*3-t.d*.2; if(sc>bs){bs=sc;b=[t.a,t.b,null];} } return b; };
-  if(hurt||u.hitrun){ u.hitrun=false; if(hurt&&!u.fled){ u.fled=true; log('A wounded husk slips back into the dark.'); } return goStrike(u,D,safest(),strike); }
-  // 3) the party is together: one husk baits (shows itself to a single hero, far from the other), the rest wait just out of reach on the flanks
+  const grouped=H.length>1&&H.every(h=>H.some(o=>o!==h&&cheb(o,h.x,h.y)<=2));
+  const say=(h,why)=>{ if(!u.saidGo){ u.saidGo=true; log(why==='kill'?'A husk goes for '+h.short+'’s throat.':why==='alone'?'The husks fall on the isolated '+h.short+'.':why==='bait'?'The husks spring out of the dark at '+h.short+'.':'A husk lunges at '+h.short+'.'); } };
+  if(atk){ const h=atk[2], committed=husks.some(v=>v!==u&&cheb(h,v.x,v.y)===1), close=cheb(h,u.x,u.y)<=2;
+    // when to pounce: a likely kill, a lone hero, a hero the pack is already on, anyone who walks within two tiles,
+    // a hero who took the bait - and always once the party has scattered
+    const why=h.hp<=u.dmg[0]?'kill':isolated(h)?'alone':committed?'pack':close?'close':huskTurn.sprung&&huskTurn.sprung.round>=round?'bait':!grouped?'open':null;
+    if(why){ say(h,why); u.baited=false; return goStrike(u,D,atk,strike); } }
+  // the party is together and nobody is exposed: one husk baits - it steps right up into one hero's reach, away from the rest -
+  // and the others crouch two or three tiles off on the flanks, close enough to be felt, ready to spring when anyone breaks ranks
   const bait=husks.filter(v=>v.hp>v.max*.5).sort((p,q)=>p.id<q.id?-1:1)[0];
-  if(grouped&&bait===u&&H.length>1){ let b=null,bs=-1e9; for(const t of tiles){ const ds=H.map(h=>cheb(h,t.a,t.b)).sort((p,q)=>p-q); if(t.thr!==1)continue; const sc=ds[1]*3-Math.abs(ds[0]-4)*4; if(sc>bs){bs=sc;b=[t.a,t.b,null];} }
-    if(b){ u.baited=true; if(!u.saidBait){u.saidBait=true; log('A husk shows itself at the edge of the light…');} return goStrike(u,D,b,strike); } }
-  let b=null,bs=-1e9;  // lurk: out of reach, but close enough to pounce; spread around the party
-  for(const t of tiles){ const md=Math.min(...H.map(h=>cheb(h,t.a,t.b))); const spread=Math.min(9,...husks.filter(v=>v!==u).map(v=>cheb(v,t.a,t.b)));
-    const sc=(t.thr?-60:0)-Math.abs(md-(u.move+1))*4+spread*1.5-t.d*.1; if(sc>bs){bs=sc;b=[t.a,t.b,null];} }
+  if(bait===u){ let b=null,bs=-1e9; for(const t of tiles){ const ds=H.map(h=>cheb(h,t.a,t.b)).sort((p,q)=>p-q); const sc=(t.thr===1?20:t.thr===0?0:-30)-Math.abs(ds[0]-2)*6+ds[1]*2-t.d*.1; if(sc>bs){bs=sc;b=[t.a,t.b,null];} }
+    if(b){ u.baited=true; if(!u.saidBait){u.saidBait=true; log('A husk crouches at the edge of the light, watching…');} return goStrike(u,D,b,strike); } }
+  let b=null,bs=-1e9;  // lurk: just beyond the party's reach, spread round its flanks
+  for(const t of tiles){ const md=Math.min(...H.map(h=>cheb(h,t.a,t.b))), dp=prey?cheb(prey,t.a,t.b):md, spread=Math.min(4,...husks.filter(v=>v!==u).map(v=>cheb(v,t.a,t.b)));
+    const sc=-t.thr*15-Math.abs(md-3)*6-dp*1.5+spread*2-t.d*.1; if(sc>bs){bs=sc;b=[t.a,t.b,null];} }
   goStrike(u,D,b,strike); }
 // ---- the player's turn: move (once), then strike; striking ends the turn
 let reachH=new Map(); let atk=false, zoom=2, camX=0, camY=0, hover=null, bgT=0, bgF=0;
