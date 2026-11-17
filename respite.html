@@ -48,18 +48,19 @@ const rnd=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
 // ---- units
 const U=[]; let turnIdx=0, order=[], round=1, busyLock=false;
 function unit(o){const u={dir:0,pose:'idle',f:0,acc:0,mode:'idle',lf:1,lw:0,flash:0,dead:false,moved:false,...o}; u.px=u.x; u.py=u.y; U.push(u); return u;}
-// the party. The Wanderer as a hero: an area fighter - every strike hits every adjacent unit, ally or enemy, for a flat 10 (13 below 30% HP)
+// the party. The Wanderer as a hero: an area fighter - his strike hits the target and every unit next to it (it jumps like chain lightning,
+// allies included) for a flat 10 (13 below 30% HP)
 // and slows whatever it hits to 1 tile next turn; 30 MP for Wide Arc and Undertow. The Knight from the campaign sheet: 50 HP, 7-12, 2 tiles
 // a move (+3 with Glorious Charge), wrath (+10 per attack, -2 per tile walked), Vicious Thrust and Glorious Charge.
 const HEROES=[unit({id:'wand',ch:'wand',name:'The Wanderer',short:'Wanderer',x:6,y:5,hp:55,max:55,move:3,team:0,dmg:[10,10],atk:'cleave',ini:2,dir:14,mp:30,mpMax:30}),
   unit({id:'knight',ch:'knight',name:'The Knight',short:'Knight',x:5,y:7,hp:50,max:50,move:2,team:0,dmg:[7,12],atk:'attack',ini:1,dir:14,wrath:0})];
 let hero=HEROES[0]; const isHero=u=>u.team===0;
-// Skeletal Shamblers: fragile and slow, dangerous in numbers. 9 HP, 2-4, 1 tile a move; every time one is cut down there is a 25% chance it rises again.
+// Skeletal Shamblers (balance pass 2): 10 HP, 3-6, 2 tiles a move, waves of 14; every time one is cut down there is a 25% chance it rises again.
 function spawnWave(n){ for(let i=U.length-1;i>=0;i--) if(U[i].team===1) U.splice(i,1); const T=[];
   for(let a=0;a<22;a++)for(let b=0;b<11;b++){ if(!floorOK(a,b)||U.some(u=>u.x===a&&u.y===b))continue; if(HEROES.some(h=>Math.max(Math.abs(h.x-a),Math.abs(h.y-b))<3))continue; T.push([a,b]); }
   for(let i=T.length-1;i>0;i--){const k=Math.floor(Math.random()*(i+1)); [T[i],T[k]]=[T[k],T[i]];}
-  T.slice(0,n).forEach(([a,b],k)=>unit({id:'sh'+k,ch:'skel',name:'Skeletal Shambler',short:'Shambler',x:a,y:b,hp:9,max:9,move:1,team:1,dmg:[2,4],dir:rnd(0,15)})); }
-const WAVE=12; spawnWave(WAVE);
+  T.slice(0,n).forEach(([a,b],k)=>unit({id:'sh'+k,ch:'skel',name:'Skeletal Shambler',short:'Shambler',x:a,y:b,hp:10,max:10,move:2,team:1,dmg:[3,6],dir:rnd(0,15)})); }
+const WAVE=14; spawnWave(WAVE);
 const living=()=>HEROES.filter(h=>!h.dead);
 const nearestHero=(a,b)=>{let best=null,bd=1e9; for(const h of living()){const d=Math.max(Math.abs(h.x-a),Math.abs(h.y-b)); if(d<bd){bd=d;best=h;}} return [best,bd];};
 const occ=(a,b,except)=>U.some(u=>u!==except&&!u.dead&&u.x===a&&u.y===b);
@@ -122,16 +123,15 @@ const setAtk=v=>{atk=v; if(v) skill=null; syncBtns();};
 const setSkill=k=>{skill=skill===k?null:k; if(skill) atk=false; syncBtns(); ui();};
 const endAct=me=>()=>{me.mode='idle'; setPose(me,idleOf(me)); setTimeout(nextTurn,300);};
 function heroGo(a,b){ if(hero.moved||!reachH.has(key(a,b))||(a===hero.x&&b===hero.y))return; hero.moved=true; const p=pathTo(hero,reachH,a,b); if(hero.wrath!==undefined) hero.wrath=Math.max(0,hero.wrath-2*p.length); moveAlong(hero,p,()=>{reachH=new Map(); ui();}); ui(); }
-// the far tiles of Wide Arc: the three tiles two steps out in the direction of the cut
-function arcTiles(me,a,b){ const dx=Math.sign(a-me.x), dy=Math.sign(b-me.y), X=me.x+2*dx, Y=me.y+2*dy;
-  return dx&&dy?[[X,Y],[X,me.y+dy],[me.x+dx,Y]]:dx?[[X,me.y],[X,me.y+1],[X,me.y-1]]:[[me.x,Y],[me.x+1,Y],[me.x-1,Y]]; }
+// the Wanderer's strike: the target and every unit next to it, friend or foe (not himself); Wide Arc adds everything next to him as well
+function chainHits(me,t,arc){ const S=new Set(t?[t]:[]); if(t) for(const [dx,dy] of N8){ const v=unitAt(t.x+dx,t.y+dy); if(v&&v!==me) S.add(v); }
+  if(arc) for(const [dx,dy] of N8){ const v=unitAt(me.x+dx,me.y+dy); if(v) S.add(v); } return [...S]; }
 function heroStrike(a,b,mode){ if(cheb(hero,a,b)!==1)return; const me=hero; face(me,a,b); setAtk(false); skill=null; syncBtns(); busyLock=true;
-  if(me.ch==='wand'){  // the cleave: everything adjacent, friend or foe; Wide Arc adds the three tiles beyond
-    if(mode==='arc') me.mp-=10; const far=mode==='arc'?arcTiles(me,a,b):[];
-    act(me,'cleave',()=>{ const n=10+(me.low?3:0); let hits=0, kills=0; const allies=[];
-      for(const [dx,dy] of N8){ const t=unitAt(me.x+dx,me.y+dy); if(!t)continue; damage(t,n,me,true); t.slow=true; hits++; if(isHero(t)) allies.push(t.short); else if(t.dead) kills++; }
-      for(const [x,y] of far){ const t=unitAt(x,y); if(!t)continue; damage(t,4,me,true); hits++; if(isHero(t)) allies.push(t.short); else if(t.dead) kills++; }
-      log(hits?(mode==='arc'?'Wide Arc':'The cleave')+' hits '+hits+(kills?', '+kills+' fall':'')+(allies.length?' — and catches '+allies.join(', ')+'!':'')+'.':'The Wanderer’s blade cuts the empty air.'); ui(); }, endAct(me));
+  if(me.ch==='wand'){
+    if(mode==='arc') me.mp-=10; const tgt=unitAt(a,b);
+    act(me,'cleave',()=>{ const n=10+(me.low?3:0), hit=chainHits(me,tgt,mode==='arc'); let kills=0; const allies=[];
+      for(const t of hit){ damage(t,n,me,true); t.slow=true; if(isHero(t)) allies.push(t.short); else if(t.dead) kills++; }
+      log(hit.length?(mode==='arc'?'Wide Arc':'The blow')+' hits '+hit.length+(kills?', '+kills+' fall':'')+(allies.length?' — and catches '+allies.join(', ')+'!':'')+'.':'The Wanderer’s blade cuts the empty air.'); ui(); }, endAct(me));
     return; }
   const tgt=U.find(u=>u.team===1&&!u.dead&&u.x===a&&u.y===b); if(me.wrath!==undefined) me.wrath+=10;
   act(me,me.atk,()=>{ if(tgt){const n=rnd(...me.dmg); damage(tgt,n,me,true); log(me.short+(tgt.dead?' cuts down a shambler.':' strikes a shambler for '+n+'.'));} else log(me.short+'’s blade cuts the empty air.'); ui(); }, endAct(me)); }
@@ -142,10 +142,10 @@ function undertow(){ const me=hero; if(me.mp<10||me.moved||!myTurn())return; me.
   for(const e of en){ let best=null,bd=9; for(const t of ring){ if(taken.has(key(...t)))continue; const d=Math.hypot(t[0]-e.x,t[1]-e.y); if(d<bd&&d<1.5){bd=d;best=t;} } if(!best)continue; taken.add(key(...best)); pending++;
     moveAlong(e,[best],()=>{ e.mode='idle'; setPose(e,'idle'); face(e,me.x,me.y); if(--pending===0) fin(); }); }
   const fin=()=>{ busyLock=false; ui(); }; log(pending?'Undertow drags '+pending+' in beside the Wanderer.':'Undertow finds nothing to pull.'); if(!pending) fin(); ui(); }
-// Vicious Thrust (Knight, 20 wrath): 6 to the adjacent enemy, 9 to the enemy behind it
+// Vicious Thrust (Knight, 20 wrath): runs the target through - 10 to it and 10 to each enemy in line up to two tiles behind it
+const thrustLine=(me,a,b)=>[1,2,3].map(k=>[me.x+(a-me.x)*k,me.y+(b-me.y)*k]);
 function thrust(a,b){ const me=hero, t1=unitAt(a,b); if(cheb(me,a,b)!==1||!t1||isHero(t1)||me.wrath<20)return; me.wrath-=20; face(me,a,b); skill=null; syncBtns(); busyLock=true;
-  const t2=unitAt(a+(a-me.x),b+(b-me.y));
-  act(me,'attack',()=>{ damage(t1,6,me,true); let s='Vicious Thrust: 6'+(t1.dead?' (it falls)':''); if(t2&&!isHero(t2)){ damage(t2,9,me,true); s+=', and 9 to the one behind'+(t2.dead?' (it falls)':''); } log(s+'.'); ui(); }, endAct(me)); }
+  act(me,'attack',()=>{ let hits=0, kills=0; for(const [x,y] of thrustLine(me,a,b)){ const t=unitAt(x,y); if(!t||isHero(t))continue; damage(t,10,me,true); hits++; if(t.dead)kills++; } log('Vicious Thrust runs through '+hits+(kills?', '+kills+' fall':'')+'.'); ui(); }, endAct(me)); }
 // Glorious Charge (Knight, 5 wrath a tile): a straight run of up to 3 tiles, once a turn, on top of his walk; he can attack after
 function chargeTiles(me){ const out=[]; if(me.charged||me.wrath<5)return out;
   for(const [dx,dy] of N8) for(let k=1;k<=3&&me.wrath>=5*k;k++){ const x=me.x+dx*k,y=me.y+dy*k; if(!walk(x,y,me))break; if(dx&&dy&&!walk(me.x+dx*k,me.y+dy*(k-1),me)&&!walk(me.x+dx*(k-1),me.y+dy*k,me))break; out.push([x,y,k]); }
@@ -227,8 +227,9 @@ function frame(now){const dt=Math.min(.05,(now-last)/1000); last=now;
     if(!atk&&!skill&&!hero.moved){ if(reachPath.src!==reachH){ const P2=new Path2D(); for(const [k,[d]] of reachH){ if(!d)continue; const [a,b]=k.split(',').map(Number); const p=[iso(a*T2,b*T2),iso(a*T2+T2,b*T2),iso(a*T2+T2,b*T2+T2),iso(a*T2,b*T2+T2)]; P2.moveTo(p[0][0]+.5,p[0][1]+.5); for(let i=1;i<4;i++)P2.lineTo(p[i][0]+.5,p[i][1]+.5); P2.closePath(); } reachPath={src:reachH,p:P2}; }
       g.save(); g.translate(-cx,-cy); g.fillStyle='rgba(70,130,200,.15)'; g.fill(reachPath.p); g.strokeStyle='rgba(120,180,230,.36)'; g.lineWidth=1; g.stroke(reachPath.p); g.restore(); }
     for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,-1],[1,-1],[-1,1]]){const a=hero.x+dx,b=hero.y+dy, en=U.some(u=>u.team===1&&!u.dead&&u.x===a&&u.y===b); if(atk&&(floorOK(a,b)||fireSet.has(key(a,b))||en))dia(a,b,'rgba(200,60,50,.2)','rgba(230,90,70,.7)'); else if(en)dia(a,b,'rgba(200,60,50,.22)','rgba(240,100,80,.85)');}
-    if(skill==='arc'){ for(const [dx,dy] of N8) dia(hero.x+dx,hero.y+dy,'rgba(200,60,50,.2)','rgba(230,90,70,.7)'); if(hover&&cheb(hero,...hover)===1) for(const [x,y] of arcTiles(hero,...hover)) dia(x,y,'rgba(230,140,50,.25)','rgba(255,170,80,.8)'); }
-    if(skill==='thrust'&&hover&&cheb(hero,...hover)===1&&unitAt(...hover)) dia(hover[0]+(hover[0]-hero.x),hover[1]+(hover[1]-hero.y),'rgba(230,140,50,.25)','rgba(255,170,80,.8)');
+    if(hero.ch==='wand'&&hover&&cheb(hero,...hover)===1&&(atk||skill==='arc'||unitAt(...hover))){ const t=unitAt(...hover); for(const v of chainHits(hero,t,skill==='arc')) dia(v.x,v.y,isHero(v)?'rgba(90,150,255,.3)':'rgba(230,140,50,.28)',isHero(v)?'rgba(130,180,255,.9)':'rgba(255,170,80,.85)'); }
+    if(skill==='arc') for(const [dx,dy] of N8) dia(hero.x+dx,hero.y+dy,null,'rgba(230,90,70,.5)');
+    if(skill==='thrust'&&hover&&cheb(hero,...hover)===1&&unitAt(...hover)) for(const [x,y] of thrustLine(hero,...hover)) dia(x,y,'rgba(230,140,50,.25)','rgba(255,170,80,.8)');
     if(skill==='charge') for(const [x,y] of chargeTiles(hero)) dia(x,y,'rgba(220,180,60,.2)','rgba(250,210,90,.75)');
     if(hover)dia(hover[0],hover[1],null,'rgba(255,230,180,.8)');
     if(!atk&&!skill&&!hero.moved&&hover&&reachH.has(key(...hover))&&!(hover[0]===hero.x&&hover[1]===hero.y)){ const hk=key(...hover)+'|'+hero.x+','+hero.y; if(hero.prevKey!==hk){hero.prevKey=hk; hero.prev=smoothPath([[hero.x,hero.y],...pathTo(hero,reachH,...hover)],hero);}
