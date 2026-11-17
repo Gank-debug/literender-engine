@@ -133,7 +133,7 @@ const canShoot=(me,t)=>t&&!t.dead&&t.team===1&&cheb(me,t.x,t.y)>=2&&cheb(me,t.x,
 const focusDmg=me=>4+7*Math.min(3,me.focus||0);  // +7 for each turn she has held the same target (4, 11, 18, 25)
 function rangerShoot(t){ const me=hero; if(!canShoot(me,t))return; face(me,t.x,t.y); setAtk(false); skill=null; syncBtns(); busyLock=true;
   const same=me.lock===t, n=same?focusDmg(me):4;
-  act(me,'attack',()=>{ bolts.push({x0:me.px,y0:me.py,x1:t.px,y1:t.py,t:0,col:'rgba(230,225,205,.95)',cb:()=>{ damage(t,n,me,true); log('The Ranger’s arrow hits the '+t.short.toLowerCase()+' for '+n+(t.dead?' — it falls':'')+(same&&n>4?' (focus +'+(n-4)+')':'')+'.'); ui(); }});
+  act(me,'attack',()=>{ bolts.push({x0:me.px,y0:me.py,x1:t.px,y1:t.py,t:0,o0:muz(me),col:'rgba(230,225,205,.95)',cb:()=>{ damage(t,n,me,true); log('The Ranger’s arrow hits the '+t.short.toLowerCase()+' for '+n+(t.dead?' — it falls':'')+(same&&n>4?' (focus +'+(n-4)+')':'')+'.'); ui(); }});
     if(same) me.focus=Math.min(3,(me.focus||0)+1); else { me.lock=t; me.focus=1; } ui(); }, endAct(me)); }
 // ---- smarter enemies
 // what the party can reach next turn: every tile a living hero could walk to (Knight's charge and the Wanderer's Undertow included) and strike from
@@ -148,9 +148,10 @@ function goStrike(u,D,best,strike){ if(!best) return setTimeout(nextTurn,80); co
   if(a===u.x&&b===u.y){ if(t) return strike(t); return setTimeout(nextTurn,80); }
   moveAlong(u,pathTo(u,D,a,b),()=>{ if(t&&cheb(u,t.x,t.y)===1&&!t.dead) setTimeout(()=>strike(t),80); else setTimeout(nextTurn,80); }); }
 // Osseous Arbalests: shoot from exactly two tiles; step back out of reach of anyone who closes in; never walk into fire
-const bolts=[];
+const bolts=[], MUZ={"ranger": [[3.9, -33.8], [-13.2, -34.7], [-28.3, -38.8], [-39.1, -45.5], [-43.9, -53.8], [-42.0, -62.3], [-33.8, -69.9], [-20.4, -75.3], [-3.9, -77.7], [13.2, -76.7], [28.3, -72.6], [39.1, -65.9], [43.9, -57.7], [42.0, -49.1], [33.8, -41.6], [20.4, -36.2]], "arb": [[-13.1, -32.9], [-31.8, -37.4], [-45.5, -45.0], [-52.4, -54.8], [-51.2, -65.1], [-42.3, -74.4], [-26.9, -81.3], [-7.5, -84.7], [13.1, -84.1], [31.8, -79.7], [45.5, -72.0], [52.4, -62.2], [51.2, -51.9], [42.3, -42.6], [26.9, -35.7], [7.5, -32.3]]};  // per sheet direction: where the arrow or bolt leaves the bow, in pixels from the feet
+const muz=u=>(MUZ[u.ch]&&MUZ[u.ch][u.dir%MUZ[u.ch].length])||[0,-34];
 function arbTurn(u){ const H=living(); const at2=()=>H.filter(h=>cheb(h,u.x,u.y)===2).sort((p,q)=>p.hp-q.hp)[0];
-  const shoot=t=>{ face(u,t.x,t.y); act(u,'attack',()=>{ const hit=Math.random()<.85, n=rnd(...u.dmg); bolts.push({x0:u.px,y0:u.py,x1:t.px,y1:t.py,t:0,cb:()=>{ if(hit){ damage(t,n,u); log('A spore bolt strikes '+t.short+' for '+n+'.'); } else pop(t,'miss','#bbb'); }}); }, ()=>{u.mode='idle'; setPose(u,'idle'); setTimeout(nextTurn,150);}); };
+  const shoot=t=>{ face(u,t.x,t.y); act(u,'attack',()=>{ const hit=Math.random()<.85, n=rnd(...u.dmg); bolts.push({x0:u.px,y0:u.py,x1:t.px,y1:t.py,t:0,o0:muz(u),cb:()=>{ if(hit){ damage(t,n,u); log('A spore bolt strikes '+t.short+' for '+n+'.'); } else pop(t,'miss','#bbb'); }}); }, ()=>{u.mode='idle'; setPose(u,'idle'); setTimeout(nextTurn,150);}); };
   const adj=H.some(h=>cheb(h,u.x,u.y)===1), t0=at2();
   if(t0&&!adj) return shoot(t0);
   const D=bfs(u,u.curMove,true); let best=null,bs=-1e9;
@@ -341,8 +342,8 @@ function frame(now){const dt=Math.min(.05,(now-last)/1000); last=now;
     if(!atk&&!skill&&!hero.moved&&hover&&reachH.has(key(...hover))&&!(hover[0]===hero.x&&hover[1]===hero.y)){ const hk=key(...hover)+'|'+hero.x+','+hero.y; if(hero.prevKey!==hk){hero.prevKey=hk; hero.prev=smoothPath([[hero.x,hero.y],...pathTo(hero,reachH,...hover)],hero);}
       const R=hero.prev, tot=R.L[R.L.length-1]; g.fillStyle='rgba(255,236,190,.9)'; for(let d=.2;d<tot;d+=.2){const [x,y]=along(R,d); const [qx,qy]=iso(x*T2+2,y*T2+2); g.fillRect(Math.round(qx-cx)-1,Math.round(qy-cy)-1,3,2);} } }
   const sorted=U.slice().sort((a,b)=>(a.dead&&a.mode==='dead'?-1:0)-(b.dead&&b.mode==='dead'?-1:0)||(a.px+a.py)-(b.px+b.py)); for(const u of sorted) drawUnit(u,cx,cy,dt);
-  for(let i=bolts.length-1;i>=0;i--){ const B=bolts[i]; B.t+=dt/.2; const t=Math.min(1,B.t), x=B.x0+(B.x1-B.x0)*t, y=B.y0+(B.y1-B.y0)*t, t2=Math.max(0,t-.25), x2=B.x0+(B.x1-B.x0)*t2, y2=B.y0+(B.y1-B.y0)*t2;
-    const [ax,ay]=iso(x*T2+2,y*T2+2), [bx,by]=iso(x2*T2+2,y2*T2+2); g.strokeStyle=B.col||'rgba(240,205,90,.95)'; g.lineWidth=1.5; g.beginPath(); g.moveTo(Math.round(bx-cx),Math.round(by-cy-34)); g.lineTo(Math.round(ax-cx),Math.round(ay-cy-34)); g.stroke(); g.fillStyle='#ffe28a'; g.fillRect(Math.round(ax-cx)-1,Math.round(ay-cy-35),3,3);
+  for(let i=bolts.length-1;i>=0;i--){ const B=bolts[i]; B.t+=dt/.1; const t=Math.min(1,B.t), x=B.x0+(B.x1-B.x0)*t, y=B.y0+(B.y1-B.y0)*t, t2=Math.max(0,t-.25), x2=B.x0+(B.x1-B.x0)*t2, y2=B.y0+(B.y1-B.y0)*t2;
+    const [ax,ay]=iso(x*T2+2,y*T2+2), [bx,by]=iso(x2*T2+2,y2*T2+2); g.strokeStyle=B.col||'rgba(240,205,90,.95)'; g.lineWidth=1.5; g.beginPath(); const o0=B.o0||[0,-34], O=k=>[o0[0]*(1-k), o0[1]+(-40-o0[1])*k], [pa,pb]=O(t), [qa,qb]=O(t2); g.moveTo(Math.round(bx-cx+qa),Math.round(by-cy+qb)); g.lineTo(Math.round(ax-cx+pa),Math.round(ay-cy+pb)); g.stroke(); g.fillStyle='#ffe28a'; g.fillRect(Math.round(ax-cx+pa)-1,Math.round(ay-cy+pb)-1,3,3);
     if(B.t>=1){ bolts.splice(i,1); B.cb(); } }
   // hover label: hidden HP, shown as a state
   if(hover){const t=U.find(u=>u.team===1&&u.x===hover[0]&&u.y===hover[1]); if(t){const [qx,qy]=iso(t.px*T2+2,t.py*T2+2); g.font='8px Georgia'; g.textAlign='center'; g.fillStyle='rgba(0,0,0,.6)'; const s=t.name+' · '+wound(t); const w=g.measureText(s).width+8; g.fillRect(Math.round(qx-cx-w/2),Math.round(qy-cy-104),w,12); g.fillStyle='#e8d8b0'; g.fillText(s,Math.round(qx-cx),Math.round(qy-cy-95));}}
