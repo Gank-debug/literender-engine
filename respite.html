@@ -219,21 +219,21 @@ const setSkill=k=>{skill=skill===k?null:k; exSrc=null; if(skill) atk=false; sync
 const endAct=me=>()=>{me.mode='idle'; setPose(me,idleOf(me)); setTimeout(nextTurn,300);};
 function heroGo(a,b){ if(hero.moved||!reachH.has(key(a,b))||(a===hero.x&&b===hero.y))return; hero.moved=true; const p=pathTo(hero,reachH,a,b); if(hero.wrath!==undefined) hero.wrath=Math.max(0,hero.wrath-2*p.length); moveAlong(hero,p,()=>{reachH=new Map(); ui();}); ui(); }
 // the Wanderer's strike: the target takes 10, then the blow chains on through every unit touching one already hit, friend or foe (not himself),
-// one less each time (9, 8, ...), up to 10 units;
+// two less each time (8, 6, 4, 2), up to 5 units;
 // Wide Arc adds everything next to him to the chain
 function chainHits(me,t,arc){  // true chain: the blow jumps from each unit it hits to every unit touching that one, as long as it has damage left
   const seen=new Set([me]), out=[]; let layer=[];
   if(t){ seen.add(t); out.push(t); layer=[t]; }
   if(arc){ const ring=N8.map(([dx,dy])=>unitAt(me.x+dx,me.y+dy)).filter(v=>v&&!seen.has(v)); ring.forEach(v=>seen.add(v)); ring.sort((p,q)=>isHero(p)-isHero(q)); out.push(...ring); layer.push(...ring); }
-  while(layer.length&&out.length<10){ const next=[];
+  while(layer.length&&out.length<5){ const next=[];
     for(const u of layer) for(const [dx,dy] of N8){ const v=unitAt(u.x+dx,u.y+dy); if(v&&!seen.has(v)){ seen.add(v); next.push(v); } }
     next.sort((p,q)=>(isHero(p)-isHero(q))||(Math.hypot(p.x-(t||me).x,p.y-(t||me).y)-Math.hypot(q.x-(t||me).x,q.y-(t||me).y))); out.push(...next); layer=next; }
-  return out.slice(0,10); }
+  return out.slice(0,5); }
 function heroStrike(a,b,mode){ if(cheb(hero,a,b)!==1)return; const me=hero; face(me,a,b); setAtk(false); skill=null; syncBtns(); busyLock=true;
   if(me.ch==='wand'){
     if(mode==='arc') me.mp-=10; const tgt=unitAt(a,b);
     act(me,'cleave',()=>{ const n=10+(me.low?3:0), hit=chainHits(me,tgt,mode==='arc'); let kills=0; const allies=[];
-      for(const [i,t] of hit.entries()){ damage(t,Math.max(1,n-i),me,true); t.slow=true; if(isHero(t)) allies.push(t.short); else if(t.dead) kills++; }
+      for(const [i,t] of hit.entries()){ damage(t,Math.max(1,n-2*i),me,true); t.slow=true; if(isHero(t)) allies.push(t.short); else if(t.dead) kills++; }
       log(hit.length?(mode==='arc'?'Wide Arc':'The blow')+' hits '+hit.length+(kills?', '+kills+' fall':'')+(allies.length?' — and catches '+allies.join(', ')+'!':'')+'.':'The Wanderer’s blade cuts the empty air.'); ui(); }, endAct(me));
     return; }
   const tgt=U.find(u=>u.team===1&&!u.dead&&u.x===a&&u.y===b); if(me.wrath!==undefined) me.wrath+=10;
