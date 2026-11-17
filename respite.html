@@ -130,10 +130,10 @@ function aiTurn(u){
 const opaque=(a,b)=>!([MAP.ROOM,MAP.HALL,MAP.VAULT].some(r=>inR(r,a,b)))||MAP.BLOCK.some(([x,y])=>x===a&&y===b);
 function los(x0,y0,x1,y1){ const n=Math.ceil(Math.hypot(x1-x0,y1-y0)*6); for(let i=1;i<n;i++){ const t=i/n, x=Math.floor(x0+.5+(x1-x0)*t), y=Math.floor(y0+.5+(y1-y0)*t); if((x!==x0||y!==y0)&&(x!==x1||y!==y1)&&opaque(x,y)) return false; } return true; }
 const canShoot=(me,t)=>t&&!t.dead&&t.team===1&&cheb(me,t.x,t.y)>=2&&cheb(me,t.x,t.y)<=3&&los(me.x,me.y,t.x,t.y);
-const focusMult=me=>Math.pow(2,Math.min(3,me.focus||0));
+const focusDmg=me=>4+7*Math.min(3,me.focus||0);  // +7 for each turn she has held the same target (4, 11, 18, 25)
 function rangerShoot(t){ const me=hero; if(!canShoot(me,t))return; face(me,t.x,t.y); setAtk(false); skill=null; syncBtns(); busyLock=true;
-  const same=me.lock===t, n=4*(same?focusMult(me):1);
-  act(me,'attack',()=>{ bolts.push({x0:me.px,y0:me.py,x1:t.px,y1:t.py,t:0,col:'rgba(230,225,205,.95)',cb:()=>{ damage(t,n,me,true); log('The Ranger’s arrow hits the '+t.short.toLowerCase()+' for '+n+(t.dead?' — it falls':'')+(same&&n>4?' (focus ×'+(n/4)+')':'')+'.'); ui(); }});
+  const same=me.lock===t, n=same?focusDmg(me):4;
+  act(me,'attack',()=>{ bolts.push({x0:me.px,y0:me.py,x1:t.px,y1:t.py,t:0,col:'rgba(230,225,205,.95)',cb:()=>{ damage(t,n,me,true); log('The Ranger’s arrow hits the '+t.short.toLowerCase()+' for '+n+(t.dead?' — it falls':'')+(same&&n>4?' (focus +'+(n-4)+')':'')+'.'); ui(); }});
     if(same) me.focus=Math.min(3,(me.focus||0)+1); else { me.lock=t; me.focus=1; } ui(); }, endAct(me)); }
 // ---- smarter enemies
 // what the party can reach next turn: every tile a living hero could walk to (Knight's charge and the Wanderer's Undertow included) and strike from
@@ -255,7 +255,7 @@ function charge(a,b){ const me=hero, c=chargeTiles(me).find(t=>t[0]===a&&t[1]===
   const dx=Math.sign(a-me.x), dy=Math.sign(b-me.y), line=[]; for(let k=1;k<=c[2];k++) line.push([me.x+dx*k,me.y+dy*k]);
   moveAlong(me,line,()=>{ busyLock=false; if(!me.moved) reachH=bfs(me,me.curMove); ui(); }); me.run=true; setPose(me,'run'); me.charging=true; log('Glorious Charge!'); ui(); }
 function ui(){ const w=HEROES[0];
-  document.getElementById('party').innerHTML=HEROES.map(h=>'<div class="card'+(h===cur()?' now':'')+(h.dead?' dead':'')+'"><div class="name">'+h.name.toUpperCase()+'</div><div class="bar"><i style="width:'+(h.hp/h.max*100)+'%"></i></div>'+(h.wrath!==undefined?'<div class="wr"><i style="width:'+Math.min(100,h.wrath)+'%"></i></div>':'')+(h.mp!==undefined?'<div class="mp"><i style="width:'+(h.mp/h.mpMax*100)+'%"></i></div>':'')+'<div class="hp">'+h.hp+' / '+h.max+(h.wrath!==undefined?' · wrath '+h.wrath:'')+(h.mp!==undefined?' · MP '+h.mp:'')+(h.focus!==undefined?' · focus '+(h.focus||0)+(h.lock&&!h.lock.dead?' (×'+focusMult(h)+' next)':''):'')+'</div></div>').join('');
+  document.getElementById('party').innerHTML=HEROES.map(h=>'<div class="card'+(h===cur()?' now':'')+(h.dead?' dead':'')+'"><div class="name">'+h.name.toUpperCase()+'</div><div class="bar"><i style="width:'+(h.hp/h.max*100)+'%"></i></div>'+(h.wrath!==undefined?'<div class="wr"><i style="width:'+Math.min(100,h.wrath)+'%"></i></div>':'')+(h.mp!==undefined?'<div class="mp"><i style="width:'+(h.mp/h.mpMax*100)+'%"></i></div>':'')+'<div class="hp">'+h.hp+' / '+h.max+(h.wrath!==undefined?' · wrath '+h.wrath:'')+(h.mp!==undefined?' · MP '+h.mp:'')+(h.focus!==undefined?' · focus '+(h.focus||0)+(h.lock&&!h.lock.dead?' ('+focusDmg(h)+' next)':''):'')+'</div></div>').join('');
   document.getElementById('low').classList.toggle('on',!!w.low); document.getElementById('zoom').textContent='Zoom '+zoom+'×';
   const u=cur(); document.getElementById('turnt').innerHTML='Round '+round+' · '+(u&&isHero(u)?'<b>'+u.short+'’s turn</b>'+(u.moved?' — strike or end':''):'<span class="k">'+(u?u.name:'')+'</span>');
   document.getElementById('order').innerHTML=order.map((v,i)=>[v,i]).filter(([v,i])=>i>=turnIdx&&!(v.dead&&!isHero(v)&&!v.willRise)).slice(0,8).map(([v,i])=>'<span class="'+(i===turnIdx?'now':'')+'">'+(v.short+(v.dead?' ✝':''))+'</span>').join('');
