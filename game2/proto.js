@@ -1097,7 +1097,10 @@ let last = 0;
 let glassT = 0; const GLASS_PAD = 36;
 function glassCheck() { if (G.t - glassT < .12) return; glassT = G.t; const me = G.players[LOCAL]; const on = G.phase === 'day' && me && !G.demo && cv;
   const [sx, sy] = on ? isoP(me.x, me.y) : [0, 0], px = (sx - VIEW.cx) * VIEW.scale, py = (sy - VIEW.cy) * VIEW.scale, head = 48 * VIEW.scale;
-  document.querySelectorAll('.left>.v,.right>.v,#acts').forEach(el => { let g = false; if (on) { const r = el.getBoundingClientRect(); g = px > r.left - GLASS_PAD && px < r.right + GLASS_PAD && py > r.top - GLASS_PAD && py - head < r.bottom + GLASS_PAD; } el.classList.toggle('glass', g); }); }
+  document.querySelectorAll('.left>.v,.right>.v,#acts').forEach(el => { let g = false, gd = 0; if (on) { const r = el.getBoundingClientRect(); g = px > r.left - GLASS_PAD && px < r.right + GLASS_PAD && py > r.top - GLASS_PAD && py - head < r.bottom + GLASS_PAD;
+    // deeper under the panel = clearer still: 0 at its edge, 1 once he is ~90px inside it
+    if (g) gd = Math.max(0, Math.min(1, Math.min(px - r.left, r.right - px, py - r.top, r.bottom - (py - head)) / 90)); }
+    el.classList.toggle('glass', g); const v = gd.toFixed(2); if (el._gd !== v) { el._gd = v; el.style.setProperty('--gd', v); } }); }
 let rafAt = 0, bgAt = 0;
 setInterval(() => { const now = performance.now(); if (now - rafAt < 300 || G.headless || !cv) { bgAt = now; return; } let el = Math.min(3, (now - (bgAt || now)) / 1000); bgAt = now;
   try { while (el > 1e-4) { const d = Math.min(.05, el); update(d); el -= d; } } catch (e) { if (!loop.bgErr) { loop.bgErr = 1; console.error('background step', e); } } }, 250);
