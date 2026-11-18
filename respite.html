@@ -369,11 +369,11 @@ document.getElementById('map').onchange=e=>{ if(busyLock&&!myTurn()&&living().le
 document.getElementById('antl').onclick=()=>{ if(!CH.huntera) return; for(const O of [CH,SHEETS,BARE,MUZ]) if(O.huntera){ const t=O.hunter; O.hunter=O.huntera; O.huntera=t; } SPC.clear(); const b=document.getElementById('antl'); b.textContent=b.textContent.includes('tines')?'Antlers: full rack':'Antlers: tines'; };
 // ---- screen filters (drafts): a CSS grade on the canvas, a tint layer, film grain and a vignette over it
 const FILT=[['none','none',null,0,0],
-  ['Candlelit','sepia(.28) saturate(1.15) contrast(1.06)',['rgba(255,170,90,.18)','soft-light'],.16,.78],
-  ['Grimdark','saturate(.42) contrast(1.22) brightness(.9)',['rgba(120,140,110,.35)','multiply'],.22,.9],
-  ['Engraving','grayscale(1) sepia(.5) contrast(1.5) brightness(1.06)',['rgba(240,220,180,.22)','multiply'],.38,.7],
-  ['Cold crypt','saturate(.65) contrast(1.12) brightness(.95)',['rgba(110,140,210,.32)','soft-light'],.14,.82],
-  ['Bleached','saturate(.3) sepia(.25) contrast(.92) brightness(1.1)',['rgba(220,215,200,.16)','screen'],.2,.6]];
+  ['Candlelit','sepia(.22) saturate(1.15) contrast(1.08)',['rgba(255,160,80,.10)','soft-light'],.05,.75],
+  ['Grimdark','saturate(.5) contrast(1.25) brightness(.92)',['rgba(110,130,100,.14)','multiply'],.07,.88],
+  ['Engraving','grayscale(1) sepia(.45) contrast(1.45) brightness(1.04)',null,.1,.65],
+  ['Cold crypt','saturate(.7) contrast(1.12) brightness(.96) hue-rotate(-6deg)',['rgba(90,120,200,.16)','soft-light'],.05,.8],
+  ['Bleached','saturate(.35) sepia(.2) contrast(.96) brightness(1.06)',null,.06,.55]];
 let filtI=0; const grain=(()=>{ const o=document.createElement('canvas'); o.width=o.height=160; const q=o.getContext('2d'), d=q.createImageData(160,160); for(let i=0;i<d.data.length;i+=4){ const v=Math.random()*255|0; d.data[i]=d.data[i+1]=d.data[i+2]=v; d.data[i+3]=255; } q.putImageData(d,0,0); return o.toDataURL(); })();
 function applyFilter(){ const [name,css,tint,gr,vig]=FILT[filtI]; c.style.filter=css; const t=document.getElementById('fxt'), g2=document.getElementById('fxg'), v=document.getElementById('fxv');
   t.style.background=tint?tint[0]:'none'; t.style.mixBlendMode=tint?tint[1]:'normal';
