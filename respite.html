@@ -110,7 +110,7 @@ function damage(t,n,from,quiet){ if(t.dead)return; if(t.ch==='husk'&&t.baited&&f
   ui(); }
 // ---- turns: per-unit initiative each round (d20); the dead keep their place so a shambler can rise on its turn
 function newRound(first){ order=U.slice().map(u=>({u,ini:rnd(1,20)+(u.ini||0)})).sort((a,b)=>b.ini-a.ini).map(o=>o.u); if(!first)round++; turnIdx=-1; nextTurn(); }
-function nextTurn(){ turnIdx++; if(turnIdx>=order.length) return newRound(false); const u=order[turnIdx]; if(!U.includes(u)||(u.dead&&!isHero(u)&&!u.willRise)) return nextTurn(); u.moved=false; u.charged=false; u.pulled=false; u.curMove=u.slow?1:u.move; u.slow=false; ui();
+function nextTurn(){ turnIdx++; if(turnIdx>=order.length) return newRound(false); const u=order[turnIdx]; if(!U.includes(u)||(u.dead&&!isHero(u)&&!u.willRise)) return nextTurn(); u.moved=false; u.charged=false; u.pulled=false; u.curMove=u.slow?1:u.move; u.slow=false; ui(); if(booms(u)) return;
   if(isHero(u)){ if(u.dead) return setTimeout(nextTurn,200); hero=u; if(u.lock&&(u.lock.dead||cheb(u,u.lock.x,u.lock.y)>3||!los(u.x,u.y,u.lock.x,u.lock.y))){ if(u.focus) log('The Ranger loses her focus.'); u.lock=null; u.focus=0; } busyLock=false; setAtk(false); skill=null; reachH=bfs(hero,hero.curMove); if(hero.curMove<hero.move) log(hero.short+' is slowed this turn.'); ui(); return; }
   busyLock=true; setTimeout(()=>aiTurn(u),180); }
 const cur=()=>order[turnIdx];
@@ -124,7 +124,7 @@ function aiTurn(u){
   if(u.ch==='husk') return huskTurn(u,strike);
   if(u.ch==='eternal') return eternalTurn(u,strike);
   const t0=adjT(); if(t0) return strike(t0);
-  const D=bfs(u,u.curMove); let best=null,bd=1e9; for(const [k,[d]] of D){const [a,b]=k.split(',').map(Number); const h=nearestHero(a,b)[1]; const sc=h*10+d+(fireSet.has(k)?25:0); if(sc<bd){bd=sc;best=[a,b];}}
+  const D=bfs(u,u.curMove); let best=null,bd=1e9; for(const [k,[d]] of D){const [a,b]=k.split(',').map(Number); const h=nearestHero(a,b)[1]; const sc=h*10+d+(hazard(k)?25:0); if(sc<bd){bd=sc;best=[a,b];}}
   if(!best||(best[0]===u.x&&best[1]===u.y)) return setTimeout(nextTurn,80);
   moveAlong(u,pathTo(u,D,...best),()=>{ const t=adjT(); if(t) setTimeout(()=>strike(t),80); else setTimeout(nextTurn,80); }); }
 // ---- line of sight: walls and pillars block it (water and fire don't); sampled along the line between tile centres
@@ -149,20 +149,33 @@ function goStrike(u,D,best,strike){ if(!best) return setTimeout(nextTurn,80); co
   if(a===u.x&&b===u.y){ if(t) return strike(t); return setTimeout(nextTurn,80); }
   moveAlong(u,pathTo(u,D,a,b),()=>{ if(t&&cheb(u,t.x,t.y)===1&&!t.dead) setTimeout(()=>strike(t),80); else setTimeout(nextTurn,80); }); }
 // Osseous Arbalests: shoot from exactly two tiles; step back out of reach of anyone who closes in; never walk into fire
-const bolts=[], MUZ={"ranger": [[-9.5, -37.2], [-24.7, -40.6], [-36.1, -46.6], [-42.1, -54.4], [-41.7, -62.7], [-34.9, -70.4], [-22.8, -76.1], [-7.2, -79.1], [9.5, -78.9], [24.7, -75.5], [36.1, -69.4], [42.1, -61.6], [41.7, -53.3], [34.9, -45.7], [22.8, -39.9], [7.2, -37.0]], "arb": [[-13.1, -32.9], [-31.8, -37.4], [-45.5, -45.0], [-52.4, -54.8], [-51.2, -65.1], [-42.3, -74.4], [-26.9, -81.3], [-7.5, -84.7], [13.1, -84.1], [31.8, -79.7], [45.5, -72.0], [52.4, -62.2], [51.2, -51.9], [42.3, -42.6], [26.9, -35.7], [7.5, -32.3]]};  // per sheet direction: where the arrow or bolt leaves the bow, in pixels from the feet
+const bolts=[], MUZ={"ranger": [[-9.5, -37.2], [-24.7, -40.6], [-36.1, -46.6], [-42.1, -54.4], [-41.7, -62.7], [-34.9, -70.4], [-22.8, -76.1], [-7.2, -79.1], [9.5, -78.9], [24.7, -75.5], [36.1, -69.4], [42.1, -61.6], [41.7, -53.3], [34.9, -45.7], [22.8, -39.9], [7.2, -37.0]], "arb": [[-13.1, -32.9], [-31.8, -37.4], [-45.5, -45.0], [-52.4, -54.8], [-51.2, -65.1], [-42.3, -74.4], [-26.9, -81.3], [-7.5, -84.7], [13.1, -84.1], [31.8, -79.7], [45.5, -72.0], [52.4, -62.2], [51.2, -51.9], [42.3, -42.6], [26.9, -35.7], [7.5, -32.3]]};
+// ---- the Ranger's grenades: thrown 1-2 tiles, they burst at the start of her next turn (4 to everything in the 3x3, allies too); enemies see them and step out of the blast
+const grenades=[], blasts=[];
+const inBlast=(g,a,b)=>Math.abs(a-g.x)<=1&&Math.abs(b-g.y)<=1;
+const hazard=k=>{ if(fireSet.has(k)) return true; const [a,b]=k.split(',').map(Number); return grenades.some(g=>inBlast(g,a,b)); };
+function booms(u){ const due=grenades.filter(g=>round>g.round&&(g.owner===u||g.owner.dead)); if(!due.length) return false; busyLock=true;
+  for(const g of due){ grenades.splice(grenades.indexOf(g),1); blasts.push({x:g.x,y:g.y,t:0}); shake=.3; const hit=U.filter(v=>!v.dead&&inBlast(g,v.x,v.y));
+    log('The grenade bursts'+(hit.length?' — '+hit.map(v=>v.short).join(', ')+' caught in it':' on empty stone')+'.'); for(const v of hit) damage(v,4,g.owner); }
+  ui(); setTimeout(()=>{ turnIdx--; nextTurn(); },800); return true; }
+const nadeOK=(me,a,b)=>{ const d=cheb(me,a,b); return d>=1&&d<=2&&(floorOK(a,b)||fireSet.has(key(a,b))); };
+function throwGrenade(a,b){ const me=hero; if((me.focus||0)<1||!nadeOK(me,a,b))return; me.focus--; face(me,a,b); setAtk(false); skill=null; syncBtns(); busyLock=true; reachH=new Map();
+  act(me,'attack',()=>{ grenades.push({x:a,y:b,owner:me,round}); log('The Ranger lobs a grenade — it will burst on her next turn.'); ui(); }, endAct(me)); }
+function recharge(t){ const me=hero; if((me.focus||0)<2||!t||t.dead||t.mp===undefined)return; me.focus-=2; face(me,t.x,t.y); skill=null; setAtk(false); syncBtns(); busyLock=true; reachH=new Map();
+  const n=Math.min(10,t.mpMax-t.mp); t.mp+=n; pop(t,'+'+n+' MP','#9ac8ff'); log('The Ranger trades her focus to restore '+n+' MP to '+(t===me?'herself':t.short)+'.'); ui(); setTimeout(nextTurn,700); }  // per sheet direction: where the arrow or bolt leaves the bow, in pixels from the feet
 const muz=u=>(MUZ[u.ch]&&MUZ[u.ch][u.dir%MUZ[u.ch].length])||[0,-34];
 function arbTurn(u){ const H=living(); const at2=()=>H.filter(h=>cheb(h,u.x,u.y)===2).sort((p,q)=>p.hp-q.hp)[0];
   const shoot=t=>{ face(u,t.x,t.y); act(u,'attack',()=>{ const hit=Math.random()<.85, n=rnd(...u.dmg); bolts.push({x0:u.px,y0:u.py,x1:t.px,y1:t.py,t:0,o0:muz(u),cb:()=>{ if(hit){ damage(t,n,u); log('A spore bolt strikes '+t.short+' for '+n+'.'); } else pop(t,'miss','#bbb'); }}); }, ()=>{u.mode='idle'; setPose(u,'idle'); setTimeout(nextTurn,150);}); };
   const adj=H.some(h=>cheb(h,u.x,u.y)===1), t0=at2();
   if(t0&&!adj) return shoot(t0);
   const D=bfs(u,u.curMove,true); let best=null,bs=-1e9;
-  for(const [k,[d]] of D){ const [a,b]=k.split(',').map(Number); if(fireSet.has(k))continue; const ds=H.map(h=>cheb(h,a,b)); const mn=Math.min(...ds);
+  for(const [k,[d]] of D){ const [a,b]=k.split(',').map(Number); if(hazard(k))continue; const ds=H.map(h=>cheb(h,a,b)); const mn=Math.min(...ds);
     const sc=(ds.includes(2)&&mn>=2?40:0)-(mn<=1?60:0)-Math.abs(mn-2)*6-d*.5; if(sc>bs){bs=sc;best=[a,b];} }
   if(!best||(best[0]===u.x&&best[1]===u.y)){ if(t0) return shoot(t0); return setTimeout(nextTurn,80); }
   moveAlong(u,pathTo(u,D,...best),()=>{ const t=!H.some(h=>cheb(h,u.x,u.y)===1)&&at2(); if(t) setTimeout(()=>shoot(t),80); else setTimeout(nextTurn,80); }); }
 // Eternal Warriors: never step into fire; pick the weakest or most exposed hero, and come at it from the side or behind, away from its friend
 function eternalTurn(u,strike){ const D=bfs(u,u.curMove,true); let best=null,bs=-1e9;
-  for(const [k,[d]] of D){ const [a,b]=k.split(',').map(Number); if(fireSet.has(k))continue;
+  for(const [k,[d]] of D){ const [a,b]=k.split(',').map(Number); if(hazard(k))continue;
     for(const h of living()){ const dist=cheb(h,a,b); const others=living().filter(o=>o!==h&&cheb(o,a,b)===1).length;
       let sc=-dist*12-d*.5+(1-h.hp/h.max)*10+(isolated(h)?6:0);
       if(dist===1) sc+=30+flankBonus(h,a,b)*6-others*14; else sc-=others*4;
@@ -175,7 +188,7 @@ function huskTurn(u,strike){ const T=threatMap(), D=bfs(u,u.curMove,true), H=liv
   // husks are predators, not skirmishers: they attack whenever they can reach someone, and choose who with intent -
   // kills first, then the isolated, the wounded and the pack's chosen prey, from the flank; they only refuse a spot that leaves them
   // standing among three heroes, keep apart when they hit the Wanderer, and only break off when nearly dead
-  const tiles=[...D].map(([k,[d]])=>{ const [a,b]=k.split(',').map(Number); return {a,b,d,thr:T.get(k)||0}; }).filter(t=>!fireSet.has(key(t.a,t.b)));
+  const tiles=[...D].map(([k,[d]])=>{ const [a,b]=k.split(',').map(Number); return {a,b,d,thr:T.get(k)||0}; }).filter(t=>!hazard(key(t.a,t.b)));
   if(!huskTurn.prey||huskTurn.round!==round||huskTurn.prey.dead){ huskTurn.round=round; huskTurn.prey=H.slice().sort((p,q)=>((p.hp/p.max)-(isolated(p)?.3:0))-((q.hp/q.max)-(isolated(q)?.3:0)))[0]; }
   const prey=huskTurn.prey, dying=u.hp<=u.max*.2;
   if(dying){ let b=null,bs=-1e9; for(const t of tiles){ const md=Math.min(...H.map(h=>cheb(h,t.a,t.b))); const sc=-t.thr*30+md*3-t.d*.2; if(sc>bs){bs=sc;b=[t.a,t.b,null];} }
@@ -206,7 +219,7 @@ function huskTurn(u,strike){ const T=threatMap(), D=bfs(u,u.curMove,true), H=liv
 let reachH=new Map(); let atk=false, zoom=2, camX=0, camY=0, hover=null, bgT=0, bgF=0;
 const myTurn=()=>cur()===hero&&isHero(hero)&&!busyLock&&hero.mode==='idle'&&!hero.dead;
 let skill=null;  // 'arc' | 'thrust' | 'charge' while picking a target
-const syncBtns=()=>{ document.getElementById('atk').classList.toggle('on',atk); document.getElementById('sk1').classList.toggle('on',skill==='arc'||skill==='thrust'||skill==='ward'); document.getElementById('sk2').classList.toggle('on',skill==='charge'||skill==='exch'); };
+const syncBtns=()=>{ document.getElementById('atk').classList.toggle('on',atk); document.getElementById('sk1').classList.toggle('on',skill==='arc'||skill==='thrust'||skill==='ward'||skill==='nade'); document.getElementById('sk2').classList.toggle('on',skill==='charge'||skill==='exch'||skill==='rech'); };
 const setAtk=v=>{atk=v; if(v) skill=null; syncBtns();};
 const setSkill=k=>{skill=skill===k?null:k; exSrc=null; if(skill) atk=false; syncBtns(); ui();};
 const endAct=me=>()=>{me.mode='idle'; setPose(me,idleOf(me)); setTimeout(nextTurn,300);};
@@ -264,12 +277,13 @@ function ui(){ const w=HEROES[0];
   document.getElementById('order').innerHTML=order.map((v,i)=>[v,i]).filter(([v,i])=>i>=turnIdx&&!(v.dead&&!isHero(v)&&!v.willRise)).slice(0,8).map(([v,i])=>'<span class="'+(i===turnIdx?'now':'')+'">'+(v.short+(v.dead?' ✝':''))+'</span>').join('');
   const mine=myTurn(); document.getElementById('atk').disabled=!mine; document.getElementById('end').disabled=!mine;
   const s1=document.getElementById('sk1'), s2=document.getElementById('sk2'), h=isHero(hero)?hero:HEROES[0];
-  s1.style.display=s2.style.display=h.ch==='ranger'?'none':''; document.getElementById('atk').textContent=h.ch==='ranger'?'Shoot':'Strike';
+  s1.style.display=s2.style.display=''; document.getElementById('atk').textContent=h.ch==='ranger'?'Shoot':'Strike';
   if(h.ch==='wand'){ s1.textContent='Wide Arc · 10 MP'; s2.textContent='Undertow · 10 MP'; s1.disabled=!mine||h.mp<10; s2.disabled=!mine||h.mp<10||h.moved; }
+  else if(h.ch==='ranger'){ s1.textContent='Grenade · 1 focus'; s2.textContent='Recharge · 2 focus'; s1.disabled=!mine||(h.focus||0)<1; s2.disabled=!mine||(h.focus||0)<2; }
   else if(h.ch==='cleric'){ s1.textContent='Divine Protection · 15 MP'; s2.textContent='Exchange · 10 MP'; s1.disabled=!mine||h.mp<15; s2.disabled=!mine||h.mp<10; }
   else { s1.textContent='Vicious Thrust · 20 wrath'; s2.textContent='Glorious Charge · 5/tile'; s1.disabled=!mine||h.wrath<20; s2.disabled=!mine||h.wrath<5||h.charged; } syncBtns(); }
-document.getElementById('sk1').onclick=()=>{ if(!myTurn())return; setSkill(hero.ch==='wand'?'arc':hero.ch==='cleric'?'ward':'thrust'); };
-document.getElementById('sk2').onclick=()=>{ if(!myTurn())return; if(hero.ch==='wand') undertow(); else setSkill(hero.ch==='cleric'?'exch':'charge'); };
+document.getElementById('sk1').onclick=()=>{ if(!myTurn())return; setSkill(hero.ch==='wand'?'arc':hero.ch==='cleric'?'ward':hero.ch==='ranger'?'nade':'thrust'); };
+document.getElementById('sk2').onclick=()=>{ if(!myTurn())return; if(hero.ch==='wand') undertow(); else setSkill(hero.ch==='cleric'?'exch':hero.ch==='ranger'?'rech':'charge'); };
 document.getElementById('atk').onclick=()=>{ if(myTurn()) setAtk(!atk); };
 document.getElementById('low').title='debug: toggle the Wanderer\'s low-health state';
 document.getElementById('end').onclick=()=>{ if(myTurn()){ setAtk(false); skill=null; busyLock=true; reachH=new Map(); setTimeout(nextTurn,150);} };
@@ -285,6 +299,8 @@ const tileAt=(bx,by)=>{const dx=bx-OX, dy=by-OY, gx=(dx/10+dy/5)/2, gy=(dy/5-dx/
 const toBuf=e=>{const r=c.getBoundingClientRect(); return [(e.clientX-r.left)/zoom+camX,(e.clientY-r.top)/zoom+camY];};
 c.addEventListener('pointermove',e=>{hover=tileAt(...toBuf(e));});
 c.addEventListener('pointerdown',e=>{const [a,b]=tileAt(...toBuf(e)); hover=[a,b]; if(!myTurn())return; const adj=cheb(hero,a,b)===1, enemy=U.some(u=>u.team===1&&!u.dead&&u.x===a&&u.y===b);
+  if(skill==='nade'){ if(nadeOK(hero,a,b)) throwGrenade(a,b); else setSkill(null); return; }
+  if(skill==='rech'){ const t=unitAt(a,b); if(t&&isHero(t)&&!t.dead&&t.mp!==undefined) recharge(t); else setSkill(null); return; }
   if(hero.ch==='ranger'){ const t=unitAt(a,b); if(t&&t.team===1&&canShoot(hero,t)) return rangerShoot(t); if(atk){ setAtk(false); return; } if(t&&t.team===1){ log(cheb(hero,a,b)<2?'Too close to shoot.':cheb(hero,a,b)>3?'Out of range.':'No clear line.'); return; } return heroGo(a,b); }
   if(skill==='ward'){ const t=unitAt(a,b); if(inReach(hero,t)) ward(t); else setSkill(null); return; }
   if(skill==='exch'){ const t=unitAt(a,b); if(!inReach(hero,t)){ setSkill(null); return; } if(!exSrc){ exSrc=t; log('Exchange: take HP from '+(t===hero?'yourself':t.short)+' — now pick who receives it.'); return; } if(t===exSrc){ exSrc=null; return; } exchange(exSrc,t); return; }
@@ -333,6 +349,11 @@ function frame(now){const dt=Math.min(.05,(now-last)/1000); last=now;
   const cx=Math.round(camX+sx), cy=Math.round(camY+sy);
   g.fillStyle='#0b0a0a'; g.fillRect(0,0,c.width,c.height); const bg=bgs[bgF]; if(bg.complete){ const sx0=Math.max(0,cx), sy0=Math.max(0,cy), w=Math.min(c.width-(sx0-cx),bg.width-sx0), h=Math.min(c.height-(sy0-cy),bg.height-sy0); if(w>0&&h>0) g.drawImage(bg,sx0,sy0,w,h,sx0-cx,sy0-cy,w,h); }
   const dia=(a,b,fill,stroke)=>{const p=[iso(a*T2,b*T2),iso(a*T2+T2,b*T2),iso(a*T2+T2,b*T2+T2),iso(a*T2,b*T2+T2)]; g.beginPath(); p.forEach(([x,y],i)=>i?g.lineTo(x-cx+.5,y-cy+.5):g.moveTo(x-cx+.5,y-cy+.5)); g.closePath(); if(fill){g.fillStyle=fill;g.fill();} if(stroke){g.strokeStyle=stroke;g.lineWidth=1;g.stroke();}};
+  for(const gr of grenades){ const blink=.25+.2*Math.sin(performance.now()/120); for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++) dia(gr.x+dx,gr.y+dy,'rgba(220,70,40,'+(blink*.5)+')','rgba(240,110,60,'+blink+')');
+    const [gx,gy]=iso(gr.x*T2+2,gr.y*T2+2); g.fillStyle='#1a1410'; g.beginPath(); g.ellipse(gx-cx,gy-cy-2,3,2.2,0,0,6.283); g.fill(); g.fillStyle=Math.sin(performance.now()/90)>0?'#ff5a2a':'#7a2a14'; g.fillRect(Math.round(gx-cx),Math.round(gy-cy-5),1,1); }
+  if(myTurn()&&skill==='nade'){ for(const [dx,dy] of [...N8,[2,0],[-2,0],[0,2],[0,-2],[2,1],[2,-1],[-2,1],[-2,-1],[1,2],[-1,2],[1,-2],[-1,-2],[2,2],[-2,2],[2,-2],[-2,-2]]){ const a=hero.x+dx,b=hero.y+dy; if(nadeOK(hero,a,b)) dia(a,b,null,'rgba(240,140,70,.55)'); }
+    if(hover&&nadeOK(hero,...hover)) for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++) dia(hover[0]+dx,hover[1]+dy,'rgba(240,110,60,.22)','rgba(255,150,90,.8)'); }
+  if(myTurn()&&skill==='rech') for(const h of HEROES) if(!h.dead&&h.mp!==undefined) dia(h.x,h.y,'rgba(120,170,255,.2)','rgba(140,190,255,.8)');
   for(const h of HEROES) if(h.ward&&!h.dead) dia(h.x,h.y,'rgba(255,230,140,.12)','rgba(255,230,140,.85)');
   if(myTurn()){
     if((skill==='ward'||skill==='exch')) for(const h of HEROES) if(inReach(hero,h)) dia(h.x,h.y,h===exSrc?'rgba(255,230,140,.35)':null,'rgba(255,230,140,.7)');
@@ -352,6 +373,8 @@ function frame(now){const dt=Math.min(.05,(now-last)/1000); last=now;
   for(let i=bolts.length-1;i>=0;i--){ const B=bolts[i]; B.t+=dt/.1; const t=Math.min(1,B.t), x=B.x0+(B.x1-B.x0)*t, y=B.y0+(B.y1-B.y0)*t, t2=Math.max(0,t-.25), x2=B.x0+(B.x1-B.x0)*t2, y2=B.y0+(B.y1-B.y0)*t2;
     const [ax,ay]=iso(x*T2+2,y*T2+2), [bx,by]=iso(x2*T2+2,y2*T2+2); g.strokeStyle=B.col||'rgba(240,205,90,.95)'; g.lineWidth=1.5; g.beginPath(); const o0=B.o0||[0,-34], O=k=>[o0[0]*(1-k), o0[1]+(-40-o0[1])*k], [pa,pb]=O(t), [qa,qb]=O(t2); g.moveTo(Math.round(bx-cx+qa),Math.round(by-cy+qb)); g.lineTo(Math.round(ax-cx+pa),Math.round(ay-cy+pb)); g.stroke(); g.fillStyle='#ffe28a'; g.fillRect(Math.round(ax-cx+pa)-1,Math.round(ay-cy+pb)-1,3,3);
     if(B.t>=1){ bolts.splice(i,1); B.cb(); } }
+  for(let i=blasts.length-1;i>=0;i--){ const X=blasts[i]; X.t+=dt; if(X.t>.6){blasts.splice(i,1);continue;} const [bx,by]=iso(X.x*T2+2,X.y*T2+2), k=X.t/.6, r=10+k*46;
+    g.globalAlpha=1-k; g.fillStyle='rgba(255,190,90,.85)'; g.beginPath(); g.ellipse(bx-cx,by-cy-6-k*8,r,r*.55,0,0,6.283); g.fill(); g.fillStyle='rgba(255,240,200,.9)'; g.beginPath(); g.ellipse(bx-cx,by-cy-8-k*10,r*.45,r*.3,0,0,6.283); g.fill(); g.globalAlpha=1; }
   // hover label: hidden HP, shown as a state
   if(hover){const t=U.find(u=>u.team===1&&u.x===hover[0]&&u.y===hover[1]); if(t){const [qx,qy]=iso(t.px*T2+2,t.py*T2+2); g.font='8px Georgia'; g.textAlign='center'; g.fillStyle='rgba(0,0,0,.6)'; const s=t.name+' · '+wound(t); const w=g.measureText(s).width+8; g.fillRect(Math.round(qx-cx-w/2),Math.round(qy-cy-104),w,12); g.fillStyle='#e8d8b0'; g.fillText(s,Math.round(qx-cx),Math.round(qy-cy-95));}}
   for(let i=floats.length-1;i>=0;i--){const p=floats[i]; p.t+=dt; if(p.t>1.1){floats.splice(i,1);continue;} if(!p.txt)continue; const [qx,qy]=iso(p.x*T2+2,p.y*T2+2); g.font='bold 10px Georgia'; g.textAlign='center'; g.fillStyle='rgba(0,0,0,.7)'; g.fillText(p.txt,Math.round(qx-cx)+1,Math.round(qy-cy-90-p.t*18)+1); g.fillStyle=p.col; g.fillText(p.txt,Math.round(qx-cx),Math.round(qy-cy-90-p.t*18));}
