@@ -123,13 +123,21 @@ const logEl=document.getElementById('log'); const logs=[]; function log(s){logs.
 const floats=[]; function pop(u,txt,col){floats.push({x:u.px,y:u.py,t:0,txt,col});}
 const WOUND={husk:['torn','gashed','barely standing','still'],eternal:['dented','cracked','buckling','fallen'],myc:['torn','split open','falling apart','in pieces']}, wound=u=>{ const w=WOUND[u.ch]||['cracked','splintered','crumbling','in pieces']; return u.dead?w[3]:u.hp>=u.max*.75?'unhurt':u.hp>=u.max*.5?w[0]:u.hp>=u.max*.25?w[1]:w[2]; };
 function damage(t,n,from,quiet){ if(t.dead)return; setTimeout(()=>{ if(t.dead&&t.axeOf){ t.axeOf.axeIn=true; log('The Hunter wrenches his axe free.'); t.axeOf=null; ui(); } },0); if(t.ch==='husk'&&t.baited&&from&&isHero(from)) huskTurn.sprung={round:round+1,hero:from}; if(t.ward&&n>0){ t.ward=false; pop(t,'warded','#ffe9a0'); log('Divine Protection turns the blow aside from '+t.short+'.'); return; } if(t.wrath!==undefined&&n>0&&from&&from.team===1){ t.wrath+=5; pop(t,'+5 wrath','#ffd76a'); } if(t.invis&&n>0){ t.invis=0; log('The Assassin is struck and falls out of the shadow.'); } if(t.marked&&n>0) n=Math.ceil(n*1.1); t.hp=Math.max(0,t.hp-n); if(t.ch==='ranger'&&n>0&&t.focus){ t.focus=0; t.lock=null; log('The Ranger is struck and loses her focus.'); } pop(t,isHero(t)?'-'+n:'',isHero(t)?'#ff9a7a':'#ffd9a0');
-  if(t.hp<=0){ if(isHero(t)){t.hp=0; t.dead=true; t.mode='act'; setPose(t,'die'); t.done=null; log(t.name+' falls.'); if(!living().length) log('The party is lost to the dark.'); }
+  if(t.hp<=0){ if(isHero(t)){t.hp=0; t.dead=true; t.fellRound=round; t.mode='act'; setPose(t,'die'); t.done=null; log(t.name+' falls. Unless the round ends first, the dark will have them back.'); if(!living().length) log('The party is lost to the dark.'); }
     else { t.dead=true; t.willRise=((t.ch==='skel'||t.ch==='skelh'||t.ch==='myc')&&Math.random()<.25)||(t.ch==='arb'&&Math.random()<.33); t.mode='act'; setPose(t,'die'); t.done=()=>{t.mode='dead';}; if(t.ch==='eternal') log('The Eternal Warrior falls, and stays down.'); else if(t.ch==='husk') log('A husk folds up and is still.'); else if(!quiet) log(t.ch==='myc'?'A mycelid comes apart in a wet heap.':'A shambler falls apart.'); } }
   else { if(t.ch==='wand'&&t.hp<=t.max*.3)t.low=true; if(t.mode!=='move'){const prev=t.mode; t.mode='act'; setPose(t,'hurt'); t.done=()=>{t.mode='idle'; setPose(t,idleOf(t));};} else t.flash=.25;
     if(!isHero(t)&&!quiet)log('The '+t.short.toLowerCase()+' is '+wound(t)+'.'); }
   ui(); }
 // ---- turns: per-unit initiative each round (d20); the dead keep their place so a shambler can rise on its turn
-function newRound(first){ order=U.slice().map(u=>({u,ini:rnd(1,20)+(u.ini||0)})).sort((a,b)=>b.ini-a.ini).map(o=>o.u); if(!first)round++; turnIdx=-1; nextTurn(); }
+// Fallen heroes do not stay down: when the round in which a hero fell is over, the body gets up as an Eternal Warrior on the enemy's side
+function riseFallen(){ for(const h of HEROES){ if(!h.dead||h.risen||h.fellRound===undefined||h.fellRound>=round||!U.includes(h)) continue;
+    let x=h.x, y=h.y; if(occ(x,y,h)){ const f=N8.map(([dx,dy])=>[h.x+dx,h.y+dy]).find(([a,b])=>walk(a,b)&&!occ(a,b)); if(!f) continue; [x,y]=f; }
+    h.risen=true; U.splice(U.indexOf(h),1);
+    const e=unit({id:'ewh'+h.id+round,ch:'eternal',name:'Eternal '+h.short,short:'Eternal '+h.short,x,y,hp:25,max:25,move:2,team:1,dmg:[5,10],dir:h.dir,big:true});
+    e.mode='act'; setPose(e,'die'); e.f=M(e).die.frames-1; e.reverse=true; e.done=()=>{ e.reverse=false; e.mode='idle'; setPose(e,'idle'); };
+    log('Something dead and patient takes '+h.name+'… it rises as an Eternal Warrior.'); } }
+const unRise=()=>{ for(const h of HEROES){ h.risen=false; h.fellRound=undefined; if(!U.includes(h)) U.push(h); } };
+function newRound(first){ if(!first) riseFallen(); order=U.slice().map(u=>({u,ini:rnd(1,20)+(u.ini||0)})).sort((a,b)=>b.ini-a.ini).map(o=>o.u); if(!first)round++; turnIdx=-1; nextTurn(); }
 // enemies next to each other in the turn order act together: each one decides a moment after the last (so it sees where the others are heading), and the turn moves on when all have finished
 let grp=null;
 const prelude=v=>{ v.stimLate=false; v.stepped=false; v.kissed=false; v.shot=false; v.moved=false; v.charged=false; v.hunted=false; v.curMove=v.slow?1:v.move; v.slow=false; if(v.snared){ v.curMove=0; v.snared=false; } };
@@ -389,8 +397,8 @@ document.getElementById('atk').onclick=()=>{ if(myTurn()){ setAtk(!atk); ui(); }
 document.getElementById('low').title='debug: toggle the Wanderer\'s low-health state';
 document.getElementById('end').onclick=()=>{ if(myTurn()){ setAtk(false); skill=null; busyLock=true; reachH=new Map(); setTimeout(nextTurn,150);} };
 document.getElementById('low').onclick=()=>{const w=HEROES[0]; w.low=!w.low; if(w.mode==='idle')setPose(w,idleOf(w)); ui();};
-document.getElementById('reset').onclick=()=>{ if(busyLock&&!myTurn()&&living().length) return; scaleWave(); spawnWave(WAVE); for(const h of HEROES){ if(h.dead){h.dead=false;h.hp=h.max;h.low=false;h.mode='idle';setPose(h,'idle');} if(h.mp!==undefined)h.mp=h.mpMax; } newRound(true); round=1; log('Mycelids shuffle out of the dark.'); };
-document.getElementById('husks').onclick=()=>{ if(busyLock&&!myTurn()&&living().length) return; spawnHusks(Math.ceil(HEROES.length/2)); for(const h of HEROES){ if(h.dead){h.dead=false;h.hp=h.max;h.low=false;h.mode='idle';setPose(h,'idle');} if(h.mp!==undefined)h.mp=h.mpMax; } newRound(true); round=1; log('Something fast moves at the edge of the light.'); };
+document.getElementById('reset').onclick=()=>{ if(busyLock&&!myTurn()&&living().length) return; unRise(); scaleWave(); spawnWave(WAVE); for(const h of HEROES){ if(h.dead){h.dead=false;h.hp=h.max;h.low=false;h.mode='idle';setPose(h,'idle');} if(h.mp!==undefined)h.mp=h.mpMax; } newRound(true); round=1; log('Mycelids shuffle out of the dark.'); };
+document.getElementById('husks').onclick=()=>{ if(busyLock&&!myTurn()&&living().length) return; unRise(); spawnHusks(Math.ceil(HEROES.length/2)); for(const h of HEROES){ if(h.dead){h.dead=false;h.hp=h.max;h.low=false;h.mode='idle';setPose(h,'idle');} if(h.mp!==undefined)h.mp=h.mpMax; } newRound(true); round=1; log('Something fast moves at the edge of the light.'); };
 document.getElementById('outl').onclick=()=>{OUTLINE=!OUTLINE; document.getElementById('outl').classList.toggle('on',OUTLINE);};
 for(const k in (CRYPTS||{})){ const o=document.createElement('option'); o.value=k; o.textContent='Map: '+CRYPTS[k].name; document.getElementById('map').appendChild(o); }
 for(const k in MAPS){ const o=document.createElement('option'); o.value=k; o.textContent='Map: '+MAPS[k].name; document.getElementById('map').appendChild(o); }
@@ -550,7 +558,7 @@ function showPick(k){ pickTo=k; const P=document.getElementById('pick'), G=P.que
   G.onclick=e=>{ const b=e.target.closest('.h'); if(!b) return; const id=b.dataset.id; if(pickSel.has(id)) pickSel.delete(id); else pickSel.add(id); draw(); };
   go.onclick=()=>{ if(pickSel.size!==4) return; P.classList.remove('on'); setParty(pickSel); loadMap(pickTo); };
   draw(); P.classList.add('on'); }
-function loadMap(k){ mapKey=k; document.getElementById('map').value=k; const C=CRYPTS&&CRYPTS[k];
+function loadMap(k){ unRise(); mapKey=k; document.getElementById('map').value=k; const C=CRYPTS&&CRYPTS[k];
   if(C){ PROPS=[]; GRID=null; MW=C.w; MH=C.h; RECTS=C.RECTS; BLK=C.BLOCK||[]; OX=C.ox; OY=C.oy; blocked=new Set([...BLK,...(C.WATER||[])].map(q=>key(q[0],q[1]))); fireSet=new Set([...(C.FIRE||[]),...(C.ETERNAL||[])].map(q=>key(q[0],q[1]))); SRCBG=C.bg; bgs=C.bg.map(load); rebuildBG();
     bgF=0; traps.length=0; grenades.length=0; bolts.length=0; reachPath={src:null,p:null}; SPC.clear();
     const inR=(x,y)=>C.RECTS.some(r=>x>=r[0]&&y>=r[1]&&x<r[2]&&y<r[3]), BS=new Set((C.BLOCK||[]).map(q=>q[0]+','+q[1])), US=new Set(C.START.map(q=>q[0]+','+q[1])); const ST=C.START.slice(); for(let i=ST.length;i<HEROES.length;i++){ let f=null; for(let r=1;r<4&&!f;r++) for(const [sx,sy] of ST) for(let dx=-r;dx<=r&&!f;dx++) for(let dy=-r;dy<=r&&!f;dy++){ const x=sx+dx,y=sy+dy,k=x+','+y; if(inR(x,y)&&!BS.has(k)&&!US.has(k)){ f=[x,y]; US.add(k); } } ST.push(f||ST[0]); }
