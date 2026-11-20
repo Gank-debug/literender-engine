@@ -40,28 +40,41 @@ const CH={"wand": {"meta": {"name": "The Wanderer", "dirs": 16, "facing": "row k
 let GRID=null, MW=22, MH=11, mapKey='test', PROPS=[], gold=0, RECTS=[MAP.ROOM,MAP.HALL,MAP.VAULT], BLK=MAP.BLOCK;  // GRID: the selected campaign map ('.' floor, '#' wall, ' ' void); null = the painted test room
 const load=src=>{const i=new Image(); i.src=src; if(i.decode) i.decode().catch(()=>{}); return i;};  // decode up front, not on first draw
 const SHEETS={}, BARE={}; for(const ch in CH){SHEETS[ch]={}; BARE[ch]={}; for(const p in CH[ch].img){ let im=null; Object.defineProperty(SHEETS[ch],p,{get(){ return im||(im=load(CH[ch].img[p])); },enumerable:true,configurable:true}); }}  // each sheet fetched the first time something needs it
-// ---- characters rendered as parts (partpack.py): each look is merged, coloured and inked here from the part sheets, once per pose per look
-const LOOK={wayfinder:{on:{body:1,wing:1,cape:0},pal:{}},bers:{on:{body:1,belly:1},pal:{}},hunter:{on:{body:1,tines:1,rack:0},pal:{}}}, LOOKC={}, PARTIMG={};
-const pimg=u=>PARTIMG[u]||(PARTIMG[u]=load(u)), pready=im=>im.complete&&im.naturalWidth;
-const pxOf=im=>{ const c=document.createElement('canvas'); c.width=im.naturalWidth; c.height=im.naturalHeight; const q=c.getContext('2d'); q.drawImage(im,0,0); return q.getImageData(0,0,c.width,c.height).data; };
-function buildLook(ch,p){ const C=CH[ch], P=C.meta.poses[p], L=LOOK[ch]||{on:{},pal:{}}, F=C.parts[p], parts=C.meta.parts.filter(n=>n==='body'||L.on[n]);
-  const ims=parts.flatMap(n=>[pimg(F[n+'_a']),pimg(F[n+'_b'])]), fx=F.fx&&pimg(F.fx); if(!ims.every(pready)||(fx&&!pready(fx))) return null;
-  const W=ims[0].naturalWidth, H=ims[0].naturalHeight, N=W*H, best=new Int16Array(N).fill(999), win=new Int8Array(N).fill(-1), As=[], Bs=[];
-  parts.forEach((n,k)=>{ const a=pxOf(ims[2*k]), b=pxOf(ims[2*k+1]); As.push(a); Bs.push(b); for(let q=0;q<N;q++){ if(b[q*4+3]<128) continue; const d=b[q*4]; if(k?d<=best[q]:d<best[q]){ best[q]=d; win[q]=k; } } });  // nearest wins; a part laid over the body wins a tie
-  const sc={}; for(const n in L.pal){ const m=C.meta.mats[n]; if(m) sc[m[0]]=L.pal[n].map((x,i)=>x/Math.max(1,m[1][i])); }
-  const out=new ImageData(W,H), o=out.data, A=new Uint8Array(N);
-  for(let q=0;q<N;q++){ const k=win[q]; if(k<0) continue; A[q]=1; const a=As[k], b=Bs[k], i=q*4, s=sc[b[i+2]&127], t=b[i+1]/255; let r=a[i], g=a[i+1], bl=a[i+2];
+// ---- characters rendered as parts (partpack.py): each look is merged, coloured and inked from the part sheets, all its poses together, in a
+// worker so the game never stalls; the old look stays on screen until the whole new one is ready, then they swap at once.
+const LOOK={wayfinder:{on:{body:1,wing:1,cape:0},pal:{}},bers:{on:{body:1,belly:1},pal:{}},hunter:{on:{body:1,tines:1,rack:0},pal:{}},galvanist:{on:{body:1,wild:1,calm:0,coat:0},pal:{}}};
+function mergeParts(L,fx,m){ const W=L[0][0].w, H=L[0][0].h, N=W*H, best=new Int16Array(N).fill(999), win=new Int8Array(N).fill(-1);
+  L.forEach((pr,k)=>{ const b=pr[1].d; for(let q=0;q<N;q++){ if(b[q*4+3]<128) continue; const d=b[q*4]; if(k?d<=best[q]:d<best[q]){ best[q]=d; win[q]=k; } } });  // nearest wins; a part laid over the body wins a tie
+  const o=new Uint8ClampedArray(N*4), A=new Uint8Array(N), sc=m.sc;
+  for(let q=0;q<N;q++){ const k=win[q]; if(k<0) continue; A[q]=1; const a=L[k][0].d, b=L[k][1].d, i=q*4, s=sc[b[i+2]&127], t=b[i+1]/255; let r=a[i], g=a[i+1], bl=a[i+2];
     if(s){ r=Math.min(255,r*s[0]); g=Math.min(255,g*s[1]); bl=Math.min(255,bl*s[2]); }
     if(b[i+2]>=128){ r=r*.7+76.5; g=g*.7+72; bl=bl*.7+60; }  // the same bands as the renderer's ink()
     else if(t<.38){ r=r*.231+8.1; g=g*.231+8.1; bl=bl*.231+18; } else if(t<.74){ r*=.86; g*=.86; bl*=.86; } else { r=r*.8+51; g=g*.8+42.8; bl=bl*.8+34; }
     o[i]=r; o[i+1]=g; o[i+2]=bl; o[i+3]=255; }
   for(let y=0;y<H;y++) for(let x=0;x<W;x++){ const q=y*W+x; if(A[q]) continue; if((x>0&&A[q-1])||(x<W-1&&A[q+1])||(y>0&&A[q-W])||(y<H-1&&A[q+W])){ const i=q*4; o[i]=10; o[i+1]=8; o[i+2]=14; o[i+3]=255; } }
-  for(const [ri,fi] of P.hits||[]){ const t=fi/P.frames, G=Math.max(0,255-Math.floor(t*400)), B=Math.max(0,255-Math.floor(t*600)); for(let y=ri*P.h;y<(ri+1)*P.h;y++) for(let x=fi*P.w;x<(fi+1)*P.w;x++){ const i=(y*W+x)*4; if(o[i+3]){ o[i]=255; o[i+1]=G; o[i+2]=B; } } }  // a hit flash
-  if(fx){ const f=pxOf(fx); for(let i=0;i<N*4;i+=4) if(f[i+3]&&!o[i+3]){ o[i]=f[i]; o[i+1]=f[i+1]; o[i+2]=f[i+2]; o[i+3]=f[i+3]; } }  // run dust
-  const c=document.createElement('canvas'); c.width=W; c.height=H; c.getContext('2d').putImageData(out,0,0); c.complete=true; c.naturalWidth=W; c.naturalHeight=H; return c; }
-for(const ch in CH) if(CH[ch].parts) for(const p in CH[ch].meta.poses) Object.defineProperty(SHEETS[ch],p,{get(){ const c=LOOKC[ch]||(LOOKC[ch]={}); return c[p]||(c[p]=buildLook(ch,p))||PEND; },enumerable:true,configurable:true});
-const PEND=new Image();  // drawn as nothing until a look's parts have arrived
-function setLook(ch,l){ if(!CH[ch]||!CH[ch].parts) return; LOOK[ch]=l; LOOKC[ch]={}; BARE[ch]={}; if(typeof SPC!=='undefined') SPC.clear(); warm([ch]); }
+  const P=m.P; for(const [ri,fi] of m.hits){ const t=fi/P.frames, G=Math.max(0,255-Math.floor(t*400)), B=Math.max(0,255-Math.floor(t*600)); for(let y=ri*P.h;y<(ri+1)*P.h;y++) for(let x=fi*P.w;x<(fi+1)*P.w;x++){ const i=(y*W+x)*4; if(o[i+3]){ o[i]=255; o[i+1]=G; o[i+2]=B; } } }  // a hit flash
+  if(fx){ const f=fx.d; for(let i=0;i<N*4;i+=4) if(f[i+3]&&!o[i+3]){ o[i]=f[i]; o[i+1]=f[i+1]; o[i+2]=f[i+2]; o[i+3]=f[i+3]; } }  // run dust
+  return o; }
+const WK_SRC='const PX={};\nasync function px(u){ if(PX[u]) return PX[u]; return PX[u]=(async()=>{ const r=await fetch(u); const bm=await createImageBitmap(await r.blob(),{premultiplyAlpha:"none",colorSpaceConversion:"none"}); const c=new OffscreenCanvas(bm.width,bm.height), q=c.getContext("2d"); q.drawImage(bm,0,0); return {w:bm.width,h:bm.height,d:q.getImageData(0,0,bm.width,bm.height).data}; })(); }\n'
+  +mergeParts.toString()+'\nonmessage=async e=>{ const m=e.data; try{ const L=await Promise.all(m.parts.map(p=>Promise.all([px(p.a),px(p.b)]))); const fx=m.fx?await px(m.fx):null; const o=mergeParts(L,fx,m); postMessage({id:m.id,w:L[0][0].w,h:L[0][0].h,buf:o.buffer},[o.buffer]); }catch(err){ postMessage({id:m.id,err:String(err)}); } };';
+let WK=null, WKN=0; const WKCB={};
+try{ if(typeof Worker!=='undefined'&&typeof OffscreenCanvas!=='undefined'&&typeof createImageBitmap!=='undefined'){ WK=new Worker(URL.createObjectURL(new Blob([WK_SRC],{type:'text/javascript'}))); WK.onmessage=e=>{ const f=WKCB[e.data.id]; delete WKCB[e.data.id]; if(f) f(e.data); }; WK.onerror=e=>{ console.error('look worker',e.message); }; } }catch(e){ WK=null; }
+const absU=u=>new URL(u,location.href).href, PIMG={};
+const pimg=u=>PIMG[u]||(PIMG[u]=new Promise(res=>{ const i=new Image(); i.onload=()=>{ const c=document.createElement('canvas'); c.width=i.naturalWidth; c.height=i.naturalHeight; const q=c.getContext('2d'); q.drawImage(i,0,0); res({w:c.width,h:c.height,d:q.getImageData(0,0,c.width,c.height).data}); }; i.onerror=()=>res(null); i.src=u; }));
+const toCanvas=(buf,w,h)=>{ const c=document.createElement('canvas'); c.width=w; c.height=h; c.getContext('2d').putImageData(new ImageData(buf,w,h),0,0); c.complete=true; c.naturalWidth=w; c.naturalHeight=h; return c; };
+function buildPose(ch,p,look){ const C=CH[ch], P=C.meta.poses[p], F=C.parts[p], parts=C.meta.parts.filter(n=>n==='body'||look.on[n]), sc={};
+  for(const n in look.pal){ const m=C.meta.mats[n]; if(m) sc[m[0]]=look.pal[n].map((x,i)=>x/Math.max(1,m[1][i])); }
+  const m={id:++WKN, parts:parts.map(n=>({a:absU(F[n+'_a']),b:absU(F[n+'_b'])})), fx:F.fx?absU(F.fx):null, sc, hits:P.hits||[], P:{w:P.w,h:P.h,frames:P.frames}};
+  const main=()=>Promise.all(m.parts.map(q=>Promise.all([pimg(q.a),pimg(q.b)]))).then(L=>(m.fx?pimg(m.fx):Promise.resolve(null)).then(fx=>new Promise(res=>setTimeout(()=>{ const o=mergeParts(L,fx,m); res(toCanvas(o,L[0][0].w,L[0][0].h)); },0))));  // no worker: one pose per task, never one long freeze
+  if(WK) return new Promise(res=>{ WKCB[m.id]=d=>{ if(d.err){ console.warn('look worker failed, building here:',d.err); return res(main()); } res(toCanvas(new Uint8ClampedArray(d.buf),d.w,d.h)); }; WK.postMessage(m); });
+  return main(); }
+const LC={}, SHOWN={}, sigOf=l=>JSON.stringify(l);
+function requestLook(ch,l){ const sig=sigOf(l), C=(LC[ch]=LC[ch]||{}); let E=C[sig]; if(E) return E; E=C[sig]={poses:{},ready:false,cbs:[]};
+  const ps=Object.keys(CH[ch].meta.poses); let left=ps.length; ps.forEach(p=>buildPose(ch,p,l).then(c=>{ E.poses[p]=c||PEND; if(--left===0){ E.ready=true; const f=E.cbs; E.cbs=[]; f.forEach(x=>x()); } })); return E; }
+for(const ch in CH) if(CH[ch].parts) for(const p in CH[ch].meta.poses) Object.defineProperty(SHEETS[ch],p,{get(){ if(SHOWN[ch]===undefined&&!LC[ch]) setLook(ch,LOOK[ch]||{on:{},pal:{}}); const E=LC[ch]&&LC[ch][SHOWN[ch]]; return (E&&E.poses[p])||PEND; },enumerable:true,configurable:true});
+const PEND=new Image();  // drawn as nothing until a look is ready
+function setLook(ch,l){ if(!CH[ch]||!CH[ch].parts) return; LOOK[ch]=l; const sig=sigOf(l), E=requestLook(ch,l); const show=()=>{ if(sigOf(LOOK[ch])!==sig) return; SHOWN[ch]=sig; BARE[ch]={}; if(typeof SPC!=='undefined') SPC.clear(); }; if(E.ready) show(); else E.cbs.push(show); }
+const lookFor=(ch,l)=>{ if(sigOf(LOOK[ch])!==sigOf(l)) setLook(ch,l); };  // cheap when nothing changed
 const warm=chs=>{ for(const ch of chs) if(SHEETS[ch]) for(const p in SHEETS[ch]) SHEETS[ch][p]; };
 const bare=(ch,p)=>{ const im=SHEETS[ch][p]; if(!BARE[ch][p]&&im.complete&&im.naturalWidth) BARE[ch][p]=stripOutline(im); return BARE[ch][p]; };  // made on first use, not at load
 // the no-outline look, made in the browser: the outline is drawn in one exact colour, so silhouette pixels go transparent
@@ -137,7 +150,8 @@ let wfHelm=1, wfCape=0, wfWhite=false;  // the Wayfinder's look: winged or plain
 const WHITE_PELT={pelt:[226,222,212],peltD:[168,162,154],peltT:[240,236,228]};
 const wfApply=()=>setLook('wayfinder',{on:{body:1,wing:wfHelm,cape:wfCape},pal:wfWhite?WHITE_PELT:{}});
 let coatLong=false;  // the Galvanist's coat: cut away at the front (default) or long on his right (toggle)
-const chOf=u=>{ if(u.ch!=='galvanist') return u.ch; const b=coatLong&&CH.galvanistl?'galvanistl':'galvanist'; if(u.pose==='hrise'||u.pose==='hfall') return b; return CH[b+'c']&&(u.hairWild===false)?b+'c':b; };
+const galvLook=wild=>({on:{body:1,wild:wild?1:0,calm:wild?0:1,coat:coatLong?1:0},pal:{}});
+const chOf=u=>{ if(u.ch!=='galvanist') return u.ch; if(CH.galvanist.parts){ const wild=u.hairWild!==false||u.pose==='hrise'||u.pose==='hfall'; lookFor('galvanist',galvLook(wild)); requestLook('galvanist',galvLook(!wild)); return 'galvanist'; } const b=coatLong&&CH.galvanistl?'galvanistl':'galvanist'; if(u.pose==='hrise'||u.pose==='hfall') return b; return CH[b+'c']&&(u.hairWild===false)?b+'c':b; };
 function hairWatch(u){ if(u.ch!=='galvanist'||u.dead) return; const want=u.mp>=u.mpMax/2; if(u.hairWild===undefined){ u.hairWild=want; return; } if(want===u.hairWild||u.mode!=='idle'||!M(u).hrise) return; u.hairWild=want; act(u,want?'hrise':'hfall',null,null); }  // the hair stands or settles in its own beat when charge crosses half, once he is standing still  // the Galvanist's hair: wild with static above half charge, settling flat below it
 function setPose(u,p){if(u.pose!==p){u.pose=p;u.f=0;u.acc=0;}}
 const idleOf=u=>u.ch==='wand'&&u.low?'idle_low':'idle';
@@ -475,7 +489,7 @@ setTimeout(()=>showPick(mapKey),0);  // choose four before the first room
 document.getElementById('wfhelm').onclick=()=>{ wfHelm=1-wfHelm; document.getElementById('wfhelm').textContent='Helm: '+(wfHelm?'winged':'plain'); wfApply(); };
 document.getElementById('wfcape').onclick=()=>{ wfCape=1-wfCape; document.getElementById('wfcape').textContent='Cape: '+(wfCape?'on':'off'); wfApply(); };
 document.getElementById('wfpelt').onclick=()=>{ wfWhite=!wfWhite; document.getElementById('wfpelt').textContent='Pelt: '+(wfWhite?'white':'red'); wfApply(); };
-document.getElementById('coat').onclick=()=>{ coatLong=!coatLong; warm(coatLong?['galvanistl','galvanistlc']:['galvanist','galvanistc']); document.getElementById('coat').textContent='Coat: '+(coatLong?'long right side':'cut-away'); SPC.clear(); };
+document.getElementById('coat').onclick=()=>{ coatLong=!coatLong; if(CH.galvanist.parts){ document.getElementById('coat').textContent='Coat: '+(coatLong?'long right side':'cut-away'); return; } warm(coatLong?['galvanistl','galvanistlc']:['galvanist','galvanistc']); document.getElementById('coat').textContent='Coat: '+(coatLong?'long right side':'cut-away'); SPC.clear(); };
 document.getElementById('antl').onclick=()=>{ if(CH.hunter&&CH.hunter.parts){ const rack=!LOOK.hunter.on.rack; setLook('hunter',{on:{body:1,tines:rack?0:1,rack:rack?1:0},pal:{}}); document.getElementById('antl').textContent='Antlers: '+(rack?'full rack':'tines'); return; } if(!CH.huntera) return; warm(['huntera']); for(const O of [CH,SHEETS,BARE,MUZ]) if(O.huntera){ const t=O.hunter; O.hunter=O.huntera; O.huntera=t; } SPC.clear(); const b=document.getElementById('antl'); b.textContent=b.textContent.includes('tines')?'Antlers: full rack':'Antlers: tines'; };
 // ---- screen filters (drafts): a CSS grade on the canvas, a tint layer, film grain and a vignette over it
 const FILT=[['current','none',null,0,0],  /* candidates for map types later */
@@ -685,7 +699,12 @@ function drawUnit0(u,cx,cy,dt){ const uc=chOf(u), m=CH[uc].meta.poses[u.pose]; i
   if(u.flash>0) u.flash-=dt;
   g.drawImage(im,Math.round(hx-an[0]-cx),Math.round(hy-an[1]-cy)); }
 function tick(now){ requestAnimationFrame(tick); try{ frame(now); }catch(e){ if(!tick.err){tick.err=1; console.error('frame error',e);} } }
+let gateOK=false, gateKey='';
+function gate(){ const need=[...new Set(U.filter(u=>U.includes(u)).map(chOf))].filter(ch=>CH[ch]), k=need.join(','); if(gateOK&&k===gateKey) return null; gateKey=k; let tot=0, ok=0;
+  for(const ch of need) for(const p in CH[ch].meta.poses){ tot++; const s=SHEETS[ch][p]; if(s&&s.naturalWidth&&(!(s instanceof HTMLImageElement)||s.complete)) ok++; }
+  gateOK=ok===tot; return gateOK?null:[ok,tot]; }
 function frame(now){const dt=Math.min(.05,(now-last)/1000); last=now;
+  const gw=gate(); if(gw){ g.fillStyle='#0b0a0a'; g.fillRect(0,0,c.width,c.height); g.fillStyle='#c9b89a'; g.font='16px Georgia, serif'; g.textAlign='center'; g.fillText('Gathering the party…',c.width/2,c.height/2-10); g.fillStyle='#2a2420'; g.fillRect(c.width/2-120,c.height/2+6,240,6); g.fillStyle='#c9a35a'; g.fillRect(c.width/2-120,c.height/2+6,240*gw[0]/Math.max(1,gw[1]),6); g.textAlign='left'; return; }
   bgT+=dt; if(bgT>.16){bgT=0;bgF=(bgF+1)%bgs.length;}
   for(const u of U){ hairWatch(u); stepUnit(u,dt); }
   const fo=cur()||hero, [fx,fy]=iso((fo.px+hero.px)/2*T2+2,(fo.py+hero.py)/2*T2+2);
