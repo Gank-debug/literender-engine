@@ -386,7 +386,7 @@ function ui(){ const w=HEROES[0];
   const s1=document.getElementById('sk1'), s2=document.getElementById('sk2'), h=isHero(hero)?hero:HEROES[0];
   s1.style.display=s2.style.display=''; document.getElementById('atk').textContent=h.ch==='ranger'?'Shoot':'Strike';
   const s3=document.getElementById('sk3'); s3.style.display=h.ch==='galvanist'||h.ch==='assassin'?'':'none'; if(h.ch==='assassin'){ s3.disabled=!mine||h.mp<15||h.stepped; s3.classList.toggle('on',skill==='step'); s3.textContent='Shadowstep · 15 MP'; } else { s3.disabled=!mine||(h.moved&&h.stimLate)||h.mp<5; s3.classList.toggle('on',stimOn); s3.textContent='Stimulus · 5/tile'; } const s4=document.getElementById('sk4'); s4.style.display=h.ch==='galvanist'?'':'none'; s4.disabled=!mine||h.mp<15; s4.classList.toggle('on',skill==='ward'); s4.textContent='Electrostatic Field · 15';
-  if(h.ch==='wand'){ s1.textContent='Wide Arc · 10 MP'; s2.textContent='Undertow · 10 MP'; s1.disabled=!mine||h.mp<10; s2.disabled=!mine||h.mp<10||h.moved; }
+  if(h.ch==='wand'){ s1.textContent='Wide Arc · 10 MP'; s1.disabled=!mine||h.mp<10; s2.style.display='none'; }  /* Undertow removed for now (undertow() kept below) */
   else if(h.ch==='assassin'){ s1.textContent='Poison Kiss · 10 MP'; s2.textContent='Targetted · 10 MP'; s1.disabled=!mine||h.mp<10||h.kissed; s2.disabled=!mine||h.mp<10; }
   else if(h.ch==='hunter'){ s1.textContent='Gridlock · 10 MP'; s2.textContent='Bloody Hunt · 10 MP'; s1.disabled=!mine||h.mp<10; s2.disabled=!mine||h.mp<10||!h.axeIn||h.hunted; }
   else if(h.ch==='ranger'){ s1.textContent='Grenade · 1 focus'; s2.textContent='Recharge · 2 focus'; s1.disabled=!mine||(h.focus||0)<1; s2.disabled=!mine||(h.focus||0)<2; }
