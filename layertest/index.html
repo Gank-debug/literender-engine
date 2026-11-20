@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Runtime Layers Test</title>
+<style>
+:root{--bg:#141217;--fg:#e8dcc4;--dim:#9a8f80;--line:#3a3240;--acc:#c9a35a}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.4 Georgia,serif}
+main{max-width:980px;margin:0 auto;padding:16px}
+h1{font-weight:normal;letter-spacing:.06em;font-size:20px;margin:0 0 4px} p{color:var(--dim);margin:0 0 12px}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start}
+canvas{image-rendering:pixelated;background:#1c1920;border:1px solid var(--line);width:min(100%,800px);height:auto}
+.ctl{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+button{background:#1d1922;color:var(--fg);border:1px solid var(--line);padding:6px 10px;font:inherit;cursor:pointer}
+button.on{border-color:var(--acc);color:#f1e3c2}
+label{display:flex;align-items:center;gap:6px;color:var(--dim);font-size:13px} input[type=color]{width:34px;height:24px;border:0;background:none;padding:0}
+#stat{color:var(--dim);font-size:12px;margin-top:6px}
+</style></head><body><main>
+<h1>Runtime colour and layers</h1>
+<p>Each frame is three separately rendered layers (body, wings, cape), merged by depth, outlined and coloured here in the browser. Nothing below was rendered as a finished sprite.</p>
+<div class="ctl"><button id="w" class="on">Wings</button><button id="c" class="on">Cape</button><button id="v">View: 22.5</button></div>
+<div class="ctl" id="pal"></div>
+<div class="row"><canvas id="cv" width="400" height="300"></canvas></div>
+<div id="stat"></div>
+</main><script>
+const S={wings:true,cape:true,view:0,f:0}; let MAN=null; const IMG={};
+const PICK=[['pelt','Pelt'],['steel','Steel'],['khair','Hair'],['cape','Cape'],['edge','Trim'],['leather','Leather']];
+const loadImg=src=>new Promise((res,rej)=>{const i=new Image(); i.onload=()=>res(i); i.onerror=rej; i.src=src;});
+const px=im=>{const c=document.createElement('canvas'); c.width=im.width; c.height=im.height; const q=c.getContext('2d'); q.drawImage(im,0,0); return q.getImageData(0,0,im.width,im.height).data;};
+let PAL={}, PALBYID={};
+async function init(){ MAN=await (await fetch('manifest.json')).json();
+  for(const [nm,[id,col]] of Object.entries(MAN.mats)){ PAL[nm]=col.slice(); PALBYID[id]=nm; }
+  const P=document.getElementById('pal'); for(const [k,l] of PICK){ const key=PAL[k]?k:Object.keys(PAL).find(n=>n.startsWith(k)); if(!key) continue;
+    const lab=document.createElement('label'); lab.textContent=l; const inp=document.createElement('input'); inp.type='color'; inp.value='#'+PAL[key].map(v=>Math.round(v).toString(16).padStart(2,'0')).join('');
+    inp.oninput=()=>{ const v=inp.value; const rgb=[1,3,5].map(i=>parseInt(v.slice(i,i+2),16)); const r=rgb.map((x,i)=>x/Math.max(1,PAL[key][i]));
+      for(const n of Object.keys(PAL)) if(n===key||(n.startsWith(key)&&n.length<=key.length+1)) PAL[n]=MAN.mats[n][1].map((x,i)=>Math.min(255,x*r[i])); };
+    lab.appendChild(inp); P.appendChild(lab); }
+  const t0=performance.now(); const jobs=[];
+  for(const v of MAN.views) for(let i=0;i<MAN.frames;i++) for(const L of MAN.layers){ const k=`${L}_${v}_${String(i).padStart(2,'0')}`;
+    jobs.push(Promise.all([loadImg(k+'_i.png'),loadImg(k+'_d.png')]).then(([a,b])=>{ IMG[k]={i:px(a),d:px(b),w:a.width,h:a.height}; }).catch(()=>{})); }
+  await Promise.all(jobs); document.getElementById('stat').textContent='loaded '+Object.keys(IMG).length+' layer frames in '+Math.round(performance.now()-t0)+' ms';
+  requestAnimationFrame(loop); }
+const mix=(a,b,t)=>a*(1-t)+b*t;
+function compose(v,i){ const ls=['lybase'].concat(S.wings?['lywing']:[]).concat(S.cape?['lycape']:[]); const fr=ls.map(L=>IMG[`${L}_${v}_${String(i).padStart(2,'0')}`]).filter(Boolean); if(!fr.length) return null;
+  const {w,h}=fr[0], N=w*h, dep=new Float32Array(N).fill(1e9), win=new Int8Array(N).fill(-1);
+  fr.forEach((F,li)=>{ const d=F.d; for(let p=0;p<N;p++){ if(!d[p*4+3]) continue; const z=d[p*4]*256+d[p*4+1]; if(z<dep[p]){ dep[p]=z; win[p]=li; } } });
+  const out=new ImageData(w,h), o=out.data, A=new Uint8Array(N), mid=new Uint16Array(N), em=new Uint8Array(N), d8=new Float32Array(N);
+  for(let p=0;p<N;p++){ const li=win[p]; if(li<0) continue; const I=fr[li].i, q=p*4; A[p]=1; const g=I[q+1]; em[p]=g>=128; mid[p]=g&127; d8[p]=Math.min(255,Math.max(0,((MAN.dlo+dep[p]/65535*(MAN.dhi-MAN.dlo))-1)/8*255)); /* same depth-to-ink mapping as the renderer */
+    const nm=PALBYID[mid[p]]; const c=(PAL[nm]||[200,0,200]).map(x=>x*I[q+2]/100); const t=I[q]/255; let r;
+    if(em[p]) r=c.map((x,k)=>mix(x,[255,240,200][k],.3)); else if(t<.38) r=c.map((x,k)=>mix(x*.42,[18,18,40][k],.45)); else if(t<.74) r=c.map(x=>x*.86); else r=c.map((x,k)=>mix(x,[255,214,170][k],.2));
+    o[q]=r[0]; o[q+1]=r[1]; o[q+2]=r[2]; o[q+3]=255; }
+  const ink=p=>{ o[p*4]=10; o[p*4+1]=8; o[p*4+2]=14; o[p*4+3]=255; };
+  for(let y=0;y<h;y++) for(let x=0;x<w;x++){ const p=y*w+x; for(const [dy,dx] of [[0,1],[1,0]]){ const y2=y+dy, x2=x+dx; if(y2>=h||x2>=w) continue; const p2=y2*w+x2;
+      if(!(A[p]&&A[p2])||em[p]||em[p2]) continue; const dd=Math.abs(d8[p]-d8[p2]); if(dd>9||(mid[p]!==mid[p2]&&dd>2)) ink(d8[p]>d8[p2]?p:p2); } }
+  for(let y=0;y<h;y++) for(let x=0;x<w;x++){ const p=y*w+x; if(A[p]) continue; if((x>0&&A[p-1])||(x<w-1&&A[p+1])||(y>0&&A[p-w])||(y<h-1&&A[p+w])) ink(p); }
+  return out; }
+let last=0;
+function loop(ts){ if(ts-last>120){ last=ts; S.f=(S.f+1)%MAN.frames; const im=compose(MAN.views[S.view],S.f); if(im){ const cv=document.getElementById('cv'); cv.width=im.width; cv.height=im.height; cv.getContext('2d').putImageData(im,0,0); } } requestAnimationFrame(loop); }
+document.getElementById('w').onclick=e=>{ S.wings=!S.wings; e.target.classList.toggle('on',S.wings); };
+document.getElementById('c').onclick=e=>{ S.cape=!S.cape; e.target.classList.toggle('on',S.cape); };
+document.getElementById('v').onclick=e=>{ S.view=(S.view+1)%MAN.views.length; e.target.textContent='View: '+MAN.views[S.view]; };
+init();
+</script></body></html>
