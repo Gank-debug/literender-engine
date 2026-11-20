@@ -222,7 +222,7 @@ const stimX=u=>u.ch==='galvanist'?Math.min(4,Math.floor(u.mp/5)):0;
 const gvFit=()=>{ const cap=Math.min(20,hero.mp); gvD=Math.min(gvD,cap); gvR=Math.min(gvR,cap-gvD); };
 const dischOK=(me,t)=>t&&!t.dead&&t.team===1&&cheb(me,t.x,t.y)<=1+gvR&&(cheb(me,t.x,t.y)===1||los(me.x,me.y,t.x,t.y));
 function discharge(t){ const me=hero; if(!dischOK(me,t)) return; const n=1+gvD, cost=gvD+gvR; me.mp-=cost; face(me,t.x,t.y); setAtk(false); skill=null; syncBtns(); busyLock=true; reachH=new Map();
-  act(me,'attack',()=>{ bolts.push({kind:'zap',x0:me.px,y0:me.py,x1:t.px,y1:t.py,t:0,o0:muz(me),cb:()=>{ damage(t,n,me,true); shake=Math.min(.3,.05+n*.012); log('Discharge: '+n+' to the '+t.short.toLowerCase()+(cost?' ('+cost+' charge)':'')+(t.dead?' — it falls':'')+'.'); gvFit(); ui(); }}); }, endAct(me)); }
+  act(me,'attack',()=>{ bolts.push({kind:'zap',x0:me.px,y0:me.py,x1:t.px,y1:t.py,t:0,dur:.045,o0:muz(me),cb:()=>{ damage(t,n,me,true); shake=Math.min(.3,.05+n*.012); log('Discharge: '+n+' to the '+t.short.toLowerCase()+(cost?' ('+cost+' charge)':'')+(t.dead?' — it falls':'')+'.'); gvFit(); ui(); }}); }, endAct(me)); }
 const arcOK=(me,t)=>t&&!t.dead&&t.team===1&&cheb(me,t.x,t.y)<=3&&(cheb(me,t.x,t.y)===1||los(me.x,me.y,t.x,t.y));
 const muzCane=u=>(MUZ.galvanist_zap&&MUZ.galvanist_zap[u.dir%MUZ.galvanist_zap.length])||muz(u);  // the ferrule of the levelled cane
 function galvAct(me,t,fn){ me.mp-=10; face(me,t.x,t.y); setAtk(false); skill=null; syncBtns(); busyLock=true; reachH=new Map(); act(me,'zap',()=>bolts.push({kind:'zap',x0:me.px,y0:me.py,x1:t.px,y1:t.py,t:0,o0:muzCane(me),cb:fn}),endAct(me)); }
@@ -666,7 +666,7 @@ function frame(now){const dt=Math.min(.05,(now-last)/1000); last=now;
   for(const u of U) if(u.pose==='hover'&&!u.dead){ const [hx,hy]=iso(u.px*T2+2,u.py*T2+2); g.fillStyle='rgba(0,0,0,.35)'; g.beginPath(); g.ellipse(hx-cx,hy-cy,9,4,0,0,6.283); g.fill(); }  // a shadow left on the floor while he floats
   for(let i=bolts.length-1;i>=0;i--){ const B=bolts[i];
     if(B.kind==='zap'){  // lightning: there at once, gone in a moment - a jagged forked bolt, re-struck every frame
-      if(!B.hit){ B.hit=true; B.cb(); } B.t+=dt/.16; if(B.t>=1){ bolts.splice(i,1); continue; }
+      if(!B.hit){ B.hit=true; B.cb(); } B.t+=dt/(B.dur||.16); if(B.t>=1){ bolts.splice(i,1); continue; }
       const o0=B.o0||[0,-34], [sx,sy]=iso(B.x0*T2+2,B.y0*T2+2), [tx,ty]=iso(B.x1*T2+2,B.y1*T2+2), x0=sx-cx+o0[0], y0=sy-cy+o0[1], X=tx-cx, Y=ty-cy-34;
       const L=Math.hypot(X-x0,Y-y0)||1, nx=-(Y-y0)/L, ny=(X-x0)/L, seg=Math.max(5,Math.round(L/7)), P=[[x0,y0]];
       for(let q=1;q<seg;q++){ const f=q/seg, j=(Math.random()-.5)*Math.min(14,4+L*.06)*Math.sin(f*Math.PI); P.push([x0+(X-x0)*f+nx*j, y0+(Y-y0)*f+ny*j]); } P.push([X,Y]);
