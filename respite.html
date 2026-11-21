@@ -492,7 +492,7 @@ document.getElementById('bersb').onclick=()=>{ if(busyLock&&!myTurn()&&living().
 document.getElementById('bbelly').onclick=()=>{ const on=!(LOOK.bers&&LOOK.bers.on.belly===0); setLook('bers',{on:{body:1,belly:on?0:1},pal:{}}); document.getElementById('bbelly').textContent='Belly: '+(on?'closed':'burst'); };
 document.getElementById('husks').onclick=()=>{ if(busyLock&&!myTurn()&&living().length) return; unRise(); spawnHusks(Math.ceil(HEROES.length/2)); for(const h of HEROES){ if(h.dead){h.dead=false;h.hp=h.max;h.low=false;h.mode='idle';setPose(h,'idle');} if(h.mp!==undefined)h.mp=h.mpMax; } newRound(true); round=1; log('Something fast moves at the edge of the light.'); };
 document.getElementById('lightb').onclick=()=>{ const m=AFILT?'a':LIGHTB?'b':'c', nx={c:'b',b:'a',a:'c'}[m]; LIGHTB=nx!=='c'; AFILT=nx==='a'; SPC.clear();
-  c.style.imageRendering=AFILT?'auto':''; const b=document.getElementById('lightb'); b.classList.toggle('on',LIGHTB); b.textContent='Look: '+{c:'current',b:'pixels + light',a:'A (filter)'}[nx]; };
+  const b=document.getElementById('lightb'); b.classList.toggle('on',LIGHTB); b.textContent='Look: '+{c:'current',b:'pixels + light',a:'A (filter)'}[nx]; };
 document.getElementById('outl').onclick=()=>{OUTLINE=!OUTLINE; document.getElementById('outl').classList.toggle('on',OUTLINE);};
 for(const k in (CRYPTS||{})){ const o=document.createElement('option'); o.value=k; o.textContent='Map: '+CRYPTS[k].name; document.getElementById('map').appendChild(o); }
 for(const k in MAPS){ const o=document.createElement('option'); o.value=k; o.textContent='Map: '+MAPS[k].name; document.getElementById('map').appendChild(o); }
@@ -597,7 +597,7 @@ c.addEventListener('contextmenu',e=>e.preventDefault());
 // then one darkness layer with holes of light around each living hero, the fire, the spring and the pods
 const LBG=new Map(), LBC=document.createElement('canvas'), lbg=LBC.getContext('2d');
 function bgA(bg){ const kk='A'; let o=LBG.get(bg)&&LBG.get(bg)[kk]; if(o) return o; o=document.createElement('canvas'); o.width=bg.width; o.height=bg.height; const q=o.getContext('2d');
-  q.filter='blur(.6px) contrast(1.22) saturate(.78) sepia(.12) brightness(.86)'; q.drawImage(bg,0,0); q.filter='none';
+  q.filter='contrast(1.22) saturate(.78) sepia(.12) brightness(.86)';  // sharp: no blur q.drawImage(bg,0,0); q.filter='none';
   const n=document.createElement('canvas'); n.width=n.height=128; const nq=n.getContext('2d'), d=nq.createImageData(128,128); for(let i=0;i<d.data.length;i+=4){ const v=170+Math.random()*70|0; d.data[i]=d.data[i+1]=d.data[i+2]=v; d.data[i+3]=255; } nq.putImageData(d,0,0);
   q.globalCompositeOperation='multiply'; q.globalAlpha=.28; q.fillStyle=q.createPattern(n,'repeat'); q.fillRect(0,0,bg.width,bg.height); q.globalAlpha=1; q.globalCompositeOperation='source-over';
   const e=LBG.get(bg)||{}; e[kk]=o; LBG.set(bg,e); return o; }
