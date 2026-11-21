@@ -84,7 +84,7 @@ function stripOutline(im){ const o=document.createElement('canvas'); o.width=im.
   for(let y=0;y<H;y++)for(let x=0;x<W;x++){const i=(y*W+x)*4; if(!isL(i))continue; let edge=false; for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){const X=x+dx,Y=y+dy; if(X<0||Y<0||X>=W||Y>=H||d[(Y*W+X)*4+3]===0){edge=true;break;}} if(edge)d[i+3]=0;}
   for(let pass=0;pass<3;pass++) for(let y=0;y<H;y++)for(let x=0;x<W;x++){const i=(y*W+x)*4; if(!isL(i))continue; let r=0,g=0,b=0,n=0; for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const X=x+dx,Y=y+dy; if(X<0||Y<0||X>=W||Y>=H)continue; const j=(Y*W+X)*4; if(d[j+3]&&!isL(j)){r+=d[j];g+=d[j+1];b+=d[j+2];n++;}} if(n){d[i]=r/n;d[i+1]=g/n;d[i+2]=b/n;}}
   q.putImageData(D,0,0); return o; }
-let OUTLINE=true, GRADE=false, LIGHTB=true;  // LIGHTB: the 'pixels + light' look - pools of light around the party, deep dark, earthy palette, grit, a faint silhouette instead of the outline  // GRADE (draft): sprites desaturated and warmed to sit inside the room's light
+let OUTLINE=true, GRADE=false, LIGHTB=true, AFILT=false;  // AFILT: 'rendered' filter - smooth instead of crisp pixels, deeper contrast, softer and wider light  // LIGHTB: the 'pixels + light' look - pools of light around the party, deep dark, earthy palette, grit, a faint silhouette instead of the outline  // GRADE (draft): sprites desaturated and warmed to sit inside the room's light
 let bgs=BG.map(load), SRCBG=BG;  // SRCBG: the current map's frames as painted; bgs: what is drawn (after the room look and a room-only filter)
 const c=document.getElementById('c'), g=c.getContext('2d',{alpha:false});
 let OX=MAP.ox, OY=MAP.oy; const T2=4, iso=(x,y)=>[OX+(x-y)*10, OY+(x+y)*5];
@@ -491,7 +491,8 @@ document.getElementById('thrb').onclick=()=>{ if(!CH.thrall) return; addThralls(
 document.getElementById('bersb').onclick=()=>{ if(busyLock&&!myTurn()&&living().length) return; if(!CH.bers) return; addBers(1,true); order=order.concat(U.filter(v=>v.ch==='bers'&&!order.includes(v))); log('A Revenant Berserker lumbers in.'); ui(); };
 document.getElementById('bbelly').onclick=()=>{ const on=!(LOOK.bers&&LOOK.bers.on.belly===0); setLook('bers',{on:{body:1,belly:on?0:1},pal:{}}); document.getElementById('bbelly').textContent='Belly: '+(on?'closed':'burst'); };
 document.getElementById('husks').onclick=()=>{ if(busyLock&&!myTurn()&&living().length) return; unRise(); spawnHusks(Math.ceil(HEROES.length/2)); for(const h of HEROES){ if(h.dead){h.dead=false;h.hp=h.max;h.low=false;h.mode='idle';setPose(h,'idle');} if(h.mp!==undefined)h.mp=h.mpMax; } newRound(true); round=1; log('Something fast moves at the edge of the light.'); };
-document.getElementById('lightb').onclick=()=>{ LIGHTB=!LIGHTB; SPC.clear(); const b=document.getElementById('lightb'); b.classList.toggle('on',LIGHTB); b.textContent='Look: '+(LIGHTB?'pixels + light':'current'); };
+document.getElementById('lightb').onclick=()=>{ const m=AFILT?'a':LIGHTB?'b':'c', nx={c:'b',b:'a',a:'c'}[m]; LIGHTB=nx!=='c'; AFILT=nx==='a'; SPC.clear();
+  c.style.imageRendering=AFILT?'auto':''; const b=document.getElementById('lightb'); b.classList.toggle('on',LIGHTB); b.textContent='Look: '+{c:'current',b:'pixels + light',a:'A (filter)'}[nx]; };
 document.getElementById('outl').onclick=()=>{OUTLINE=!OUTLINE; document.getElementById('outl').classList.toggle('on',OUTLINE);};
 for(const k in (CRYPTS||{})){ const o=document.createElement('option'); o.value=k; o.textContent='Map: '+CRYPTS[k].name; document.getElementById('map').appendChild(o); }
 for(const k in MAPS){ const o=document.createElement('option'); o.value=k; o.textContent='Map: '+MAPS[k].name; document.getElementById('map').appendChild(o); }
@@ -595,21 +596,29 @@ c.addEventListener('contextmenu',e=>e.preventDefault());
 // ---- the 'pixels + light' look (LIGHTB): the background gets the earthy grade and grit once per frame image (cached); units a faint silhouette;
 // then one darkness layer with holes of light around each living hero, the fire, the spring and the pods
 const LBG=new Map(), LBC=document.createElement('canvas'), lbg=LBC.getContext('2d');
-function bgB(bg){ let o=LBG.get(bg); if(o) return o; o=document.createElement('canvas'); o.width=bg.width; o.height=bg.height; const q=o.getContext('2d'); q.filter='saturate(.62) sepia(.2) brightness(.92)'; q.drawImage(bg,0,0); q.filter='none';
+function bgA(bg){ const kk='A'; let o=LBG.get(bg)&&LBG.get(bg)[kk]; if(o) return o; o=document.createElement('canvas'); o.width=bg.width; o.height=bg.height; const q=o.getContext('2d');
+  q.filter='blur(.6px) contrast(1.22) saturate(.78) sepia(.12) brightness(.86)'; q.drawImage(bg,0,0); q.filter='none';
+  const n=document.createElement('canvas'); n.width=n.height=128; const nq=n.getContext('2d'), d=nq.createImageData(128,128); for(let i=0;i<d.data.length;i+=4){ const v=170+Math.random()*70|0; d.data[i]=d.data[i+1]=d.data[i+2]=v; d.data[i+3]=255; } nq.putImageData(d,0,0);
+  q.globalCompositeOperation='multiply'; q.globalAlpha=.28; q.fillStyle=q.createPattern(n,'repeat'); q.fillRect(0,0,bg.width,bg.height); q.globalAlpha=1; q.globalCompositeOperation='source-over';
+  const e=LBG.get(bg)||{}; e[kk]=o; LBG.set(bg,e); return o; }
+function bgB(bg){ const e0=LBG.get(bg); if(e0&&e0.B) return e0.B; let o; o=document.createElement('canvas'); o.width=bg.width; o.height=bg.height; const q=o.getContext('2d'); q.filter='saturate(.62) sepia(.2) brightness(.92)'; q.drawImage(bg,0,0); q.filter='none';
   const n=document.createElement('canvas'); n.width=n.height=96; const nq=n.getContext('2d'), d=nq.createImageData(96,96); for(let i=0;i<d.data.length;i+=4){ const v=150+Math.random()*80|0; d.data[i]=d.data[i+1]=d.data[i+2]=v; d.data[i+3]=255; } nq.putImageData(d,0,0);
   const sm=document.createElement('canvas'); sm.width=bg.width>>1; sm.height=bg.height>>1; const sq=sm.getContext('2d'); sq.fillStyle=sq.createPattern(n,'repeat'); sq.fillRect(0,0,sm.width,sm.height);  // coarse grit, drawn up at 2x
   q.globalCompositeOperation='multiply'; q.globalAlpha=.45; q.imageSmoothingEnabled=true; q.drawImage(sm,0,0,bg.width,bg.height); q.globalAlpha=.25; q.fillStyle=q.createPattern(n,'repeat'); q.fillRect(0,0,bg.width,bg.height); q.globalAlpha=1; q.globalCompositeOperation='source-over';
-  if(LBG.size>12) LBG.clear(); LBG.set(bg,o); return o; }
+  if(LBG.size>12) LBG.clear(); const e=LBG.get(bg)||{}; e.B=o; LBG.set(bg,e); return o; }
 function lightPass(cx,cy,now){ if(LBC.width!==c.width||LBC.height!==c.height){ LBC.width=c.width; LBC.height=c.height; }
-  lbg.globalCompositeOperation='source-over'; lbg.clearRect(0,0,LBC.width,LBC.height); lbg.fillStyle='rgba(4,3,6,.62)'; lbg.fillRect(0,0,LBC.width,LBC.height); lbg.globalCompositeOperation='destination-out';
-  const hole=(x,y,r,s)=>{ const [sx,sy]=iso(x*T2+2,y*T2+2), X=sx-cx, Y=sy-cy-12, gr=lbg.createRadialGradient(X,Y,0,X,Y,r); gr.addColorStop(0,`rgba(0,0,0,${s})`); gr.addColorStop(.5,`rgba(0,0,0,${s*.72})`); gr.addColorStop(1,'rgba(0,0,0,0)'); lbg.fillStyle=gr; lbg.beginPath(); lbg.ellipse(X,Y,r,r*.62,0,0,6.283); lbg.fill(); };
+  lbg.globalCompositeOperation='source-over'; lbg.clearRect(0,0,LBC.width,LBC.height); lbg.fillStyle=AFILT?'rgba(3,2,5,.7)':'rgba(4,3,6,.62)'; lbg.fillRect(0,0,LBC.width,LBC.height); lbg.globalCompositeOperation='destination-out';
+  const hole=(x,y,r,s)=>{ const [sx,sy]=iso(x*T2+2,y*T2+2), X=sx-cx, Y=sy-cy-12, gr=lbg.createRadialGradient(0,0,0,0,0,r);  // drawn in a squashed frame, so the falloff itself is the ellipse: nothing clips it, no edge
+    for(const [t,k] of [[0,1],[.2,.93],[.4,.74],[.6,.45],[.78,.2],[.9,.07],[1,0]]) gr.addColorStop(t,`rgba(0,0,0,${s*k})`);
+    lbg.save(); lbg.translate(X,Y); lbg.scale(1,.62); lbg.fillStyle=gr; lbg.fillRect(-r,-r,2*r,2*r); lbg.restore(); };
+  const R=AFILT?1.3:1;
   const fl=1+.035*Math.sin(now/140)+.025*Math.sin(now/53);
-  for(const h of HEROES) if(!h.dead&&U.includes(h)) hole(h.px,h.py,150*fl,1);
-  for(const k of fireSet){ const [a,b]=k.split(',').map(Number); hole(a,b,72*fl,.85); }
+  for(const h of HEROES) if(!h.dead&&U.includes(h)) hole(h.px,h.py,165*fl*R,1);
+  for(const k of fireSet){ const [a,b]=k.split(',').map(Number); hole(a,b,80*fl*R,.85); }
   for(const q of PROPS) if(q.kind==='Refreshing Spring'&&!q.used) hole(q.x,q.y,64,.55);
   for(const P of pods) hole(P.x,P.y,34,.55);
   g.drawImage(LBC,0,0); g.globalCompositeOperation='lighter';
-  for(const h of HEROES) if(!h.dead&&U.includes(h)){ const [sx,sy]=iso(h.px*T2+2,h.py*T2+2), X=sx-cx, Y=sy-cy-12, gr=g.createRadialGradient(X,Y,0,X,Y,120); gr.addColorStop(0,'rgba(255,180,110,.08)'); gr.addColorStop(1,'rgba(255,180,110,0)'); g.fillStyle=gr; g.fillRect(X-120,Y-120,240,240); }
+  for(const h of HEROES) if(!h.dead&&U.includes(h)){ const [sx,sy]=iso(h.px*T2+2,h.py*T2+2), X=sx-cx, Y=sy-cy-12, gr=g.createRadialGradient(X,Y,0,X,Y,140*R); gr.addColorStop(0,`rgba(255,180,110,${AFILT?.13:.08})`); gr.addColorStop(.5,`rgba(255,180,110,${AFILT?.05:.03})`); gr.addColorStop(1,'rgba(255,180,110,0)'); g.fillStyle=gr; g.fillRect(X-140*R,Y-140*R,280*R,280*R); }
   g.globalCompositeOperation='source-over'; }
 const lightAt={}; let lightReady=false;
 // ---- the campaign's map pieces, placed where the Roll20 pages put them
@@ -725,9 +734,9 @@ function drawUnit0(u,cx,cy,dt){ const uc=chOf(u), m=CH[uc].meta.poses[u.pose]; i
   if(!(u.dead&&u.mode==='dead')){ g.fillStyle='rgba(0,0,0,.4)'; g.beginPath(); g.ellipse(hx-cx,hy-cy,isHero(u)||u.big?15:12,isHero(u)||u.big?6:5,0,0,6.283); g.fill(); }
   const L=lightReady&&lightAt[key(Math.round(u.px),Math.round(u.py))]||{f:1,w:0}; u.lf+=(L.f-u.lf)*Math.min(1,dt*4); u.lw+=(L.w-u.lw)*Math.min(1,dt*4);
   const lq=Math.round(u.lf*25)/25, wq=u.lw>4?Math.round(Math.min(.22,u.lw/200)*50)/50:0, live=u.reverse||u.flash>0, row=u.dir%rows;
-  const ck=uc+'|'+u.pose+'|'+u.f+'|'+row+'|'+lq+'|'+wq+'|'+(sh===SHEETS[uc][u.pose]?1:0)+(GRADE?'g':'')+(LIGHTB?'b':''); let im=live?null:SPC.get(ck);
-  if(!im){ im=live?spr:document.createElement('canvas'); if(im.width!==m.w||im.height!==m.h){im.width=m.w; im.height=m.h;} const q=im.getContext('2d'); q.clearRect(0,0,m.w,m.h); q.filter=GRADE?'saturate(.55) sepia(.22) brightness(.84) contrast(1.08)':LIGHTB?'saturate(.8) sepia(.12)':'none'; q.drawImage(sh,u.f*m.w,row*m.h,m.w,m.h,0,0,m.w,m.h); q.filter='none';
-    if(LIGHTB){ const t=faintTmp(m.w,m.h); t.q.clearRect(0,0,m.w,m.h); t.q.globalCompositeOperation='source-over'; t.q.drawImage(sh,u.f*m.w,row*m.h,m.w,m.h,0,0,m.w,m.h); t.q.globalCompositeOperation='source-in'; t.q.fillStyle='rgba(10,8,14,.42)'; t.q.fillRect(0,0,m.w,m.h); q.globalCompositeOperation='destination-over'; for(const [ox,oy] of [[1,0],[-1,0],[0,1],[0,-1]]) q.drawImage(t.c,ox,oy); q.globalCompositeOperation='source-over'; }  // a faint silhouette
+  const ck=uc+'|'+u.pose+'|'+u.f+'|'+row+'|'+lq+'|'+wq+'|'+(sh===SHEETS[uc][u.pose]?1:0)+(GRADE?'g':'')+(LIGHTB?'b':'')+(AFILT?'a':''); let im=live?null:SPC.get(ck);
+  if(!im){ im=live?spr:document.createElement('canvas'); if(im.width!==m.w||im.height!==m.h){im.width=m.w; im.height=m.h;} const q=im.getContext('2d'); q.clearRect(0,0,m.w,m.h); q.filter=GRADE?'saturate(.55) sepia(.22) brightness(.84) contrast(1.08)':AFILT?'contrast(1.15) saturate(.82) sepia(.08)':LIGHTB?'saturate(.8) sepia(.12)':'none'; q.drawImage(sh,u.f*m.w,row*m.h,m.w,m.h,0,0,m.w,m.h); q.filter='none';
+    if(LIGHTB&&!AFILT){ const t=faintTmp(m.w,m.h); t.q.clearRect(0,0,m.w,m.h); t.q.globalCompositeOperation='source-over'; t.q.drawImage(sh,u.f*m.w,row*m.h,m.w,m.h,0,0,m.w,m.h); t.q.globalCompositeOperation='source-in'; t.q.fillStyle='rgba(10,8,14,.42)'; t.q.fillRect(0,0,m.w,m.h); q.globalCompositeOperation='destination-over'; for(const [ox,oy] of [[1,0],[-1,0],[0,1],[0,-1]]) q.drawImage(t.c,ox,oy); q.globalCompositeOperation='source-over'; }  // a faint silhouette
     q.globalCompositeOperation='source-atop'; if(lq<1){q.fillStyle=`rgba(8,6,12,${(1-lq)*.9})`;q.fillRect(0,0,m.w,m.h);} else if(lq>1){q.fillStyle=`rgba(255,220,170,${(lq-1)*.5})`;q.fillRect(0,0,m.w,m.h);}
     if(wq){q.fillStyle=`rgba(255,120,50,${wq})`;q.fillRect(0,0,m.w,m.h);}
     if(u.reverse){q.fillStyle=u.ch==='myc'?`rgba(240,200,50,${.25+.2*Math.sin(performance.now()/60)})`:`rgba(120,190,255,${.25+.2*Math.sin(performance.now()/60)})`;q.fillRect(0,0,m.w,m.h);}
@@ -748,7 +757,7 @@ function frame(now){const dt=Math.min(.05,(now-last)/1000); last=now;
   const tx=fx-c.width/2, ty=fy-c.height*.52; camX+=(tx-camX)*Math.min(1,dt*4); camY+=(ty-camY)*Math.min(1,dt*4);
   let sx=0,sy=0; if(shake>0){shake-=dt; sx=(Math.random()-.5)*4; sy=(Math.random()-.5)*3;}
   const cx=Math.round(camX+sx), cy=Math.round(camY+sy);
-  g.fillStyle='#0b0a0a'; g.fillRect(0,0,c.width,c.height); const bg0=bgs[bgF]; if(bg0.complete&&bg0.naturalWidth){ const bg=LIGHTB?bgB(bg0):bg0, sx0=Math.max(0,cx), sy0=Math.max(0,cy), w=Math.min(c.width-(sx0-cx),bg.width-sx0), h=Math.min(c.height-(sy0-cy),bg.height-sy0); if(w>0&&h>0) g.drawImage(bg,sx0,sy0,w,h,sx0-cx,sy0-cy,w,h); }
+  g.fillStyle='#0b0a0a'; g.fillRect(0,0,c.width,c.height); const bg0=bgs[bgF]; if(bg0.complete&&bg0.naturalWidth){ const bg=AFILT?bgA(bg0):LIGHTB?bgB(bg0):bg0, sx0=Math.max(0,cx), sy0=Math.max(0,cy), w=Math.min(c.width-(sx0-cx),bg.width-sx0), h=Math.min(c.height-(sy0-cy),bg.height-sy0); if(w>0&&h>0) g.drawImage(bg,sx0,sy0,w,h,sx0-cx,sy0-cy,w,h); }
   const dia=(a,b,fill,stroke)=>{const p=[iso(a*T2,b*T2),iso(a*T2+T2,b*T2),iso(a*T2+T2,b*T2+T2),iso(a*T2,b*T2+T2)]; g.beginPath(); p.forEach(([x,y],i)=>i?g.lineTo(x-cx+.5,y-cy+.5):g.moveTo(x-cx+.5,y-cy+.5)); g.closePath(); if(fill){g.fillStyle=fill;g.fill();} if(stroke){g.strokeStyle=stroke;g.lineWidth=1;g.stroke();}};
   for(const gr of grenades){ const blink=.25+.2*Math.sin(performance.now()/120); for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++) dia(gr.x+dx,gr.y+dy,'rgba(220,70,40,'+(blink*.5)+')','rgba(240,110,60,'+blink+')');
     const [gx,gy]=iso(gr.x*T2+2,gr.y*T2+2); g.fillStyle='#1a1410'; g.beginPath(); g.ellipse(gx-cx,gy-cy-2,3,2.2,0,0,6.283); g.fill(); g.fillStyle=Math.sin(performance.now()/90)>0?'#ff5a2a':'#7a2a14'; g.fillRect(Math.round(gx-cx),Math.round(gy-cy-5),1,1); }
