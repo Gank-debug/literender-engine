@@ -273,7 +273,7 @@ function exHit(A,D,n){ const R=exRoll(A,D), dx=D.x-A.x, dy=D.y-A.y, L=Math.hypot
   const stage=(hs,slo,sh,push)=>{ if(!STAGE) return; HS=Math.max(HS,hs); SLO=Math.max(SLO,slo); shake=Math.max(shake,sh); if(push) FOCUS={x:(A.px+D.px)/2,y:(A.py+D.py)/2,until:performance.now()+1500}; };
   if(R.k==='crit'){ shown=n+2; stage(.14,.75,.4,true); damage(D,shown,A,true); pop(D,'CRIT '+shown,'#ffb060');
     if(!D.dead){ D.stag=true; const x=D.x+Math.sign(dx), y=D.y+Math.sign(dy); if(walk(x,y,D)&&!occ(x,y,D)&&!traps.some(T=>T.armed&&T.x===x&&T.y===y)){ pop(D,'thrown back','#e0c080'); if(react(D,'kback')){ D.x=x; D.y=y; glide(D,x,y,330); } else shove(D,Math.sign(dx),Math.sign(dy)); } else { pop(D,'staggered','#e0c080'); cho(D,'recoil',ux*.3,uy*.3,460); } } }
-  else if(R.k==='hit'){ shown=n; stage(.06,0,0); damage(D,n,A,true); pop(D,'-'+n,'#f0e0c0'); cho(D,'recoil',ux*.22,uy*.22,380); if(!D.dead&&D.hp<=D.max*.35&&!D.wasStag){ D.wasStag=true; D.stag=true; pop(D,'staggered','#e0c080'); } }
+  else if(R.k==='hit'){ shown=n; stage(.06,0,0); damage(D,n,A,true); pop(D,'-'+n,'#f0e0c0'); if(!(Math.random()<.7&&react(D,exShield(D,'nblock')))) cho(D,'recoil',ux*.22,uy*.22,380); if(!D.dead&&D.hp<=D.max*.35&&!D.wasStag){ D.wasStag=true; D.stag=true; pop(D,'staggered','#e0c080'); } }
   else if(R.k==='graze'){ shown=Math.max(1,n-2); damage(D,shown,A,true); pop(D,'graze -'+shown,'#d8c8a8'); if(!react(D,exShield(D,'nblock'))) cho(D,'recoil',ux*.1,uy*.1,300); }
   else if(R.k==='evade'){ cho(A,'lunge',ux*.18,uy*.18,420); pop(D,'evaded','#bfd8ff'); react(D,'dodge'); cho(D,'slip',-uy*.38,ux*.38,560); }
   else { shown=2; cho(D,'slip',-uy*.3-ux*.12,ux*.3-uy*.12,480); cho(A,'lunge',ux*.26,uy*.26,480); pop(D,'parried','#ffe9a0'); react(D,exShield(D,'block')); A.exR={D,n:shown}; }
@@ -296,7 +296,7 @@ function drawCap(cx,cy,rdt){ if(!CAP){ if(capEl.style.opacity!=='0') capEl.style
 //   frame, facing, wound look...) and cut into segments at each turn; pops, bolts, blasts and DM lines are logged into the segment they belong to.
 //   When the last waking enemy falls, 'Replay the fight' re-stages it on the live map: each segment starts as soon as nothing it touches (the same
 //   units, or tiles within one of theirs) is still playing in an earlier one, so independent turns overlap and the fight runs as one continuous piece.
-const REC={on:false,t:0,segs:[],seg:null,tail:0,hold:0,init:null,clip:null};
+const REC={on:false,t:0,segs:[],seg:null,tail:0,hold:0,init:null,clip:null,all:new Set()};
 let RP=null;
 const recBtn=(()=>{ const b=document.createElement('button'); b.id='replay'; b.textContent='▶ Replay the fight'; b.style.cssText='position:fixed;z-index:45;left:50%;top:76px;transform:translateX(-50%);display:none;padding:9px 18px;background:#2a2016;color:#f0dcae;border:1px solid #c9a35a;font:15px Georgia,serif;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.6)'; document.body.appendChild(b); b.onclick=()=>rpStart(); return b; })();
 const recFoes=()=>U.some(v=>v.team===1&&!v.asleep&&(!v.dead||v.willRise));
@@ -322,26 +322,26 @@ function recClose(){ const S=REC.seg; REC.seg=null; if(!S||(!S.fr.length&&!S.ev.
     for(const E of g.ev){ t0=Math.min(t0,E.t); t1=Math.max(t1,E.t+.3); } if(t1<0) continue; t0=Math.max(0,t0-.05);
     REC.dbg=(REC.dbg||0)+1; REC.segs.push({fr:S.fr,act:g.act,ev:g.ev,off:t0,dur:t1-t0+.1,tiles:[...tiles].map(k=>k.split(',').map(Number))}); } }
 function recTick(rdt){ if(!EXCH()||RP) return; const fight=recFoes()&&living().length>0;  /* the fight ends when the last waking enemy falls - or the last hero */
-  if(!REC.on){ if(!fight) return; if(REC.clip){ REC.clip=null; recBtn.style.display='none'; } REC.on=true; REC.t=0; REC.segs=[]; REC.seg=null; REC.tail=0; REC.init=new Map(U.map(u=>[u,recState(u)])); }
+  if(!REC.on){ if(!fight) return; if(REC.clip){ REC.clip=null; recBtn.style.display='none'; } REC.on=true; REC.t=0; REC.segs=[]; REC.seg=null; REC.tail=0; REC.all=new Set(U); REC.init=new Map(U.map(u=>[u,recState(u)])); }
   const wait=myTurn()&&!U.some(v=>v.mode==='move'||(v.mode==='act'&&!v.dead))&&!bolts.length;
   if(wait){ REC.hold+=rdt; if(REC.hold>.15&&REC.seg) recClose(); } else REC.hold=0;
-  if(!wait||REC.hold<=.15){ const S=recOpen(); REC.t+=rdt; S.fr.push({t:REC.t-S.t0,S:new Map(U.map(u=>[u,recState(u)]))}); }
+  if(!wait||REC.hold<=.15){ const S=recOpen(); REC.t+=rdt; S.fr.push({t:REC.t-S.t0,S:new Map(U.map(u=>[u,recState(u)]))}); for(const u of U) REC.all.add(u); }
   if(!fight){ REC.tail+=rdt; if(REC.tail>2.2){ recClose(); REC.on=false; REC.clip=recBuild(); recBtn.style.display=''; log(living().length?'The fight is over. Replay it from the button at the top.':'Replay the fight from the button at the top.'); } } else REC.tail=0; }
 function recBuild(){ const segs=REC.segs; let prev=0, end=0;
   const near=(A,B)=>A.tiles.some(([a,b])=>B.tiles.some(([c,d])=>a===c&&b===d)), clash=(A,B)=>[...A.act].some(u=>B.act.has(u))||near(A,B);
   segs.forEach((S,k)=>{ let st=0; for(let j=0;j<k;j++) if(clash(segs[j],S)) st=Math.max(st,segs[j].start+segs[j].dur); S.start=st; prev=st; end=Math.max(end,st+S.dur); });
   const runs=new Map(); for(const S of segs) for(const u of S.act){ if(!runs.has(u)) runs.set(u,[]); runs.get(u).push(S); }
-  return {segs,end,runs,init:REC.init}; }
+  return {segs,end,runs,init:REC.init,all:[...REC.all]}; }
 // replay: the live units are borrowed, set from the tracks each frame, and given back on Close
 const RPF=['px','py','pose','f','dir','mode','dead','stag','invis','hp','reverse','flash','cho','acc','x','y','_rh','done','onImpact','route','d','dest'];
-function rpStart(){ const C=REC.clip; if(!C||RP) return; recBtn.style.display='none';
+function rpStart(){ const C=REC.clip; if(!C||RP) return; recBtn.style.display='none'; const extra=C.all.filter(u=>!U.includes(u)); U.push(...extra);  /* the fallen who left the board (a hero who rose) come back for the replay */
   const bk=new Map(U.map(u=>[u,Object.fromEntries(RPF.map(k=>[k,u[k]]))]));
   const bar=document.createElement('div'); bar.style.cssText='position:fixed;z-index:46;left:50%;bottom:104px;transform:translateX(-50%);display:flex;gap:8px;align-items:center;padding:6px 10px;background:rgba(20,15,11,.92);border:1px solid #c9a35a;color:#f0dcae;font:14px Georgia,serif';
   const lab=document.createElement('span'); lab.textContent='Replaying the fight'; bar.appendChild(lab);
   const mk=(t,f)=>{ const b=document.createElement('button'); b.textContent=t; b.style.cssText='padding:4px 12px;background:#2a2016;color:#f0dcae;border:1px solid #8a7048;font:13px Georgia,serif;cursor:pointer'; b.onclick=f; bar.appendChild(b); };
   mk('Restart',()=>{ RP.T=0; RP.fired=new Set(); floats.length=0; bolts.length=0; blasts.length=0; CAP=null; }); mk('Close',()=>rpStop()); document.body.appendChild(bar);
-  floats.length=0; CAP=null; RP={C,T:0,bk,bar,lab,fired:new Set(),fx:null}; }
-function rpStop(){ if(!RP) return; for(const [u,b] of RP.bk) Object.assign(u,b); RP.bar.remove(); RP=null; floats.length=0; CAP=null; FOCUS=null; if(REC.clip) recBtn.style.display=''; ui(); }
+  floats.length=0; CAP=null; RP={C,T:0,bk,bar,lab,fired:new Set(),fx:null,extra}; }
+function rpStop(){ if(!RP) return; for(const [u,b] of RP.bk) Object.assign(u,b); for(const u of RP.extra) U.splice(U.indexOf(u),1); RP.bar.remove(); RP=null; floats.length=0; CAP=null; FOCUS=null; if(REC.clip) recBtn.style.display=''; ui(); }
 function rpAt(S,rel,u){ const F=S.fr; let lo=0, hi=F.length-1; while(lo<hi){ const m=(lo+hi+1)>>1; if(F[m].t<=rel) lo=m; else hi=m-1; } return F[lo].S.get(u); }
 function rpApply(dt){ const R=RP, C=R.C; R.T+=dt; const T=R.T; let fx=0, fy=0, fn=0;
   for(const u of U){ const runs=C.runs.get(u)||[]; let st=null, live=false;
@@ -381,7 +381,7 @@ function newRound(first){ if(!first) riseFallen(); caltrops=caltrops.filter(C=>C
 let grp=null;
 const prelude=v=>{ v.stimLate=false; v.stepped=false; v.kissed=false; v.shot=false; v.moved=false; v.charged=false; v.hunted=false; v.curMove=v.slow?1:v.move; v.slow=false; if(v.snared){ v.curMove=0; v.snared=false; } };
 function nextTurn(){ recCut(); if(grp){ if(--grp.left>0) return; turnIdx=grp.end; grp=null; } turnIdx++; if(turnIdx>=order.length) return newRound(false); const u=order[turnIdx]; if(u&&u.bleed&&!u.dead&&U.includes(u)){ const B=u.bleed; damage(u,B.n,null,true); pop(u,'-'+B.n,'#d04a3a'); log('The '+(isHero(u)?u.short:u.short.toLowerCase())+' bleeds ('+B.n+')'+(u.dead?' — and falls':'')+'.'); if(--B.left<=0) u.bleed=null; if(u.dead) return nextTurn(); }
-  if(u&&u.poison&&!u.dead&&U.includes(u)){ const P=u.poison; damage(u,P.n,null,true); pop(u,'-'+P.n,'#9ad06a'); log('Poison eats at the '+(isHero(u)?u.short:u.short.toLowerCase())+' ('+P.n+')'+(u.dead?' — it falls':'')+'.'); if(--P.left<=0) u.poison=null; } if(!U.includes(u)||(u.dead&&!isHero(u)&&!u.willRise)) return nextTurn(); u.moved=false; u.charged=false; u.hunted=false; u.pulled=false; u.walked=0; if(u.guard){ u.guard=false; } u.curMove=u.slow?1:u.move; u.slow=false; if(u.snared){ u.curMove=0; u.snared=false; } if(u.stag){ u.stag=false; if(u.mode==='idle') setPose(u,idleOf(u)); } ui(); for(const T of traps) if(T.owner===u&&!T.armed&&round>T.round){ T.armed=true; log('The Gridlock trap is set.'); } if(booms(u)) return;
+  if(u&&u.poison&&!u.dead&&U.includes(u)){ const P=u.poison; damage(u,P.n,null,true); pop(u,'-'+P.n,'#9ad06a'); log('Poison eats at the '+(isHero(u)?u.short:u.short.toLowerCase())+' ('+P.n+')'+(u.dead?' — it falls':'')+'.'); if(--P.left<=0) u.poison=null; } if(!U.includes(u)||(u.dead&&!isHero(u)&&!u.willRise)) return nextTurn(); u.moved=false; u.shot=false; u.charged=false; u.hunted=false;  /* the Ranger's free step after a shot is lost if she doesn't take it */ u.pulled=false; u.walked=0; if(u.guard){ u.guard=false; } u.curMove=u.slow?1:u.move; u.slow=false; if(u.snared){ u.curMove=0; u.snared=false; } if(u.stag){ u.stag=false; if(u.mode==='idle') setPose(u,idleOf(u)); } ui(); for(const T of traps) if(T.owner===u&&!T.armed&&round>T.round){ T.armed=true; log('The Gridlock trap is set.'); } if(booms(u)) return;
   if(isHero(u)){ if(u.dead) return setTimeout(nextTurn,200); hero=u; if(u.ch==='galvanist'&&!u.dead&&u.mp<u.mpMax){ const g=Math.min(5,u.mpMax-u.mp); u.mp+=g; pop(u,'+'+g,'#8cc8ff'); } if(u.invis&&--u.invis<=0){ u.invis=0; log('The Assassin steps out of the shadow.'); } if(u.lock&&(u.lock.dead||cheb(u,u.lock.x,u.lock.y)>3||!los(u.x,u.y,u.lock.x,u.lock.y))){ if(u.focus) log('The Ranger loses her focus.'); u.lock=null; u.focus=0; } busyLock=false; setAtk(false); skill=null; stimOn=false; reachH=bfs(hero,hero.curMove); /* the Galvanist's jars trickle back +5 charge a turn */ if(hero.curMove<hero.move) log(hero.short+' is slowed this turn.'); ui(); return; }
   const G=[u]; let j=turnIdx+1; while(j<order.length&&!isHero(order[j])){ const v=order[j]; if(U.includes(v)&&!(v.dead&&!v.willRise)) G.push(v); j++; }
   busyLock=true; if(G.length>1){ const g0={left:G.length,end:j-1}; grp=g0; const safe=()=>{ if(grp!==g0) return; grp.left=1; nextTurn(); }; setTimeout(safe,12000); /* safety: never let a stuck unit hold up the group */ G.forEach((v,k)=>{ if(k) prelude(v); setTimeout(()=>aiTurn(v),180+k*90); }); return; }
