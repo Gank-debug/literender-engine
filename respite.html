@@ -981,13 +981,13 @@ function makeWildSprites(seed){
   // leaf masses: clusters drawn back to front; each lit from the upper left, darker underneath, with leaf grain, a dark rim where it meets
   // the one behind, ragged edges and a few holes. dome: how much each tree's crown is shaded as its own dome (0 in a merged forest canopy,
   // where one slow light field runs across all the crowns instead, so neighbours read as one mass)
-  const foliage=(b,cl,cy0,ry,dome=.18,gl=null,R=rng)=>{ cl.sort((p,q)=>p[1]-q[1]); for(const [cx,cy,r] of cl){ const salt=R()*999|0, ph=R()*6.28;
+  const foliage=(b,cl,cy0,ry,dome=.18,gl=null,R=rng,rim=.28)=>{ cl.sort((p,q)=>p[1]-q[1]); for(const [cx,cy,r] of cl){ const salt=R()*999|0, ph=R()*6.28;
       const rr=a=>r*(1+.18*Math.sin(a*3+ph)+.1*Math.sin(a*7+ph*2)); const ins=(dx,dy)=>Math.hypot(dx,dy*1.15)<rr(Math.atan2(dy,dx));
       for(let dy=-r*1.4;dy<=r*1.4;dy++) for(let dx=-r*1.4;dx<=r*1.4;dx++){ const x=Math.round(cx+dx), y=Math.round(cy+dy);
         if(!ins(dx,dy)){ if(hash(x*3+salt,y*5)<.07&&ins(dx*.85,dy*.85)) put(b,x,y,LEAF[2]); continue; }
         const lx=((x>>1)+((y>>1)&1))|0, ly=(y>>1)|0, leaf=hash(lx+salt,ly);  // 2px leaves
         let t=.5+(-dx*.5-dy*.75)/r*.42-(cy-cy0)/ry*dome+(leaf-.5)*.42+(gl?gl(x,y):0);
-        if(!ins(dx+2.5,dy+2.5)) t-=.28; if(!ins(dx-2,dy-2)) t+=.1;
+        if(!ins(dx+2.5,dy+2.5)) t-=rim; if(!ins(dx-2,dy-2)) t+=.1;
         if(hash(x+salt*3,y)<.025) t=0;
         put(b,x,y,ramp(LEAF,t,x,y)); } } };
   // the trunk: a flared foot that runs out into root buttresses, a slight lean, bark lit on the left in four steps with vertical fissures
@@ -1020,13 +1020,18 @@ function makeWildSprites(seed){
     for(let k=0;k<4;k++){ const a=-Math.PI/2+(k/3-.5)*2.4, L=18+R()*14, e=[top[0]+Math.cos(a)*L*1.4,top[1]-8+Math.sin(a)*L*.7]; limb(b,top[0],top[1]+6,e[0],e[1],3); cl.push([e[0],e[1],13+R()*7]); }
     const cy0=top[1]-42; for(let k=0;k<30;k++){ const a=R()*6.283, d=Math.sqrt(R()); cl.push([x0+Math.cos(a)*d*70, cy0+Math.sin(a)*d*50+(R()-.5)*10, 13+R()*11]); }
     for(const [fx,fy,fr] of (o.fill||[])) cl.push([x0+fx,base+fy,fr]);
+    if(o.collect){ for(const c of cl) o.collect.push(o.toMap(c)); return; }  // forest: the crown joins one shared pool, painted once for the whole forest
     foliage(b,cl,cy0,55,o.dome??.18,o.gl||null,R); };
   for(let v=0;v<3;v++){ const H=TH[v], b=buf(190,H+10), x0=95, base=H+2; treeInto(b,x0,base,v); WSPR['tree'+v]=fin(b,x0,base-3,[54,18]); }
   // a forest tree straight onto the map canvas (no sprite kept): its crown merges with its neighbours'
   { const FB=buf(420,250), FC=document.createElement('canvas'); FC.width=FB.w; FC.height=FB.h; const FG=FC.getContext('2d'), FI=FG.createImageData(FB.w,FB.h);
-    WSPR.forest=(q,X,Y,v,fill,seed,gl)=>{ FB.c.fill(null); const x0=210, base=TH[v]+30; treeInto(FB,x0,base,v,{seed,fill,dome:.03,gl:gl?(x,y)=>gl(x-x0+X,y-base+Y):null});
+    WSPR.forest=(q,X,Y,v,fill,seed,pool)=>{ FB.c.fill(null); const x0=210, base=TH[v]+30; treeInto(FB,x0,base,v,{seed,fill,collect:pool,toMap:([x,y,r])=>[x-x0+X,y-(base-3)+Y,r]});
       const D=FI.data; for(let i=0;i<FB.c.length;i++){ const c=FB.c[i]; if(!c){ D[i*4+3]=0; continue; } D[i*4]=c[0]; D[i*4+1]=c[1]; D[i*4+2]=c[2]; D[i*4+3]=255; }
       FG.putImageData(FI,0,0); q.drawImage(FC,Math.round(X-x0),Math.round(Y-(base-3))); }; }
+  // the whole forest's crowns in one pass: clusters from every tree sorted together, so no crown keeps its own outline
+  WSPR.canopy=(q,cl,gl)=>{ if(!cl.length) return; let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9; for(const [x,y,r] of cl){ x0=Math.min(x0,x-r*1.5); y0=Math.min(y0,y-r*1.5); x1=Math.max(x1,x+r*1.5); y1=Math.max(y1,y+r*1.5); }
+    x0=Math.floor(x0); y0=Math.floor(y0); const b=buf(Math.ceil(x1-x0)+2,Math.ceil(y1-y0)+2); let ss=12345; const R=()=>{ ss=(Math.imul(ss,1664525)+1013904223)>>>0; return ss/4294967296; };
+    foliage(b,cl.map(([x,y,r])=>[x-x0,y-y0,r]),0,1,0,(x,y)=>gl(x+x0,y+y0),R,.17); q.drawImage(fin(b,0,0,[0,0]).cv,x0,y0); };
   { const b=buf(70,50), cl=[]; for(let k=0;k<9;k++){ const a=rng()*6.283, d=Math.sqrt(rng()); cl.push([35+Math.cos(a)*d*20, 30+Math.sin(a)*d*10-(1-d)*6, 8+rng()*5]); } foliage(b,cl,26,14); WSPR.shrub=fin(b,35,42,[22,8]); }
   return WSPR;
 }
@@ -1117,14 +1122,16 @@ function genDungeon(seed,size){
   const WS=WILD?makeWildSprites(7):null, TH0=[165,180,195], hash2=(x,y,z)=>{ let h=Math.imul(x|0,374761393)^Math.imul(y|0,668265263)^Math.imul((z*1000)|0,2246822519); h=Math.imul(h^(h>>>13),1274126177); return ((h^(h>>>16))>>>0)/4294967296; };
   if(WS){ q.save(); q.fillStyle='rgba(4,6,3,.42)'; for(const [d,n,a,b] of items){ const sp=WS[n]||(n.startsWith('ftree')?{shadow:[58,20]}:null); if(!sp) continue; const X=ox+(a-b)*40, Y=oy+(a+b)*20+20; q.beginPath(); q.ellipse(X+sp.shadow[0]*.25,Y+3,sp.shadow[0],sp.shadow[1],0,0,6.283); q.fill(); } q.restore(); }
   const OCC=[];
-  const FT=new Map(); if(WS) for(const [d,n,a,b] of items) if(n.startsWith('ftree')) FT.set(K(a,b),+n[5]);
+  const POOL=[], DRAWN=[]; const FT=new Map(); if(WS) for(const [d,n,a,b] of items) if(n.startsWith('ftree')) FT.set(K(a,b),+n[5]);
   const ftGl=(x,y)=>(Math.sin(x*.011+y*.004+seed%5)*.5+Math.sin(x*.023-y*.017+1.3)*.35)*.09;  // one slow light field across the whole canopy
   for(const [d,n,a,b] of items){ if(WS&&n.startsWith('ftree')){ const X=ox+(a-b)*40, Y=oy+(a+b)*20+20, fill=[];
       for(const [da,db] of [[-1,0],[0,-1],[-1,-1],[1,-1],[-1,1],[-2,0],[0,-2]]){ if(!FT.has(K(a+da,b+db))) continue; const ex=(da-db)*40, ey=(da+db)*20;  // a neighbour already drawn: fill the gap between the crowns
         for(const t of [.3,.5,.7]) fill.push([ex*t+(hash2(a*7+da,b*5+db,t)-.5)*14, -TH0[+n[5]]*.62+ey*t+(hash2(b,a,t)-.5)*10, 17+hash2(a,b+da,t)*7]); }
-      WS.forest(q,X,Y,+n[5],fill,(a*73856093^b*19349663)>>>0,ftGl); continue; }
-    const sp=WS&&WS[n]; if(sp){ const X=Math.round(ox+(a-b)*40-sp.ax), Y=Math.round(oy+(a+b)*20+20-sp.ay); q.drawImage(sp.cv,X,Y); OCC.push({d:d+.01,n,X,Y,w:sp.w,h:sp.h,sx:0,sy:0,img:sp.cv}); continue; } const m=P[n]; if(!m) continue; const [x,y,w,h,ax,ay]=m, X=Math.round(ox+(a-b)*40-ax), Y=Math.round(oy+(a+b)*20+20-ay); q.drawImage(DA,x,y,w,h,X,Y,w,h);
+      WS.forest(q,X,Y,+n[5],fill,(a*73856093^b*19349663)>>>0,POOL); continue; }
+    const sp=WS&&WS[n]; if(sp){ const X=Math.round(ox+(a-b)*40-sp.ax), Y=Math.round(oy+(a+b)*20+20-sp.ay); q.drawImage(sp.cv,X,Y); DRAWN.push([a,b,()=>q.drawImage(sp.cv,X,Y)]); OCC.push({d:d+.01,n,X,Y,w:sp.w,h:sp.h,sx:0,sy:0,img:sp.cv}); continue; } const m=P[n]; if(!m) continue; const [x,y,w,h,ax,ay]=m, X=Math.round(ox+(a-b)*40-ax), Y=Math.round(oy+(a+b)*20+20-ay); q.drawImage(DA,x,y,w,h,X,Y,w,h); if(WS&&d>-1e5) DRAWN.push([a,b,()=>q.drawImage(DA,x,y,w,h,X,Y,w,h)]);
     if(!/^(fs|fo_|g\d_|bones|corpse|tuft|fern)/.test(n)) OCC.push({d:d+(/^(pier|sarc|candel|urns|shrub|sapling|log|bld|stone|stump|pil|tree)/.test(n)?.01:0),n,X,Y,w,h,sx:x,sy:y,img:DA}); }  // everything that stands up can hide a unit behind it
+  if(WS&&POOL.length){ WS.canopy(q,POOL,ftGl);  // then whatever stands in front of the forest goes back on top of the canopy
+    for(const [a,b,draw] of DRAWN){ let near=false; for(let i=0;i<=3&&!near;i++) for(let j=0;j<=3;j++) if((i||j)&&FT.has(K(a-i,b-j))){ near=true; break; } let hid=false; for(let i=0;i<=3&&!hid;i++) for(let j=0;j<=3;j++) if((i||j)&&FT.has(K(a+i,b+j))){ hid=true; break; } if(near&&!hid) draw(); } }
   return { OCC, GROUPS, PROPS, name:ZN[0].toUpperCase()+ZN.slice(1), w:W, h:H, ox, oy, RECTS, BLOCK:[...BLOCK,...SHUT], FIRE:[], ETERNAL:[], WATER:[], START:start, LIGHTS, bg:[cv.toDataURL()] };
 }
 let EPOCH=0; { const st=window.setTimeout.bind(window); window.setTimeout=(f,ms,...a)=>{ if(typeof f!=='function') return st(f,ms,...a); const e=EPOCH; return st(()=>{ if(e===EPOCH) f(...a); },ms); }; }  // a new map drops every turn step still queued for the old one
