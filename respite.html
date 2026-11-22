@@ -220,15 +220,15 @@ const IMPACT={thrall:{attack:8},bers:{attack:8},wand:{cleave:12},skel:{attack:9}
 const logEl=document.getElementById('log'); const logs=[]; function log(s){logs.unshift(s); logs.length=Math.min(logs.length,4); logEl.innerHTML=logs.map(x=>'<div>'+x+'</div>').join('');}
 const floats=[]; function pop(u,txt,col){ const k=floats.filter(f=>f.x===u.px&&f.y===u.py&&f.t<.35).length; floats.push({x:u.px,y:u.py,t:-k*.3,txt,col}); }  // several at once on one unit: one after another
 // ==== PROTOTYPES (dev map list) ====================================================================================================
-// 'exch': THE EXCHANGE - the melee blows of the normal game, staged. The numbers do not change: averaged out, a hero's blow deals exactly its rolled
-//   damage (as it always does) and an enemy's 85% of it (its old 15% miss). The roll only decides how the blow looks and how it is spread:
-//   hero blows   crit 13% (x2) / clean 63% / graze 14% (x.75) / evaded 7% / parried 3%
-//   enemy blows  crit  8% (x2) / clean 57% / graze 15% (x.75) / evaded 13% / parried 7%
+// 'exch': THE EXCHANGE - the melee blows of the normal game, staged. The numbers barely change: averaged out a hero's blow deals its rolled damage
+//   (as it always does, within ~3%) and an enemy's 85% of it (its old 15% miss). The roll decides how the blow looks and spreads it:
+//   hero blows   crit 20% (+2, thrown back a tile) / clean 70.5% / graze 5.5% (-2) / evaded 2.5% / parried 1.5%
+//   enemy blows  crit 12% (+2, thrown back a tile) / clean 58% / graze 15% (-2) / evaded 10% / parried 5%
 //   A parry costs the attacker the blow and answers it with a small riposte (2), then the defender takes a reprisal step out of reach.
-//   A hero who evades picks the tile they dodge to (or stays). Staggered (a crit, or a clean hit to 35%) is a look only: the kneel / the squash.
-//   Every fight is recorded (canvas video, idle time cut out); when the last enemy in the fight falls, 'Replay the fight' plays it back unbroken.
+//   Evades are a dodge in place (nobody leaves their tile). Staggered (a crit, or a clean hit to 35%) is a look only.
+//   Every fight is recorded as unit tracks; when the last enemy in the fight falls, 'Replay the fight' plays it back with independent turns overlapping.
 let PROTO=''; const EXCH=()=>PROTO==='exch', STAGE=false;  /* STAGE: hit-stop, slow motion, shake and camera push on crits and kills - off while we test */
-const EXTAB={hero:[['crit',.13],['hit',.63],['graze',.14],['evade',.07],['counter',.03]], foe:[['crit',.08],['hit',.57],['graze',.15],['evade',.13],['counter',.07]]};
+const EXTAB={hero:[['crit',.2],['hit',.705],['graze',.055],['evade',.025],['counter',.015]], foe:[['crit',.12],['hit',.58],['graze',.15],['evade',.1],['counter',.05]]};
 const EXW={knight:['sword','cuts'],cleric:['mace','swings'],hunter:['axe','hacks'],assassin:['knife','lunges'],wayfinder:['lance','drives in'],wand:['blade','cuts'],ranger:['knife','slashes'],galvanist:['staff','swings'],thrall:['spear','thrusts'],eternal:['great blade','cleaves'],husk:['claw','rakes'],myc:['claw','lashes out'],bers:['flail','thrashes'],arb:['bow stock','swings']};
 const PARTS=['flank','shoulder','ribs','thigh','forearm','hip','collarbone','side','knee'];
 const EXT={
@@ -239,12 +239,12 @@ const EXT={
   counter:["{A} overreaches — {D} slips under the {W} and nicks {Ao} on the way out. {n}.","{D} turns the {W} aside and answers with a quick cut to {A}'s {P}. {n}.","{A} commits too far. {D} parries, and the {DW} catches {A}'s {P} on the way back. {n}."],
   fall:["{A}'s {W} finds {D}'s {P}, and {Ds} falls. {n}.","{D} cannot turn the {W} in time — {Ds} goes down. {n}."],
   kill:["{A}'s {W} finds {D}'s {P} — and {Ds} goes down. {n}.","One last blow: the {W} takes {D} off its feet, and it does not get up. {n}.","{A} {V} through {D}'s guard. {Ds} folds and is still. {n}."]};
-let CAP=null, HS=0, SLO=0, FOCUS=null, DODGE=null; const DODGEQ=[];
+let CAP=null, HS=0, SLO=0, FOCUS=null;
 const exN=u=>'the '+(isHero(u)?u.short:u.short.toLowerCase());
 const SHE=new Set(['ranger','wayfinder','cleric']), exP=u=>isHero(u)?(SHE.has(u.ch)?'her':'his'):'its', exS=u=>isHero(u)?(SHE.has(u.ch)?'she':'he'):'it', exO=u=>isHero(u)?(SHE.has(u.ch)?'her':'him'):'it';
 const capz=s=>s.replace(/(^|[.!?]\s+)([a-z])/g,(m,a,b)=>a+b.toUpperCase());
 const pick1=L=>L[Math.floor(Math.random()*L.length)];
-function say(txt,x,y,kind){ CAP={txt,x,y,t:0,kind}; log(txt); if(REC.on) REC.caps.push({t:REC.t,txt,kind}); }
+function say(txt,x,y,kind){ CAP={txt,x,y,t:0,kind}; log(txt); recEv('cap',{txt,x,y,kind}); }
 function exSay(kind,A,D,n){ const w=EXW[A.ch]||['blow','strikes'], dw=EXW[D.ch]||['blow','strikes'];
   const txt=capz(pick1(EXT[kind]).replace(/\{A\}/g,exN(A)).replace(/\{D\}/g,exN(D)).replace(/\{W\}/g,w[0]).replace(/\{V\}/g,w[1]).replace(/\{DW\}/g,dw[0]).replace(/\{P\}/g,pick1(PARTS)).replace(/\{Dp\}/g,exP(D)).replace(/\{Ds\}/g,exS(D)).replace(/\{Do\}/g,exO(D)).replace(/\{Ao\}/g,exO(A)).replace(/\{n\}/g,n));
   say(txt,(A.px+D.px)/2,(A.py+D.py)/2,kind); }
@@ -259,25 +259,17 @@ function exRoll(A,D){ if(D.asleep||D.stun) return {k:'hit'};  /* a sleeping or c
   return {k}; }
 function exHit(A,D,n){ const R=exRoll(A,D), dx=D.x-A.x, dy=D.y-A.y, L=Math.hypot(dx,dy)||1, ux=dx/L, uy=dy/L; let shown=0;
   const stage=(hs,slo,sh,push)=>{ if(!STAGE) return; HS=Math.max(HS,hs); SLO=Math.max(SLO,slo); shake=Math.max(shake,sh); if(push) FOCUS={x:(A.px+D.px)/2,y:(A.py+D.py)/2,until:performance.now()+1500}; };
-  if(R.k==='crit'){ shown=n*2; stage(.14,.75,.4,true); damage(D,shown,A,true); pop(D,'CRIT '+shown,'#ffb060'); cho(D,'recoil',ux*.3,uy*.3,460);
-    if(!D.dead){ D.stag=true; pop(D,'staggered','#e0c080'); } }
+  if(R.k==='crit'){ shown=n+2; stage(.14,.75,.4,true); damage(D,shown,A,true); pop(D,'CRIT '+shown,'#ffb060');
+    if(!D.dead){ D.stag=true; const x=D.x+Math.sign(dx), y=D.y+Math.sign(dy); if(walk(x,y,D)&&!occ(x,y,D)&&!traps.some(T=>T.armed&&T.x===x&&T.y===y)){ pop(D,'thrown back','#e0c080'); shove(D,Math.sign(dx),Math.sign(dy)); } else { pop(D,'staggered','#e0c080'); cho(D,'recoil',ux*.3,uy*.3,460); } } }
   else if(R.k==='hit'){ shown=n; stage(.06,0,0); damage(D,n,A,true); pop(D,'-'+n,'#f0e0c0'); cho(D,'recoil',ux*.22,uy*.22,380); if(!D.dead&&D.hp<=D.max*.35&&!D.wasStag){ D.wasStag=true; D.stag=true; pop(D,'staggered','#e0c080'); } }
-  else if(R.k==='graze'){ shown=Math.max(1,Math.ceil(n*.75)); damage(D,shown,A,true); pop(D,'graze -'+shown,'#d8c8a8'); cho(D,'recoil',ux*.1,uy*.1,300); }
-  else if(R.k==='evade'){ cho(A,'lunge',ux*.18,uy*.18,420); pop(D,'evaded','#bfd8ff'); if(isHero(D)&&!isHero(A)) A.exD=D; else cho(D,'slip',-uy*.38,ux*.38,560); }
+  else if(R.k==='graze'){ shown=Math.max(1,n-2); damage(D,shown,A,true); pop(D,'graze -'+shown,'#d8c8a8'); cho(D,'recoil',ux*.1,uy*.1,300); }
+  else if(R.k==='evade'){ cho(A,'lunge',ux*.18,uy*.18,420); pop(D,'evaded','#bfd8ff'); cho(D,'slip',-uy*.38,ux*.38,560); }
   else { shown=2; cho(D,'slip',-uy*.3-ux*.12,ux*.3-uy*.12,480); cho(A,'lunge',ux*.26,uy*.26,480); pop(D,'parried','#ffe9a0'); A.exR={D,n:shown}; }
   if(D.dead) stage(.12,.7,.32,true);
   exSay(D.dead?(isHero(D)?'fall':'kill'):R.k,A,D,shown); ui(); return R.k; }
 function exStep(D,A,cb){ const x=D.x+Math.sign(D.x-A.x), y=D.y+Math.sign(D.y-A.y);
   if(D.dead||!walk(x,y,D)||fireSet.has(key(x,y))||traps.some(T=>T.x===x&&T.y===y)||caltrops.some(C=>C.x===x&&C.y===y)) return cb(); pop(D,'reprisal step','#cfe6ff'); moveAlong(D,[[x,y]],cb); }
-// a hero who evades chooses where the dodge takes them: any free tile beside them, or stay put. One at a time when several blows miss at once.
-const dodgeTiles=h=>N8.map(([dx,dy])=>[h.x+dx,h.y+dy]).filter(([a,b])=>walk(a,b,h)&&!occ(a,b,h)&&!fireSet.has(key(a,b))&&!traps.some(T=>T.x===a&&T.y===b)&&!caltrops.some(C=>C.x===a&&C.y===b));
-function dodgePick(h,A,cb){ if(DODGE) return DODGEQ.push([h,A,cb]); const tiles=dodgeTiles(h); if(h.dead||!tiles.length) return dodgeNext(cb);
-  DODGE={h,A,tiles,cb}; if(window.AUTODODGE){ const t=tiles.slice().sort((p,q)=>cheb(A,q[0],q[1])-cheb(A,p[0],p[1]))[0]; return setTimeout(()=>dodgeGo(t),300); }
-  log(h.short+' evades — pick the tile '+exS(h)+' dodges to, or click '+exO(h)+' to stand.'); ui(); }
-function dodgeGo(t){ const D0=DODGE; if(!D0) return; DODGE=null; const {h,cb}=D0; if(!t||(t[0]===h.x&&t[1]===h.y)) return dodgeNext(cb); h.mode='idle'; moveAlong(h,[t],()=>{ h.mode='idle'; setPose(h,idleOf(h)); dodgeNext(cb); }); }
-function dodgeNext(cb){ cb&&cb(); if(!DODGE&&DODGEQ.length){ const [h,A,c]=DODGEQ.shift(); setTimeout(()=>dodgePick(h,A,c),120); } }
-function dodgeClick(a,b){ const D0=DODGE; if(!D0) return false; if(a===D0.h.x&&b===D0.h.y){ dodgeGo(null); return true; } const t=D0.tiles.find(([x,y])=>x===a&&y===b); if(t) dodgeGo(t); return true; }
-function exFollow(A,done){ if(A.exD){ const D=A.exD; A.exD=null; A.mode='idle'; setPose(A,idleOf(A)); return dodgePick(D,A,()=>done&&done()); }
+function exFollow(A,done){
   const X=A.exR; if(!X) return done&&done(); A.exR=null; const D=X.D; if(D.dead||A.dead) return done&&done();
   A.mode='idle'; setPose(A,idleOf(A)); face(D,A.x,A.y); const pose=isHero(D)?(M(D).attack?'attack':D.atk):'attack';
   setTimeout(()=>act(D,pose,()=>{ damage(A,X.n,D,true); pop(A,'riposte -'+X.n,'#ff8a7a'); cho(A,'recoil',Math.sign(A.x-D.x)*.2,Math.sign(A.y-D.y)*.2,380); ui(); },
@@ -288,27 +280,73 @@ function drawCap(cx,cy,rdt){ if(!CAP){ if(capEl.style.opacity!=='0') capEl.style
   const r=c.getBoundingClientRect(), k=r.width/c.width, [px,py]=iso(CAP.x*T2+2,CAP.y*T2+2), w=capEl.offsetWidth, h=capEl.offsetHeight;
   let X=r.left+(px-cx)*k-w/2, Y=r.top+(py-cy-132)*k-h; X=Math.max(240,Math.min(innerWidth-w-300,X)); Y=Math.max(84,Math.min(innerHeight-h-110,Y));
   capEl.style.left=Math.round(X)+'px'; capEl.style.top=Math.round(Y)+'px'; capEl.style.opacity=String(Math.max(0,Math.min(1,CAP.t/.2,(life-CAP.t)/.5))); }
-// ---- the fight replay: the canvas is recorded while anything is happening (paused whenever the game waits on a player), captions logged
-//   against the recording clock; when the last waking enemy falls, a button plays the whole fight back as one unbroken piece.
-const REC={on:false,mr:null,chunks:[],caps:[],t:0,clip:null,tail:0,paused:false};
-const recBtn=(()=>{ const b=document.createElement('button'); b.id='replay'; b.textContent='▶ Replay the fight'; b.style.cssText='position:fixed;z-index:45;left:50%;top:76px;transform:translateX(-50%);display:none;padding:9px 18px;background:#2a2016;color:#f0dcae;border:1px solid #c9a35a;font:15px Georgia,serif;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.6)'; document.body.appendChild(b); b.onclick=()=>recPlay(); return b; })();
+// ---- the fight replay (real time, overlapping). While a fight runs, every frame in which something happens is sampled per unit (position, pose,
+//   frame, facing, wound look...) and cut into segments at each turn; pops, bolts, blasts and DM lines are logged into the segment they belong to.
+//   When the last waking enemy falls, 'Replay the fight' re-stages it on the live map: each segment starts as soon as nothing it touches (the same
+//   units, or tiles within one of theirs) is still playing in an earlier one, so independent turns overlap and the fight runs as one continuous piece.
+const REC={on:false,t:0,segs:[],seg:null,tail:0,hold:0,init:null,clip:null};
+let RP=null;
+const recBtn=(()=>{ const b=document.createElement('button'); b.id='replay'; b.textContent='▶ Replay the fight'; b.style.cssText='position:fixed;z-index:45;left:50%;top:76px;transform:translateX(-50%);display:none;padding:9px 18px;background:#2a2016;color:#f0dcae;border:1px solid #c9a35a;font:15px Georgia,serif;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.6)'; document.body.appendChild(b); b.onclick=()=>rpStart(); return b; })();
 const recFoes=()=>U.some(v=>v.team===1&&!v.asleep&&(!v.dead||v.willRise));
-function recReset(){ if(REC.mr&&REC.mr.state!=='inactive'){ REC.mr.onstop=null; REC.mr.stop(); } Object.assign(REC,{on:false,mr:null,chunks:[],caps:[],t:0,tail:0,paused:false}); recBtn.style.display='none'; }
-function recStart(){ if(!window.MediaRecorder||!c.captureStream) return; const st=c.captureStream(30); let mr; try{ mr=new MediaRecorder(st,{mimeType:MediaRecorder.isTypeSupported('video/webm;codecs=vp9')?'video/webm;codecs=vp9':'video/webm',videoBitsPerSecond:6e6}); }catch(e){ return; }
-  REC.chunks=[]; REC.caps=[]; REC.t=0; REC.tail=0; REC.paused=false; mr.ondataavailable=e=>{ if(e.data.size) REC.chunks.push(e.data); }; try{ mr.start(500); }catch(e){ return; } REC.mr=mr; REC.on=true; recBtn.style.display='none'; }
-function recStop(){ const mr=REC.mr; REC.on=false; if(!mr) return; mr.onstop=()=>{ REC.clip={url:URL.createObjectURL(new Blob(REC.chunks,{type:'video/webm'})),caps:REC.caps.slice(),dur:REC.t}; REC.mr=null; recBtn.style.display=''; log('The fight is over. Replay it from the button at the top.'); }; if(mr.state==='paused') mr.resume(); mr.stop(); }
-function recTick(rdt){ if(!EXCH()||!window.MediaRecorder) return; const fight=recFoes();
-  if(!REC.on){ if(fight&&!REC.mr) recStart(); return; }
-  const wait=DODGE||(myTurn()&&!U.some(v=>v.mode==='move'||(v.mode==='act'&&!v.dead))&&!bolts.length), mr=REC.mr;
-  if(wait&&!REC.paused){ REC.hold=(REC.hold||0)+rdt; if(REC.hold>.15){ mr.pause(); REC.paused=true; } } else if(!wait){ REC.hold=0; if(REC.paused){ mr.resume(); REC.paused=false; } }
-  if(!REC.paused) REC.t+=rdt;
-  if(!fight){ REC.tail+=rdt; if(REC.tail>2.2) recStop(); } else REC.tail=0; }
-function recPlay(){ const C=REC.clip; if(!C) return; const ov=document.createElement('div'); ov.style.cssText='position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;flex-direction:column';
-  const v=document.createElement('video'); v.src=C.url; v.autoplay=true; v.style.cssText='width:min(94vw,calc(82vh*'+(c.width/c.height)+'));height:auto;image-rendering:pixelated;border:1px solid #3a3024'; const cap=document.createElement('div'); cap.style.cssText='min-height:48px;max-width:720px;margin-top:12px;color:#e9dcc0;font:italic 17px/1.4 Georgia,serif;text-align:center';
-  const bar=document.createElement('div'); bar.style.cssText='margin-top:10px;display:flex;gap:10px'; const mk=(t,f)=>{ const b=document.createElement('button'); b.textContent=t; b.style.cssText='padding:6px 14px;background:#2a2016;color:#f0dcae;border:1px solid #8a7048;font:14px Georgia,serif;cursor:pointer'; b.onclick=f; bar.appendChild(b); };
-  mk('Restart',()=>{ v.currentTime=0; v.play(); }); mk('Save clip',()=>{ const a=document.createElement('a'); a.href=C.url; a.download='respite-fight.webm'; a.click(); }); mk('Close',()=>{ v.pause(); ov.remove(); });
-  v.ontimeupdate=()=>{ let k=null; for(const q of C.caps) if(q.t<=v.currentTime+.05&&v.currentTime-q.t<3.4+q.txt.length*.025) k=q; cap.textContent=k?k.txt:''; };
-  ov.append(v,cap,bar); document.body.appendChild(ov); }
+function recState(u){ const o=u.cho?choOff(u):null; return [u.px+(o?o[0]:0),u.py+(o?o[1]:0),u.pose,u.f,u.dir,u.mode,u.dead?1:0,u.stag?1:0,u.invis||0,u.hp,u.reverse?1:0,u.flash||0]; }
+function recReset(){ rpStop(); Object.assign(REC,{on:false,t:0,segs:[],seg:null,tail:0,hold:0,init:null,clip:null}); recBtn.style.display='none'; }
+function recOpen(){ if(!REC.seg) REC.seg={t0:REC.t,fr:[],ev:[]}; return REC.seg; }
+function recEv(kind,data){ if(!REC.on||RP) return; const S=recOpen(); S.ev.push({t:REC.t-S.t0,kind,data}); }
+function recCut(){ if(REC.on&&REC.seg) recClose(); }
+function recClose(){ const S=REC.seg; REC.seg=null; if(!S||(!S.fr.length&&!S.ev.length)) return; if(!S.fr.length) S.fr.push({t:0,S:new Map(U.map(u=>[u,recState(u)]))});
+  const act=new Set(), first=S.fr[0].S;
+  for(const F of S.fr) for(const [u,st] of F.S){ if(act.has(u)) continue; const f0=first.get(u); if((st[5]==='move'||st[5]==='act')&&!(st[6]&&st[5]==='dead')) act.add(u); else if(f0&&(Math.abs(st[0]-f0[0])>.01||Math.abs(st[1]-f0[1])>.01)) act.add(u); else if(!f0) act.add(u); }
+  for(const E of S.ev) if(E.kind==='pop'&&E.data.u) act.add(E.data.u);
+  // split the segment into clusters of units that touch (within a tile and a half, or joined by a shot): each plays on its own in the replay
+  const A=[...act], par=new Map(A.map(u=>[u,u])), fnd=u=>{ while(par.get(u)!==u) u=par.get(u); return u; }, join=(a,b)=>{ if(a&&b) par.set(fnd(a),fnd(b)); };
+  const at=(t,x,y)=>{ const F=S.fr[Math.max(0,Math.min(S.fr.length-1,S.fr.findIndex(f=>f.t>=t)))].S; let best=null, bd=1.6; for(const u of A){ const p=F.get(u); if(!p) continue; const d=Math.max(Math.abs(p[0]-x),Math.abs(p[1]-y)); if(d<bd){ bd=d; best=u; } } return best; };
+  for(let i=0;i<S.fr.length;i+=3){ const F=S.fr[i].S; for(let a=0;a<A.length;a++) for(let b=a+1;b<A.length;b++){ const p=F.get(A[a]), q=F.get(A[b]); if(p&&q&&Math.max(Math.abs(p[0]-q[0]),Math.abs(p[1]-q[1]))<=1.6) join(A[a],A[b]); } }
+  for(const E of S.ev) if(E.kind==='bolt') join(at(E.t,E.data.x0,E.data.y0),at(E.t,E.data.x1,E.data.y1));
+  const own=E=>E.kind==='pop'?E.data.u:E.kind==='bolt'?at(E.t,E.data.x0,E.data.y0):at(E.t,E.data.x,E.data.y), G=new Map();
+  for(const u of A){ const r=fnd(u); if(!G.has(r)) G.set(r,{act:new Set(),ev:[]}); G.get(r).act.add(u); }
+  for(const E of S.ev){ const o=own(E), g=o&&G.get(fnd(o)); if(g) g.ev.push(E); else if(G.size) [...G.values()][0].ev.push(E); }
+  for(const g of G.values()){ let t0=1e9, t1=-1; const tiles=new Set();
+    S.fr.forEach((F,i)=>{ for(const u of g.act){ const st=F.S.get(u), pv=i?S.fr[i-1].S.get(u):null; if(!st) continue; tiles.add(Math.round(st[0])+','+Math.round(st[1])); if(st[5]==='move'||st[5]==='act'||(pv&&(pv[0]!==st[0]||pv[1]!==st[1]))){ t0=Math.min(t0,F.t); t1=Math.max(t1,F.t); } } });
+    for(const E of g.ev){ t0=Math.min(t0,E.t); t1=Math.max(t1,E.t+.3); } if(t1<0) continue; t0=Math.max(0,t0-.05);
+    REC.dbg=(REC.dbg||0)+1; REC.segs.push({fr:S.fr,act:g.act,ev:g.ev,off:t0,dur:t1-t0+.1,tiles:[...tiles].map(k=>k.split(',').map(Number))}); } }
+function recTick(rdt){ if(!EXCH()||RP) return; const fight=recFoes();
+  if(!REC.on){ if(!fight) return; if(REC.clip){ REC.clip=null; recBtn.style.display='none'; } REC.on=true; REC.t=0; REC.segs=[]; REC.seg=null; REC.tail=0; REC.init=new Map(U.map(u=>[u,recState(u)])); }
+  const wait=myTurn()&&!U.some(v=>v.mode==='move'||(v.mode==='act'&&!v.dead))&&!bolts.length;
+  if(wait){ REC.hold+=rdt; if(REC.hold>.15&&REC.seg) recClose(); } else REC.hold=0;
+  if(!wait||REC.hold<=.15){ const S=recOpen(); REC.t+=rdt; S.fr.push({t:REC.t-S.t0,S:new Map(U.map(u=>[u,recState(u)]))}); }
+  if(!fight){ REC.tail+=rdt; if(REC.tail>2.2){ recClose(); REC.on=false; REC.clip=recBuild(); recBtn.style.display=''; log('The fight is over. Replay it from the button at the top.'); } } else REC.tail=0; }
+function recBuild(){ const segs=REC.segs; let prev=0, end=0;
+  const near=(A,B)=>A.tiles.some(([a,b])=>B.tiles.some(([c,d])=>a===c&&b===d)), clash=(A,B)=>[...A.act].some(u=>B.act.has(u))||near(A,B);
+  segs.forEach((S,k)=>{ let st=0; for(let j=0;j<k;j++) if(clash(segs[j],S)) st=Math.max(st,segs[j].start+segs[j].dur); S.start=st; prev=st; end=Math.max(end,st+S.dur); });
+  const runs=new Map(); for(const S of segs) for(const u of S.act){ if(!runs.has(u)) runs.set(u,[]); runs.get(u).push(S); }
+  return {segs,end,runs,init:REC.init}; }
+// replay: the live units are borrowed, set from the tracks each frame, and given back on Close
+const RPF=['px','py','pose','f','dir','mode','dead','stag','invis','hp','reverse','flash','cho','acc','x','y','_rh','done','onImpact','route','d','dest'];
+function rpStart(){ const C=REC.clip; if(!C||RP) return; recBtn.style.display='none';
+  const bk=new Map(U.map(u=>[u,Object.fromEntries(RPF.map(k=>[k,u[k]]))]));
+  const bar=document.createElement('div'); bar.style.cssText='position:fixed;z-index:46;left:50%;bottom:104px;transform:translateX(-50%);display:flex;gap:8px;align-items:center;padding:6px 10px;background:rgba(20,15,11,.92);border:1px solid #c9a35a;color:#f0dcae;font:14px Georgia,serif';
+  const lab=document.createElement('span'); lab.textContent='Replaying the fight'; bar.appendChild(lab);
+  const mk=(t,f)=>{ const b=document.createElement('button'); b.textContent=t; b.style.cssText='padding:4px 12px;background:#2a2016;color:#f0dcae;border:1px solid #8a7048;font:13px Georgia,serif;cursor:pointer'; b.onclick=f; bar.appendChild(b); };
+  mk('Restart',()=>{ RP.T=0; RP.fired=new Set(); floats.length=0; bolts.length=0; blasts.length=0; CAP=null; }); mk('Close',()=>rpStop()); document.body.appendChild(bar);
+  floats.length=0; CAP=null; RP={C,T:0,bk,bar,lab,fired:new Set(),fx:null}; }
+function rpStop(){ if(!RP) return; for(const [u,b] of RP.bk) Object.assign(u,b); RP.bar.remove(); RP=null; floats.length=0; CAP=null; FOCUS=null; if(REC.clip) recBtn.style.display=''; ui(); }
+function rpAt(S,rel,u){ const F=S.fr; let lo=0, hi=F.length-1; while(lo<hi){ const m=(lo+hi+1)>>1; if(F[m].t<=rel) lo=m; else hi=m-1; } return F[lo].S.get(u); }
+function rpApply(dt){ const R=RP, C=R.C; R.T+=dt; const T=R.T; let fx=0, fy=0, fn=0;
+  for(const u of U){ const runs=C.runs.get(u)||[]; let st=null, live=false;
+    for(const S of runs){ if(T>=S.start&&T<S.start+S.dur){ st=rpAt(S,T-S.start+S.off,u); live=true; break; } }
+    if(!st){ let last=null; for(const S of runs) if(S.start+S.dur<=T&&(!last||S.start>last.start)) last=S; st=last?rpAt(last,last.off+last.dur,u):C.init.get(u); if(!st&&runs.length){ const S0=runs.reduce((a,b)=>a.start<b.start?a:b); if(T>=S0.start) st=rpAt(S0,S0.off,u); } }
+    if(!st){ u._rh=true; continue; } u._rh=false;
+    [u.px,u.py,u.pose,u.f,u.dir,u.mode,u.dead,u.stag,u.invis,u.hp,u.reverse,u.flash]=[st[0],st[1],st[2],st[3],st[4],st[5],!!st[6],!!st[7],st[8],st[9],!!st[10],st[11]]; u.cho=null;
+    const m=M(u)[u.pose]; if(!live&&m&&m.loop) u.f=Math.floor(T*1000/m.ms)%m.frames;
+    if(live){ fx+=u.px; fy+=u.py; fn++; } }
+  C.segs.forEach((S,k)=>{ if(T<S.start) return; S.ev.forEach((E,i)=>{ const id=k+':'+i; if(R.fired.has(id)||S.start+E.t-S.off>T) return; R.fired.add(id); const D=E.data;
+    if(E.kind==='pop') POP0(D.u,D.txt,D.col); else if(E.kind==='bolt') BPUSH.call(bolts,Object.assign({},D,{t:0,hit:false,cb:()=>{}})); else if(E.kind==='blast') BPUSH.call(blasts,Object.assign({},D,{t:0})); else if(E.kind==='cap') CAP={txt:D.txt,x:D.x,y:D.y,t:0,kind:D.kind}; }); });
+  if(fn){ R.fx=[fx/fn,fy/fn]; } if(R.fx) FOCUS={x:R.fx[0],y:R.fx[1],until:performance.now()+400};
+  R.lab.textContent=T<C.end?'Replaying the fight':'The end'; }
+const BPUSH=Array.prototype.push; let POP0=null;
+setTimeout(()=>{ POP0=pop; pop=function(u,txt,col){ recEv('pop',{u,txt,col}); return POP0(u,txt,col); };  /* after the script has run: bolts and blasts are declared further down */
+  bolts.push=function(...a){ for(const b of a) recEv('bolt',Object.assign({},b)); return BPUSH.apply(this,a); };
+  blasts.push=function(...a){ for(const b of a) recEv('blast',Object.assign({},b)); return BPUSH.apply(this,a); }; },0);
 
 function damage(t,n,from,quiet){ if(t.dead)return; if(t.asleep) wakeGrp(t.grp,'The blow wakes the nest.'); setTimeout(()=>{ if(t.dead&&t.axeOf){ t.axeOf.axeIn=true; log('The Hunter wrenches his axe free.'); t.axeOf=null; ui(); } },0); if(t.ch==='husk'&&t.baited&&from&&isHero(from)) huskTurn.sprung={round:round+1,hero:from}; if(t.ward&&n>0){ t.ward=false; pop(t,'warded','#ffe9a0'); log('Shield Cover turns the blow aside from '+t.short+'.'); return; } if(t.guard&&n>0) n=Math.ceil(n*.75); /* Pelt Guard: the Wayfinder after a leap or vault */ if(t.wrath!==undefined&&n>0&&from&&from.team===1){ t.wrath+=5; pop(t,'+5 wrath','#ffd76a'); } if(t.invis&&n>0){ t.invis=0; log('The Assassin is struck and falls out of the shadow.'); } if(t.marked&&n>0) n=Math.ceil(n*1.1); t.hp=Math.max(0,t.hp-n); if(t.ch==='ranger'&&n>0&&t.focus){ t.focus=0; t.lock=null; log('The Ranger is struck and loses her focus.'); } pop(t,isHero(t)?'-'+n:'',isHero(t)?'#ff9a7a':'#ffd9a0'); if(t.riposte&&n>0&&t.hp>0&&from&&!from.dead&&from.team!==t.team&&cheb(t,from.x,from.y)===1){ t.riposte=false; setTimeout(()=>riposte(t,from),160); }
   if(t.hp<=0){ const own=(t.mode==='move'||t.mode==='act')&&(t===cur()||(grp&&t.team===1));  // killed in the middle of its own move or action (fire, a trap, a ward's spark): its turn must still end
@@ -330,11 +368,11 @@ function newRound(first){ if(!first) riseFallen(); caltrops=caltrops.filter(C=>C
 // enemies next to each other in the turn order act together: each one decides a moment after the last (so it sees where the others are heading), and the turn moves on when all have finished
 let grp=null;
 const prelude=v=>{ v.stimLate=false; v.stepped=false; v.kissed=false; v.shot=false; v.moved=false; v.charged=false; v.hunted=false; v.curMove=v.slow?1:v.move; v.slow=false; if(v.snared){ v.curMove=0; v.snared=false; } };
-function nextTurn(){ if(grp){ if(--grp.left>0) return; turnIdx=grp.end; grp=null; } turnIdx++; if(turnIdx>=order.length) return newRound(false); const u=order[turnIdx]; if(u&&u.bleed&&!u.dead&&U.includes(u)){ const B=u.bleed; damage(u,B.n,null,true); pop(u,'-'+B.n,'#d04a3a'); log('The '+(isHero(u)?u.short:u.short.toLowerCase())+' bleeds ('+B.n+')'+(u.dead?' — and falls':'')+'.'); if(--B.left<=0) u.bleed=null; if(u.dead) return nextTurn(); }
+function nextTurn(){ recCut(); if(grp){ if(--grp.left>0) return; turnIdx=grp.end; grp=null; } turnIdx++; if(turnIdx>=order.length) return newRound(false); const u=order[turnIdx]; if(u&&u.bleed&&!u.dead&&U.includes(u)){ const B=u.bleed; damage(u,B.n,null,true); pop(u,'-'+B.n,'#d04a3a'); log('The '+(isHero(u)?u.short:u.short.toLowerCase())+' bleeds ('+B.n+')'+(u.dead?' — and falls':'')+'.'); if(--B.left<=0) u.bleed=null; if(u.dead) return nextTurn(); }
   if(u&&u.poison&&!u.dead&&U.includes(u)){ const P=u.poison; damage(u,P.n,null,true); pop(u,'-'+P.n,'#9ad06a'); log('Poison eats at the '+(isHero(u)?u.short:u.short.toLowerCase())+' ('+P.n+')'+(u.dead?' — it falls':'')+'.'); if(--P.left<=0) u.poison=null; } if(!U.includes(u)||(u.dead&&!isHero(u)&&!u.willRise)) return nextTurn(); u.moved=false; u.charged=false; u.hunted=false; u.pulled=false; u.walked=0; if(u.guard){ u.guard=false; } u.curMove=u.slow?1:u.move; u.slow=false; if(u.snared){ u.curMove=0; u.snared=false; } if(u.stag){ u.stag=false; if(u.mode==='idle') setPose(u,idleOf(u)); } ui(); for(const T of traps) if(T.owner===u&&!T.armed&&round>T.round){ T.armed=true; log('The Gridlock trap is set.'); } if(booms(u)) return;
   if(isHero(u)){ if(u.dead) return setTimeout(nextTurn,200); hero=u; if(u.ch==='galvanist'&&!u.dead&&u.mp<u.mpMax){ const g=Math.min(5,u.mpMax-u.mp); u.mp+=g; pop(u,'+'+g,'#8cc8ff'); } if(u.invis&&--u.invis<=0){ u.invis=0; log('The Assassin steps out of the shadow.'); } if(u.lock&&(u.lock.dead||cheb(u,u.lock.x,u.lock.y)>3||!los(u.x,u.y,u.lock.x,u.lock.y))){ if(u.focus) log('The Ranger loses her focus.'); u.lock=null; u.focus=0; } busyLock=false; setAtk(false); skill=null; stimOn=false; reachH=bfs(hero,hero.curMove); /* the Galvanist's jars trickle back +5 charge a turn */ if(hero.curMove<hero.move) log(hero.short+' is slowed this turn.'); ui(); return; }
   const G=[u]; let j=turnIdx+1; while(j<order.length&&!isHero(order[j])){ const v=order[j]; if(U.includes(v)&&!(v.dead&&!v.willRise)) G.push(v); j++; }
-  busyLock=true; if(G.length>1){ const g0={left:G.length,end:j-1}; grp=g0; const safe=()=>{ if(grp!==g0) return; if(DODGE||DODGEQ.length) return setTimeout(safe,2000); grp.left=1; nextTurn(); }; setTimeout(safe,12000); /* safety: never let a stuck unit hold up the group */ G.forEach((v,k)=>{ if(k) prelude(v); setTimeout(()=>aiTurn(v),180+k*90); }); return; }
+  busyLock=true; if(G.length>1){ const g0={left:G.length,end:j-1}; grp=g0; const safe=()=>{ if(grp!==g0) return; grp.left=1; nextTurn(); }; setTimeout(safe,12000); /* safety: never let a stuck unit hold up the group */ G.forEach((v,k)=>{ if(k) prelude(v); setTimeout(()=>aiTurn(v),180+k*90); }); return; }
   setTimeout(()=>aiTurn(u),180); }
 const cur=()=>order[turnIdx];
 function aiTurn(u){
@@ -517,7 +555,7 @@ function huskTurn(u,strike){ const T=threatMap(), D=bfs(u,u.curMove,true), H=see
   goStrike(u,D,b,strike); }
 // ---- the player's turn: move (once), then strike; striking ends the turn
 let reachH=new Map(); let atk=false, zoom=2, camX=0, camY=0, hover=null, bgT=0, bgF=0;
-const myTurn=()=>cur()===hero&&isHero(hero)&&!busyLock&&hero.mode==='idle'&&!hero.dead;
+const myTurn=()=>!RP&&cur()===hero&&isHero(hero)&&!busyLock&&hero.mode==='idle'&&!hero.dead;
 let skill=null;  // 'arc' | 'thrust' | 'charge' while picking a target
 const syncBtns=()=>{ document.getElementById('atk').classList.toggle('on',atk); document.getElementById('sk1').classList.toggle('on',skill==='arc'||skill==='thrust'||skill==='ward'||skill==='nade'||skill==='pin'||skill==='trap'||skill==='carc'||skill==='kiss'||skill==='leap'||(skill==='exch'&&hero.ch==='cleric')); document.getElementById('sk2').classList.toggle('on',skill==='charge'||(skill==='exch'&&hero.ch!=='cleric')||skill==='insp'||skill==='rech'||skill==='hunt'||skill==='spasm'||skill==='mark'||skill==='vault'); };
 const setAtk=v=>{atk=v; if(v) skill=null; syncBtns();};
@@ -763,7 +801,7 @@ const tileAt=(bx,by)=>{const dx=bx-OX, dy=by-OY, gx=(dx/10+dy/5)/2, gy=(dy/5-dx/
 const toBuf=e=>{const r=c.getBoundingClientRect(); return [(e.clientX-r.left)/zoom+camX,(e.clientY-r.top)/zoom+camY];};
 c.addEventListener('pointermove',e=>{hover=tileAt(...toBuf(e));});
 c.addEventListener('pointerdown',e=>{const [a,b]=tileAt(...toBuf(e)); tileClick(a,b);});
-function tileClick(a,b){ hover=[a,b]; if(DODGE) return dodgeClick(a,b); if(!myTurn())return;
+function tileClick(a,b){ hover=[a,b]; if(!myTurn())return;
   { const q=propAt(a,b); if(q&&SOLID.has(q.kind)&&!skill&&!atk){ if(cheb(hero,a,b)===1) useProp(q); else log('Move next to it first.'); return; } } const adj=cheb(hero,a,b)===1, enemy=U.some(u=>u.team===1&&!u.dead&&u.x===a&&u.y===b);
   if(skill==='bomb'){ const t=unitAt(a,b); if(bombOK(hero,t)) throwBomb(t); else setSkill(null); return; }
   if(skill==='trap'){ if(trapOK(hero,a,b)) setTrap(a,b); else setSkill(null); return; }
@@ -1326,7 +1364,7 @@ function genDungeon(seed,size){
 }
 let EPOCH=0; { const st=window.setTimeout.bind(window); window.setTimeout=(f,ms,...a)=>{ if(typeof f!=='function') return st(f,ms,...a); const e=EPOCH; return st(()=>{ if(e===EPOCH) f(...a); },ms); }; }  // a new map drops every turn step still queued for the old one
 function loadMap(k){ EPOCH++; busyLock=false; grp=null; if(k==='dungeon'&&DUNGEON){ if(!(DAT.complete&&DAT.naturalWidth)){ DAT.onload=()=>loadMap('dungeon'); return; } if(DATV&&!(DATV.complete&&DATV.naturalWidth)){ DATV.onload=()=>loadMap('dungeon'); return; } if(DATW&&!(DATW.complete&&DATW.naturalWidth)){ DATW.onload=()=>loadMap('dungeon'); return; } const sz=window.DSZ||(PROTO?'small':DSIZE==='random'?['small','medium','large'][Math.floor(Math.random()*3)]:DSIZE); CRYPTS.dungeon=genDungeon(window.DSEED??(Math.random()*1e9),sz); }
-  unRise(); mapKey=k; document.getElementById('map').value=k==='dungeon'?(PROTO?'dungeon:p:'+PROTO:'dungeon:'+DTHEME):k; CAP=null; DODGE=null; DODGEQ.length=0; recReset(); const C=CRYPTS&&CRYPTS[k];
+  unRise(); mapKey=k; document.getElementById('map').value=k==='dungeon'?(PROTO?'dungeon:p:'+PROTO:'dungeon:'+DTHEME):k; CAP=null; recReset(); const C=CRYPTS&&CRYPTS[k];
   LIGHTS=(C&&C.LIGHTS)||[];
   if(C){ PROPS=(C.PROPS||[]).map(([kind,x,y,turn,wall,key])=>({kind,x,y,turn:turn||0,wall,key:!!key,used:false,seen:kind!=='Trap'})); SATCHEL=SATCHEL.filter(k=>k!=='key'); satchelUI(); GRID=null; MW=C.w; MH=C.h; RECTS=C.RECTS; BLK=C.BLOCK||[]; OX=C.ox; OY=C.oy; blocked=new Set([...BLK,...(C.WATER||[]),...PROPS.filter(q=>SOLID.has(q.kind)).map(q=>[q.x,q.y])].map(q=>key(q[0],q[1]))); fireSet=new Set([...(C.FIRE||[]),...(C.ETERNAL||[])].map(q=>key(q[0],q[1]))); SRCBG=C.bg; bgs=C.bg.map(load); rebuildBG();
     bgF=0; traps.length=0; pods.length=0; grenades.length=0; bolts.length=0; reachPath={src:null,p:null}; SPC.clear();
@@ -1458,7 +1496,7 @@ function footGrass(u,cx,cy,front,now){ const C=CRYPTS&&CRYPTS[mapKey]; if(!C||!C
 function frame(now){const rdt=Math.min(.05,(now-last)/1000); let dt=rdt; last=now; if(HS>0){ HS-=rdt; dt=rdt*.02; } else if(SLO>0){ SLO-=rdt; dt=rdt*.35; }  /* hit-stop, then slow motion */
   const gw=gate(); if(!gw&&frame.gw){ frame.gw=false; ui(); } if(gw) frame.gw=true; if(gw){ g.fillStyle='#0b0a0a'; g.fillRect(0,0,c.width,c.height); g.fillStyle='#c9b89a'; g.font='16px Georgia, serif'; g.textAlign='center'; g.fillText('Gathering the party…',c.width/2,c.height/2-10); g.fillStyle='#2a2420'; g.fillRect(c.width/2-120,c.height/2+6,240,6); g.fillStyle='#c9a35a'; g.fillRect(c.width/2-120,c.height/2+6,240*gw[0]/Math.max(1,gw[1]),6); g.textAlign='left'; return; }
   bgT+=dt; if(bgT>.16){bgT=0;bgF=(bgF+1)%bgs.length;}
-  for(const u of U){ hairWatch(u); stepUnit(u,dt); }
+  if(RP) rpApply(dt); else for(const u of U){ hairWatch(u); stepUnit(u,dt); }
   const fo=cur()||hero, [fx,fy]=window.CAMLOCK?iso(CAMLOCK[0]*T2+2,CAMLOCK[1]*T2+2):FOCUS&&now<FOCUS.until?iso(FOCUS.x*T2+2,FOCUS.y*T2+2):iso((fo.px+hero.px)/2*T2+2,(fo.py+hero.py)/2*T2+2);  // CAMLOCK: a fixed view for comparison shots
   const tx=fx-c.width/2, ty=fy-c.height*.52; camX+=(tx-camX)*Math.min(1,dt*4); camY+=(ty-camY)*Math.min(1,dt*4);
   let sx=0,sy=0; if(shake>0){shake-=dt; sx=(Math.random()-.5)*4; sy=(Math.random()-.5)*3;}
@@ -1471,7 +1509,7 @@ function frame(now){const rdt=Math.min(.05,(now-last)/1000); let dt=rdt; last=no
     const [gx,gy]=iso(gr.x*T2+2,gr.y*T2+2); g.fillStyle='#1a1410'; g.beginPath(); g.ellipse(gx-cx,gy-cy-2,3,2.2,0,0,6.283); g.fill(); g.fillStyle=Math.sin(performance.now()/90)>0?'#ff5a2a':'#7a2a14'; g.fillRect(Math.round(gx-cx),Math.round(gy-cy-5),1,1); }
   if(myTurn()&&skill==='nade'){ for(const [dx,dy] of [...N8,[2,0],[-2,0],[0,2],[0,-2],[2,1],[2,-1],[-2,1],[-2,-1],[1,2],[-1,2],[1,-2],[-1,-2],[2,2],[-2,2],[2,-2],[-2,-2]]){ const a=hero.x+dx,b=hero.y+dy; if(nadeOK(hero,a,b)) dia(a,b,null,'rgba(240,140,70,.55)'); }
     if(hover&&nadeOK(hero,...hover)) for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++) dia(hover[0]+dx,hover[1]+dy,'rgba(240,110,60,.22)','rgba(255,150,90,.8)'); }
-  for(let k=pods.length-1;k>=0;k--){ const P=pods[k], h=HEROES.find(q=>!q.dead&&q.x===P.x&&q.y===P.y); if(h){ pods.splice(k,1); pop(h,'pod crushed','#e8c34a'); log(h.short+' crushes the spore pod underfoot.'); continue; }
+  for(let k=pods.length-1;k>=0;k--){ const P=pods[k], h=!RP&&HEROES.find(q=>!q.dead&&q.x===P.x&&q.y===P.y); if(h){ pods.splice(k,1); pop(h,'pod crushed','#e8c34a'); log(h.short+' crushes the spore pod underfoot.'); continue; }
     const [tx,ty]=iso(P.x*T2+2,P.y*T2+2), pu=1+.08*Math.sin((now-P.born)/260), X=tx-cx, Y=ty-cy;  // a split round shield on the floor, a swollen yellow pod bulging out of it, breathing
     g.fillStyle='rgba(232,195,74,.18)'; g.beginPath(); g.ellipse(X,Y,12*pu,6*pu,0,0,6.283); g.fill();
     g.fillStyle='#4a3a2c'; g.beginPath(); g.ellipse(X,Y,9,4.5,0,0,6.283); g.fill(); g.strokeStyle='#2a221c'; g.lineWidth=1; g.stroke();
@@ -1493,7 +1531,6 @@ function frame(now){const rdt=Math.min(.05,(now-last)/1000); let dt=rdt; last=no
   if(myTurn()&&hero.ch==='assassin'&&!skill&&atk) for(const t of U) if(t.team===1&&!t.dead&&behind(hero,t)) dia(t.x,t.y,null,'rgba(255,140,120,.9)');
   if(myTurn()&&hero.ch==='assassin'&&(skill==='kiss'||skill==='mark')) for(const t of U) if(skill==='kiss'?kissOK(hero,t):markOK(hero,t)) dia(t.x,t.y,skill==='kiss'?'rgba(120,200,80,.3)':'rgba(230,70,60,.3)',skill==='kiss'?'rgba(150,230,100,.85)':'rgba(240,90,80,.85)');
   for(const h of HEROES) if(h.ward&&!h.dead) dia(h.x,h.y,'rgba(140,200,255,.14)','rgba(190,230,255,.85)');
-  if(DODGE){ const D0=DODGE, pu=.5+.3*Math.sin(now/160); for(const [a,b] of D0.tiles) dia(a,b,'rgba(120,180,255,'+(pu*.35)+')','rgba(170,215,255,.95)'); dia(D0.h.x,D0.h.y,null,'rgba(230,230,230,.6)'); }
   if(myTurn()){
     if(skill==='ward') for(const h of HEROES) if(inReach(hero,h)) dia(h.x,h.y,null,'rgba(190,230,255,.75)'); if(skill==='exch') for(const h of HEROES) if(inReach(hero,h)) dia(h.x,h.y,h===exSrc?'rgba(255,230,140,.35)':null,'rgba(255,230,140,.7)');
     if(!atk&&!skill&&canMv()){ if(reachPath.src!==reachH){ const P2=new Path2D(); for(const [k,[d]] of reachH){ if(!d)continue; const [a,b]=k.split(',').map(Number); const p=[iso(a*T2,b*T2),iso(a*T2+T2,b*T2),iso(a*T2+T2,b*T2+T2),iso(a*T2,b*T2+T2)]; P2.moveTo(p[0][0]+.5,p[0][1]+.5); for(let i=1;i<4;i++)P2.lineTo(p[i][0]+.5,p[i][1]+.5); P2.closePath(); } let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9; for(const [k,[d]] of reachH){ if(!d)continue; const [a,b]=k.split(',').map(Number), [sx,sy]=iso(a*T2+2,b*T2+2); x0=Math.min(x0,sx-40); x1=Math.max(x1,sx+40); y0=Math.min(y0,sy-20); y1=Math.max(y1,sy+20); } reachPath={src:reachH,p:P2,bb:[x0,y0,x1,y1]}; }
@@ -1514,7 +1551,7 @@ function frame(now){const rdt=Math.min(.05,(now-last)/1000); let dt=rdt; last=no
     if(hover)dia(hover[0],hover[1],null,'rgba(255,230,180,.8)');
     if(!atk&&!skill&&canMv()&&hover&&reachH.has(key(...hover))&&!(hover[0]===hero.x&&hover[1]===hero.y)){ const hk=key(...hover)+'|'+hero.x+','+hero.y; if(hero.prevKey!==hk){hero.prevKey=hk; hero.prev=smoothPath([[hero.x,hero.y],...pathTo(hero,reachH,...hover)],hero);}
       const R=hero.prev, tot=R.L[R.L.length-1]; g.fillStyle='rgba(255,236,190,.9)'; for(let d=.2;d<tot;d+=.2){const [x,y]=along(R,d); const [qx,qy]=iso(x*T2+2,y*T2+2); g.fillRect(Math.round(qx-cx)-1,Math.round(qy-cy)-1,3,2);} } }
-  const sorted=U.slice().sort((a,b)=>(a.dead&&a.mode==='dead'?-1:0)-(b.dead&&b.mode==='dead'?-1:0)||(a.px+a.py)-(b.px+b.py)); UREC=[]; const OCCL=(CRYPTS&&CRYPTS[mapKey]&&CRYPTS[mapKey].OCC)||[]; const DL=[...sorted.map(u=>({u,d:u.px+u.py})),...PROPS.map(q=>({q,d:q.x+q.y-.01})),...OCCL.map(o=>({o,d:o.d}))].sort((a,b)=>(a.u&&a.u.dead&&a.u.mode==='dead'?-1:0)-(b.u&&b.u.dead&&b.u.mode==='dead'?-1:0)||a.d-b.d); for(const it of DL){ if(it.u){ footGrass(it.u,cx,cy,0,now); drawUnit(it.u,cx,cy,dt); footGrass(it.u,cx,cy,1,now); } else if(it.o) drawOcc(it.o,cx,cy); else { const pg=it.q._g||(it.q._g={px:it.q.x,py:it.q.y,pose:''}); footGrass(pg,cx,cy,0,now); drawProp(it.q,cx,cy); footGrass(pg,cx,cy,1,now); } }
+  const sorted=U.filter(u=>!(RP&&u._rh)).sort((a,b)=>(a.dead&&a.mode==='dead'?-1:0)-(b.dead&&b.mode==='dead'?-1:0)||(a.px+a.py)-(b.px+b.py)); UREC=[]; const OCCL=(CRYPTS&&CRYPTS[mapKey]&&CRYPTS[mapKey].OCC)||[]; const DL=[...sorted.map(u=>({u,d:u.px+u.py})),...PROPS.map(q=>({q,d:q.x+q.y-.01})),...OCCL.map(o=>({o,d:o.d}))].sort((a,b)=>(a.u&&a.u.dead&&a.u.mode==='dead'?-1:0)-(b.u&&b.u.dead&&b.u.mode==='dead'?-1:0)||a.d-b.d); for(const it of DL){ if(it.u){ footGrass(it.u,cx,cy,0,now); drawUnit(it.u,cx,cy,dt); footGrass(it.u,cx,cy,1,now); } else if(it.o) drawOcc(it.o,cx,cy); else { const pg=it.q._g||(it.q._g={px:it.q.x,py:it.q.y,pose:''}); footGrass(pg,cx,cy,0,now); drawProp(it.q,cx,cy); footGrass(pg,cx,cy,1,now); } }
   for(const u of U) if(u.pull){ const [sx,sy]=iso(u.px*T2+2,u.py*T2+2), [wx,wy]=iso(u.pull[0]*T2+2,u.pull[1]*T2+2), o=muz(u); g.strokeStyle='rgba(150,150,160,.9)'; g.setLineDash([2,2]); g.lineWidth=1; g.beginPath(); g.moveTo(sx-cx+o[0],sy-cy+o[1]); g.lineTo(wx-cx,wy-cy-40); g.stroke(); g.setLineDash([]); }
   for(const u of U) if(u.pose==='hover'&&!u.dead){ const [hx,hy]=iso(u.px*T2+2,u.py*T2+2); g.fillStyle='rgba(0,0,0,.35)'; g.beginPath(); g.ellipse(hx-cx,hy-cy,9,4,0,0,6.283); g.fill(); }  // a shadow left on the floor while he floats
   for(let i=bolts.length-1;i>=0;i--){ const B=bolts[i];
