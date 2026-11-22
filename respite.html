@@ -978,25 +978,55 @@ function makeWildSprites(seed){
     WSPR['pil'+v]=fin(b,55,base-6,[38,14]); }
   // leaf masses: clusters drawn back to front; each lit from the upper left, darker underneath, with leaf grain, a dark rim where it meets
   // the one behind, ragged edges and a few holes
-  const foliage=(b,cl,cy0,ry)=>{ cl.sort((p,q)=>p[1]-q[1]); for(const [cx,cy,r] of cl){ const salt=rng()*999|0, ph=rng()*6.28;
+  // leaf masses: clusters drawn back to front; each lit from the upper left, darker underneath, with leaf grain, a dark rim where it meets
+  // the one behind, ragged edges and a few holes. dome: how much each tree's crown is shaded as its own dome (0 in a merged forest canopy,
+  // where one slow light field runs across all the crowns instead, so neighbours read as one mass)
+  const foliage=(b,cl,cy0,ry,dome=.18,gl=null,R=rng)=>{ cl.sort((p,q)=>p[1]-q[1]); for(const [cx,cy,r] of cl){ const salt=R()*999|0, ph=R()*6.28;
       const rr=a=>r*(1+.18*Math.sin(a*3+ph)+.1*Math.sin(a*7+ph*2)); const ins=(dx,dy)=>Math.hypot(dx,dy*1.15)<rr(Math.atan2(dy,dx));
       for(let dy=-r*1.4;dy<=r*1.4;dy++) for(let dx=-r*1.4;dx<=r*1.4;dx++){ const x=Math.round(cx+dx), y=Math.round(cy+dy);
         if(!ins(dx,dy)){ if(hash(x*3+salt,y*5)<.07&&ins(dx*.85,dy*.85)) put(b,x,y,LEAF[2]); continue; }
         const lx=((x>>1)+((y>>1)&1))|0, ly=(y>>1)|0, leaf=hash(lx+salt,ly);  // 2px leaves
-        let t=.5+(-dx*.5-dy*.75)/r*.42-(cy-cy0)/ry*.18+(leaf-.5)*.42;
+        let t=.5+(-dx*.5-dy*.75)/r*.42-(cy-cy0)/ry*dome+(leaf-.5)*.42+(gl?gl(x,y):0);
         if(!ins(dx+2.5,dy+2.5)) t-=.28; if(!ins(dx-2,dy-2)) t+=.1;
         if(hash(x+salt*3,y)<.025) t=0;
         put(b,x,y,ramp(LEAF,t,x,y)); } } };
-  const trunk=(b,x0,y0,h,w0,w1,bend,ph)=>{ for(let k=0;k<=h;k++){ const t=k/h, cx=x0+Math.sin(t*2.6+ph)*bend, w=w0+(w1-w0)*t, y=y0-k;
-      for(let x=Math.floor(cx-w/2);x<=cx+w/2;x++){ const u=(x-cx)/(w/2); put(b,x,y,ramp(BARK,.62-u*.45+(hash(x,(y/5)|0)-.5)*.3-(Math.abs(u)>.8?.2:0),x,y)); } } };
+  // the trunk: a flared foot that runs out into root buttresses, a slight lean, bark lit on the left in four steps with vertical fissures
+  // that wander, moss at the foot, the top in the canopy's shade, and a fork into two or three thick limbs that carry on into the crown
+  const MOSSB=[hx('#1e2a12'),hx('#2a3a18'),hx('#38491f')];
+  const trunk2=(b,x0,y0,h,w0,w1,R)=>{ const lean=(R()-.5)*7, ph=R()*6, fis=[0,1,2,3,4].map(()=>[R()*2-1,R()*6,R()*.4+.2]), salt=R()*999|0;
+    const cxAt=t=>x0+lean*t+Math.sin(t*2.6+ph)*2.5;
+    for(let k=0;k<=h;k++){ const t=k/h, cx=cxAt(t), w=w0+(w1-w0)*t+w0*1.1*Math.pow(Math.max(0,1-t*4),2), y=y0-k;
+      for(let x=Math.floor(cx-w/2);x<=cx+w/2;x++){ const u=(x-cx)/(w/2);
+        let v=(u<-.45?.74:u<.05?.58:u<.55?.4:.24)+(hash(x,(y/3)|0)-.5)*.1;
+        for(const [fx,fp,fw] of fis){ const ux=fx+Math.sin(k*.09+fp)*.12; if(Math.abs(u-ux)<fw*.25) v-=.22; }   // fissures
+        if(t>.78) v-=(t-.78)*1.4;                                                                   // in the canopy's shade
+        let c=ramp(BARK,v,x,y);
+        if(t<.16&&u<.2&&hash(((x/2)|0)+salt,(y/2)|0)<.55-t*3) c=MOSSB[Math.min(2,(v*3)|0)];        // moss at the foot, on the lit side
+        put(b,x,y,c); } }
+    for(let k=0;k<5;k++){ const a=Math.PI*(.05+k*.225)+(R()-.5)*.3, dir=Math.cos(a)>0?1:-1, L=12+R()*14;  // root buttresses, splaying out across the ground
+      for(let j=0;j<=L;j++){ const t=j/L, x=x0+Math.cos(a)*j*1.5, y=y0-1+Math.sin(a)*j*.35+t*t*2, ww=(5.5*(1-t)+1)*(1-t*.3);
+        for(let d=0;d<=ww;d++){ const yy=Math.round(y-d); put(b,x,yy,ramp(BARK,(d>ww*.6?.62:.34)+(dir<0?.1:-.05)+(hash(x,yy)-.5)*.1,x,yy)); } } }
+    const top=[cxAt(1),y0-h], limbs=[];
+    for(let k=0;k<3;k++){ const a=-Math.PI/2+(k-1)*.75+(R()-.5)*.35, L=26+R()*16, e=[top[0]+Math.cos(a)*L, top[1]+Math.sin(a)*L*.85];
+      const n=Math.ceil(L); for(let j=0;j<=n;j++){ const t=j/n, x=top[0]+(e[0]-top[0])*t, y=top[1]+(e[1]-top[1])*t, ww=w1*(.75-t*.45); for(let d=-ww/2;d<=ww/2;d++) put(b,x+d,y,ramp(BARK,.5-d/ww*.55-t*.15,x,y)); }
+      limbs.push(e); }
+    return {top,limbs}; };
   const limb=(b,x0,y0,x1,y1,w)=>{ const n=Math.ceil(Math.hypot(x1-x0,y1-y0)); for(let k=0;k<=n;k++){ const t=k/n, x=x0+(x1-x0)*t, y=y0+(y1-y0)*t, ww=w*(1-t*.6); for(let d=-ww/2;d<=ww/2;d++) put(b,x+d,y,ramp(BARK,.5-d/ww*.5,x,y)); } };
-  for(let v=0;v<3;v++){ const H=[165,180,195][v], b=buf(190,H+10), x0=95, base=H+2, th=H*.33+rng()*8, ph=rng()*6;
-    trunk(b,x0,base,th,17,9,3,ph);
-    for(let k=0;k<4;k++){ const a=(k/4)*6.283+rng(), L=10+rng()*12; limb(b,x0,base-2,x0+Math.cos(a)*L*1.6,base+Math.sin(a)*L*.4,4); }  // roots
-    const top=[x0+Math.sin(2.6+ph)*4,base-th], cl=[];
-    for(let k=0;k<6;k++){ const a=-Math.PI/2+(k/5-.5)*2.6+(rng()-.5)*.4, L=22+rng()*26, e=[top[0]+Math.cos(a)*L*1.3,top[1]-12+Math.sin(a)*L*.8+rng()*10]; limb(b,top[0],top[1]+12,e[0],e[1],4); cl.push([e[0],e[1],14+rng()*8]); }
-    const cy0=top[1]-42; for(let k=0;k<30;k++){ const a=rng()*6.283, d=Math.sqrt(rng()); cl.push([x0+Math.cos(a)*d*70, cy0+Math.sin(a)*d*50+(rng()-.5)*10, 13+rng()*11]); }
-    foliage(b,cl,cy0,55); WSPR['tree'+v]=fin(b,x0,base-3,[54,18]); }
+  // one tree into a buffer: trunk at (x0, base), crown of clusters; fill = extra clusters (relative to x0, base) that bridge to neighbours
+  const TH=[165,180,195];
+  const treeInto=(b,x0,base,v,o={})=>{ let ss=(o.seed>>>0)||(v*977+13); const R=()=>{ ss=(Math.imul(ss,1664525)+1013904223)>>>0; return ss/4294967296; };
+    const H=TH[v], th=H*.33+R()*8, {top,limbs}=trunk2(b,x0,base,th,17,10,R), cl=[];
+    for(const e of limbs){ for(let k=0;k<2;k++) cl.push([e[0]+(R()-.5)*18,e[1]+(R()-.5)*12,14+R()*8]); }
+    for(let k=0;k<4;k++){ const a=-Math.PI/2+(k/3-.5)*2.4, L=18+R()*14, e=[top[0]+Math.cos(a)*L*1.4,top[1]-8+Math.sin(a)*L*.7]; limb(b,top[0],top[1]+6,e[0],e[1],3); cl.push([e[0],e[1],13+R()*7]); }
+    const cy0=top[1]-42; for(let k=0;k<30;k++){ const a=R()*6.283, d=Math.sqrt(R()); cl.push([x0+Math.cos(a)*d*70, cy0+Math.sin(a)*d*50+(R()-.5)*10, 13+R()*11]); }
+    for(const [fx,fy,fr] of (o.fill||[])) cl.push([x0+fx,base+fy,fr]);
+    foliage(b,cl,cy0,55,o.dome??.18,o.gl||null,R); };
+  for(let v=0;v<3;v++){ const H=TH[v], b=buf(190,H+10), x0=95, base=H+2; treeInto(b,x0,base,v); WSPR['tree'+v]=fin(b,x0,base-3,[54,18]); }
+  // a forest tree straight onto the map canvas (no sprite kept): its crown merges with its neighbours'
+  { const FB=buf(420,250), FC=document.createElement('canvas'); FC.width=FB.w; FC.height=FB.h; const FG=FC.getContext('2d'), FI=FG.createImageData(FB.w,FB.h);
+    WSPR.forest=(q,X,Y,v,fill,seed,gl)=>{ FB.c.fill(null); const x0=210, base=TH[v]+30; treeInto(FB,x0,base,v,{seed,fill,dome:.03,gl:gl?(x,y)=>gl(x-x0+X,y-base+Y):null});
+      const D=FI.data; for(let i=0;i<FB.c.length;i++){ const c=FB.c[i]; if(!c){ D[i*4+3]=0; continue; } D[i*4]=c[0]; D[i*4+1]=c[1]; D[i*4+2]=c[2]; D[i*4+3]=255; }
+      FG.putImageData(FI,0,0); q.drawImage(FC,Math.round(X-x0),Math.round(Y-(base-3))); }; }
   { const b=buf(70,50), cl=[]; for(let k=0;k<9;k++){ const a=rng()*6.283, d=Math.sqrt(rng()); cl.push([35+Math.cos(a)*d*20, 30+Math.sin(a)*d*10-(1-d)*6, 8+rng()*5]); } foliage(b,cl,26,14); WSPR.shrub=fin(b,35,42,[22,8]); }
   return WSPR;
 }
@@ -1042,7 +1072,7 @@ function genDungeon(seed,size){
     for(const [k,d] of dist){ const [a,b]=k.split(',').map(Number); WC.push([a,b,d]); if(WGROUND!=='painted'){ const hh=(Math.imul(a,73856093)^Math.imul(b,19349663))>>>0; items.push([-1e6+a+b,`g2_${hh%3}${(hh>>>4)%3}`,a,b]); } const r=R();
       let front=false; for(let i=0;i<=4&&!front;i++) for(let j=0;j<=4;j++) if((i||j)&&cells.has(K(a-i,b-j))){ front=true; break; }  // floor behind it on screen: keep it low so it can't hide the fight
       let n=null; if(front){ if(r<(d===1?.5:d===2?.3:.12)) n=pick(['bld0','bld1','bld2','shrub','tuft','fern','tuft','stump']); }
-      else if(d<=2) n=rock(a,b)?(r<.75?'pil'+RI(0,2):'bld'+RI(0,2)):(r<.6?'tree'+RI(0,2):r<.8?'shrub':'bld'+RI(0,2)); else if(r<(d===3?.45:.3)) n=rock(a,b)?'pil'+RI(0,2):'tree'+RI(0,2);
+      else if(d<=2) n=rock(a,b)?(r<.75?'pil'+RI(0,2):'bld'+RI(0,2)):(r<.6?'ftree'+RI(0,2):r<.8?'shrub':'bld'+RI(0,2)); else if(r<(d===3?.45:.3)) n=rock(a,b)?'pil'+RI(0,2):'ftree'+RI(0,2);
       if(n) items.push([a+b,n,a,b]); } }
   const free=new Set([...cells.keys()]), walkable=()=>{ const st=[K(...mid(rooms[0]))], seen=new Set(st); while(st.length){ const [a,b]=st.pop().split(',').map(Number); for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){ const q=K(a+dx,b+dy); if(free.has(q)&&!seen.has(q)){ seen.add(q); st.push(q); } } } return seen.size===free.size; };
   const put=(name,a,b,solid,light)=>{ if(solid){ free.delete(K(a,b)); if(!walkable()){ free.add(K(a,b)); return false; } BLOCK.push([a,b]); } items.push([a+b,name,a,b]); if(light) LIGHTS.push([a,b,110,.75]); return true; };
@@ -1084,10 +1114,16 @@ function genDungeon(seed,size){
   const ox=40*H+60, oy=170, cv=document.createElement('canvas'); cv.width=40*(W+H)+120; cv.height=20*(W+H)+280; const q=cv.getContext('2d'); q.imageSmoothingEnabled=false; q.fillStyle='#0a090a'; q.fillRect(0,0,cv.width,cv.height);
   if(WILD&&WGROUND==='painted') paintGround(cv,WC,ox,oy,seed);
   items.sort((p,r)=>p[0]-r[0]);
-  const WS=WILD?makeWildSprites(7):null;
-  if(WS){ q.save(); q.fillStyle='rgba(4,6,3,.42)'; for(const [d,n,a,b] of items){ const sp=WS[n]; if(!sp) continue; const X=ox+(a-b)*40, Y=oy+(a+b)*20+20; q.beginPath(); q.ellipse(X+sp.shadow[0]*.25,Y+3,sp.shadow[0],sp.shadow[1],0,0,6.283); q.fill(); } q.restore(); }
+  const WS=WILD?makeWildSprites(7):null, TH0=[165,180,195], hash2=(x,y,z)=>{ let h=Math.imul(x|0,374761393)^Math.imul(y|0,668265263)^Math.imul((z*1000)|0,2246822519); h=Math.imul(h^(h>>>13),1274126177); return ((h^(h>>>16))>>>0)/4294967296; };
+  if(WS){ q.save(); q.fillStyle='rgba(4,6,3,.42)'; for(const [d,n,a,b] of items){ const sp=WS[n]||(n.startsWith('ftree')?{shadow:[58,20]}:null); if(!sp) continue; const X=ox+(a-b)*40, Y=oy+(a+b)*20+20; q.beginPath(); q.ellipse(X+sp.shadow[0]*.25,Y+3,sp.shadow[0],sp.shadow[1],0,0,6.283); q.fill(); } q.restore(); }
   const OCC=[];
-  for(const [d,n,a,b] of items){ const sp=WS&&WS[n]; if(sp){ const X=Math.round(ox+(a-b)*40-sp.ax), Y=Math.round(oy+(a+b)*20+20-sp.ay); q.drawImage(sp.cv,X,Y); OCC.push({d:d+.01,n,X,Y,w:sp.w,h:sp.h,sx:0,sy:0,img:sp.cv}); continue; } const m=P[n]; if(!m) continue; const [x,y,w,h,ax,ay]=m, X=Math.round(ox+(a-b)*40-ax), Y=Math.round(oy+(a+b)*20+20-ay); q.drawImage(DA,x,y,w,h,X,Y,w,h);
+  const FT=new Map(); if(WS) for(const [d,n,a,b] of items) if(n.startsWith('ftree')) FT.set(K(a,b),+n[5]);
+  const ftGl=(x,y)=>(Math.sin(x*.011+y*.004+seed%5)*.5+Math.sin(x*.023-y*.017+1.3)*.35)*.09;  // one slow light field across the whole canopy
+  for(const [d,n,a,b] of items){ if(WS&&n.startsWith('ftree')){ const X=ox+(a-b)*40, Y=oy+(a+b)*20+20, fill=[];
+      for(const [da,db] of [[-1,0],[0,-1],[-1,-1],[1,-1],[-1,1],[-2,0],[0,-2]]){ if(!FT.has(K(a+da,b+db))) continue; const ex=(da-db)*40, ey=(da+db)*20;  // a neighbour already drawn: fill the gap between the crowns
+        for(const t of [.3,.5,.7]) fill.push([ex*t+(hash2(a*7+da,b*5+db,t)-.5)*14, -TH0[+n[5]]*.62+ey*t+(hash2(b,a,t)-.5)*10, 17+hash2(a,b+da,t)*7]); }
+      WS.forest(q,X,Y,+n[5],fill,(a*73856093^b*19349663)>>>0,ftGl); continue; }
+    const sp=WS&&WS[n]; if(sp){ const X=Math.round(ox+(a-b)*40-sp.ax), Y=Math.round(oy+(a+b)*20+20-sp.ay); q.drawImage(sp.cv,X,Y); OCC.push({d:d+.01,n,X,Y,w:sp.w,h:sp.h,sx:0,sy:0,img:sp.cv}); continue; } const m=P[n]; if(!m) continue; const [x,y,w,h,ax,ay]=m, X=Math.round(ox+(a-b)*40-ax), Y=Math.round(oy+(a+b)*20+20-ay); q.drawImage(DA,x,y,w,h,X,Y,w,h);
     if(!/^(fs|fo_|g\d_|bones|corpse|tuft|fern)/.test(n)) OCC.push({d:d+(/^(pier|sarc|candel|urns|shrub|sapling|log|bld|stone|stump|pil|tree)/.test(n)?.01:0),n,X,Y,w,h,sx:x,sy:y,img:DA}); }  // everything that stands up can hide a unit behind it
   return { OCC, GROUPS, PROPS, name:ZN[0].toUpperCase()+ZN.slice(1), w:W, h:H, ox, oy, RECTS, BLOCK:[...BLOCK,...SHUT], FIRE:[], ETERNAL:[], WATER:[], START:start, LIGHTS, bg:[cv.toDataURL()] };
 }
