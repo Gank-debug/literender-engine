@@ -1052,6 +1052,7 @@ function genDungeon(seed,size){
     const n=Math.min(inner.length,RI(1,3)); for(let k=0;k<n;k++){ const [a,b]=inner.splice(Math.floor(R()*inner.length),1)[0]; const p=WILD?pick(['bld0','bld1','bld2','stump','log','shrub','fern','stone']):VEGT?pick(['shrub','shrub','sapling','log','urns','fern']):pick(['candelabra','candelabra','sarcophagus','sarcophagus_v','urns','bones','corpse']);
       put(p,a,b,!['bones','corpse','fern'].includes(p),p==='candelabra'); }
     if(WILD) for(const [a,b] of inner.slice()) if(R()<.12) put(R()<.7?'tuft':'fern',a,b,false);
+    if(WILD&&i>0){ const nt=R()<.25?0:RI(1,(w*h>=40)?3:2); for(let k=0;k<nt&&inner.length;k++){ const [ta,tb]=inner.splice(Math.floor(R()*inner.length),1)[0]; put('tree'+RI(0,2),ta,tb,true); } }  // lone trees out in the field
     if(VEGT) for(const [a,b] of inner.slice()) if(R()<.16){ put(R()<.6?'tuft':'fern',a,b,false); }
     if(i>0&&R()<.5&&inner.length){ const [a,b]=inner[Math.floor(R()*inner.length)]; put('bones',a,b,false); } });
   if(WILD){ const big=rooms.map((r,i)=>[i,(r[2]-r[0])*(r[3]-r[1])]).filter(([i])=>i>0).sort((p,q)=>q[1]-p[1])[0]; if(big){ const r=rooms[big[0]], cx=(r[0]+r[2])/2-.5, cy=(r[1]+r[3])/2-.5, rad=Math.min(r[2]-r[0],r[3]-r[1])>=7?2.5:1.6;
