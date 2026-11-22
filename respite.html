@@ -298,7 +298,7 @@ function drawCap(cx,cy,rdt){ if(!CAP){ if(capEl.style.opacity!=='0') capEl.style
 //   frame, facing, wound look...) and cut into segments at each turn; pops, bolts, blasts and DM lines are logged into the segment they belong to.
 //   When the last waking enemy falls, 'Replay the fight' re-stages it on the live map: each segment starts as soon as nothing it touches (the same
 //   units, or tiles within one of theirs) is still playing in an earlier one, so independent turns overlap and the fight runs as one continuous piece.
-const REC={on:false,t:0,segs:[],seg:null,tail:0,hold:0,init:null,clip:null,all:new Set()};
+const REC={on:false,t:0,segs:[],segsOld:[],seg:null,tail:0,hold:0,init:null,clip:null,all:new Set()};
 let RP=null;
 const recBtn=(()=>{ const b=document.createElement('button'); b.id='replay'; b.textContent='▶ Replay the fight'; b.style.cssText='position:fixed;z-index:45;left:50%;top:76px;transform:translateX(-50%);display:none;padding:9px 18px;background:#2a2016;color:#f0dcae;border:1px solid #c9a35a;font:15px Georgia,serif;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.6)'; document.body.appendChild(b); b.onclick=()=>rpStart(); return b; })();
 const recFoes=()=>U.some(v=>v.team===1&&!v.asleep&&(!v.dead||v.willRise));
@@ -319,6 +319,10 @@ function recClose(){ const S=REC.seg; REC.seg=null; if(!S||(!S.fr.length&&!S.ev.
   const own=E=>E.kind==='pop'?E.data.u:E.kind==='bolt'?at(E.t,E.data.x0,E.data.y0):at(E.t,E.data.x,E.data.y), G=new Map();
   for(const u of A){ const r=fnd(u); if(!G.has(r)) G.set(r,{act:new Set(),ev:[]}); G.get(r).act.add(u); }
   for(const E of S.ev){ const o=own(E), g=o&&G.get(fnd(o)); if(g) g.ev.push(E); else if(G.size) [...G.values()][0].ev.push(E); }
+  for(const g of G.values()){ let t0=1e9, t1=-1; const tiles=new Set();  /* the old replay's segments (Nov 22 earlier), kept for comparison */
+    S.fr.forEach((F,i)=>{ for(const u of g.act){ const st=F.S.get(u), pv=i?S.fr[i-1].S.get(u):null; if(!st) continue; tiles.add(Math.round(st[0])+','+Math.round(st[1])); if(st[5]==='move'||st[5]==='act'||(pv&&(pv[0]!==st[0]||pv[1]!==st[1]))){ t0=Math.min(t0,F.t); t1=Math.max(t1,F.t); } } });
+    for(const E of g.ev){ t0=Math.min(t0,E.t); t1=Math.max(t1,E.t+.3); } if(t1<0) continue; t0=Math.max(0,t0-.05);
+    REC.segsOld.push({fr:S.fr,act:g.act,ev:g.ev,off:t0,dur:t1-t0+.1,tiles:[...tiles].map(k=>k.split(',').map(Number))}); }
   // the walk up is not the blow: within a cluster, the part before its units first come within reach of each other is split off per unit,
   // so a unit can be walking in while the one it is walking to is still busy elsewhere; only the contact itself is played together
   const near2=(F,A2)=>{ for(let a=0;a<A2.length;a++) for(let b=a+1;b<A2.length;b++){ const p=F.get(A2[a]), q=F.get(A2[b]); if(p&&q&&Math.max(Math.abs(p[0]-q[0]),Math.abs(p[1]-q[1]))<=1.6) return true; } return false; };
@@ -334,24 +338,25 @@ function recClose(){ const S=REC.seg; REC.seg=null; if(!S||(!S.fr.length&&!S.ev.
 const PASSIVE=new Set(['hurt','kback','block','nblock','dodge','sblock','snblock','die','idle','idle_low']);
 function recDrivers(fr,act,t0,t1){ const d=new Set(); for(const F of fr){ if(F.t<t0||F.t>t1) continue; for(const u of act){ if(d.has(u)) continue; const st=F.S.get(u); if(st&&(st[5]==='move'||(st[5]==='act'&&!PASSIVE.has(st[2])))) d.add(u); } } return d; }
 function recTick(rdt){ if(!EXCH()||RP) return; const fight=recFoes()&&living().length>0;  /* the fight ends when the last waking enemy falls - or the last hero */
-  if(!REC.on){ if(!fight) return; if(REC.clip){ REC.clip=null; recBtn.style.display='none'; } REC.on=true; REC.t=0; REC.segs=[]; REC.seg=null; REC.tail=0; REC.all=new Set(U); REC.init=new Map(U.map(u=>[u,recState(u)])); }
+  if(!REC.on){ if(!fight) return; if(REC.clip){ REC.clip=null; recBtn.style.display='none'; } REC.on=true; REC.t=0; REC.segs=[]; REC.segsOld=[]; REC.seg=null; REC.tail=0; REC.all=new Set(U); REC.init=new Map(U.map(u=>[u,recState(u)])); }
   const wait=myTurn()&&!U.some(v=>v.mode==='move'||(v.mode==='act'&&!v.dead))&&!bolts.length;
   if(wait){ REC.hold+=rdt; if(REC.hold>.15&&REC.seg) recClose(); } else REC.hold=0;
   if(!wait||REC.hold<=.15){ const S=recOpen(); REC.t+=rdt; S.fr.push({t:REC.t-S.t0,S:new Map(U.map(u=>[u,recState(u)]))}); for(const u of U) REC.all.add(u); }
-  if(!fight){ REC.tail+=rdt; if(REC.tail>2.2){ recClose(); REC.on=false; REC.clip=recBuild(); recBtn.style.display=''; log(living().length?'The fight is over. Replay it from the button at the top.':'Replay the fight from the button at the top.'); } } else REC.tail=0; }
-function recBuild(){ const segs=REC.segs; let prev=0, end=0;
+  if(!fight){ REC.tail+=rdt; if(REC.tail>2.2){ recClose(); REC.on=false; REC.clip=recBuild(); REC.clipOld=null; recBtn.style.display=''; log(living().length?'The fight is over. Replay it from the button at the top.':'Replay the fight from the button at the top.'); } } else REC.tail=0; }
+function recBuild(old){ const segs=old?REC.segsOld.map(S=>({...S})):REC.segs; let prev=0, end=0;
   const near=(A,B)=>A.tiles.some(([a,b])=>B.tiles.some(([c,d])=>a===c&&b===d)), clash=(A,B)=>[...(A.drv||A.act)].some(u=>B.act.has(u))||[...(B.drv||B.act)].some(u=>A.act.has(u))||near(A,B);  /* only a unit that moves or strikes holds the other up: a unit merely being hit can take two blows at once */
-  segs.forEach((S,k)=>{ let st=0; for(let j=0;j<k;j++) if(clash(segs[j],S)) st=Math.max(st,segs[j].start+segs[j].dur-Math.min(.22,segs[j].dur*.25));  /* overlap the other's recovery a little: no beat of standing still */ S.start=st; prev=st; end=Math.max(end,st+S.dur); });
+  const clashO=(A,B)=>[...A.act].some(u=>B.act.has(u))||near(A,B);
+  segs.forEach((S,k)=>{ let st=0; for(let j=0;j<k;j++) if(old?clashO(segs[j],S):clash(segs[j],S)) st=Math.max(st,segs[j].start+segs[j].dur-(old?0:Math.min(.22,segs[j].dur*.25)));  /* overlap the other's recovery a little: no beat of standing still */ S.start=st; prev=st; end=Math.max(end,st+S.dur); });
   // a walk that would end in a wait instead starts later and, if needed, plays up to 1.4x slower, arriving just as the unit's next action begins:
   // no standing about between moving and striking (positions and order are exactly as recorded)
-  for(const S of segs){ S.rate=1; S.dur0=S.dur; if(!S.walk) continue; const u=[...S.act][0]; let nx=null; for(const Q of segs) if(Q!==S&&Q.act.has(u)&&Q.start>=S.start+S.dur-.25&&(!nx||Q.start<nx.start)) nx=Q;
+  for(const S of segs){ S.rate=1; S.dur0=S.dur; if(old||!S.walk) continue; const u=[...S.act][0]; let nx=null; for(const Q of segs) if(Q!==S&&Q.act.has(u)&&Q.start>=S.start+S.dur-.25&&(!nx||Q.start<nx.start)) nx=Q;
     if(!nx) continue; const gap=nx.start-(S.start+S.dur); if(gap<=.05) continue; const k=Math.min(1.4,(S.dur+gap)/S.dur); S.rate=1/k; S.dur=S.dur0*k; S.start=nx.start-S.dur; }
   const runs=new Map(); for(const S of segs) for(const u of S.act){ if(!runs.has(u)) runs.set(u,[]); runs.get(u).push(S); }
   let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9; for(const S of segs) for(const F of S.fr) for(const st of F.S.values()){ x0=Math.min(x0,st[0]); y0=Math.min(y0,st[1]); x1=Math.max(x1,st[0]); y1=Math.max(y1,st[1]); }
-  return {segs,end,runs,init:REC.init,all:[...REC.all],cx:(x0+x1)/2,cy:(y0+y1)/2}; }
+  return {segs,end,runs,init:REC.init,all:[...REC.all],cx:(x0+x1)/2,cy:(y0+y1)/2,old:!!old}; }
 // replay: the live units are borrowed, set from the tracks each frame, and given back on Close
 const RPF=['px','py','pose','f','dir','mode','dead','stag','invis','hp','reverse','flash','cho','acc','x','y','_rh','done','onImpact','route','d','dest'];
-function rpStart(){ const C=REC.clip; if(!C||RP) return; recBtn.style.display='none'; const extra=C.all.filter(u=>!U.includes(u)); U.push(...extra);  /* the fallen who left the board (a hero who rose) come back for the replay */
+function rpStart(){ const C=window.RPOLD&&REC.clip?(REC.clipOld||(REC.clipOld=recBuild(true))):REC.clip; if(!C||RP) return; recBtn.style.display='none'; const extra=C.all.filter(u=>!U.includes(u)); U.push(...extra);  /* the fallen who left the board (a hero who rose) come back for the replay */
   const bk=new Map(U.map(u=>[u,Object.fromEntries(RPF.map(k=>[k,u[k]]))]));
   const bar=document.createElement('div'); bar.style.cssText='position:fixed;z-index:46;left:50%;bottom:104px;transform:translateX(-50%);display:flex;gap:8px;align-items:center;padding:6px 10px;background:rgba(20,15,11,.92);border:1px solid #c9a35a;color:#f0dcae;font:14px Georgia,serif';
   const lab=document.createElement('span'); lab.textContent='Replaying the fight'; bar.appendChild(lab);
@@ -366,7 +371,7 @@ function rpApply(dt){ const R=RP, C=R.C; R.T+=dt; const T=R.T; let fx=0, fy=0, f
     if(!st){ let last=null; for(const S of runs) if(S.start+S.dur<=T&&(!last||S.start>last.start)) last=S; st=last?rpAt(last,last.off+(last.dur0||last.dur),u):C.init.get(u); if(!st&&runs.length){ const S0=runs.reduce((a,b)=>a.start<b.start?a:b); if(T>=S0.start) st=rpAt(S0,S0.off,u); } }
     if(!st){ u._rh=true; continue; } u._rh=false;
     [u.px,u.py,u.pose,u.f,u.dir,u.mode,u.dead,u.stag,u.invis,u.hp,u.reverse,u.flash]=[st[0],st[1],st[2],st[3],st[4],st[5],!!st[6],!!st[7],st[8],st[9],!!st[10],st[11]]; u.cho=null;
-    if(!live&&!u.dead&&u.pose!=='die'){ u.pose=(u.pose==='idle_low'||(isHero(u)&&u.hp<=u.max*.3&&M(u).idle_low))?'idle_low':'idle'; u.mode='idle'; }  /* waiting: idle, not frozen mid-run */
+    if(!live&&!C.old&&!u.dead&&u.pose!=='die'){ u.pose=(u.pose==='idle_low'||(isHero(u)&&u.hp<=u.max*.3&&M(u).idle_low))?'idle_low':'idle'; u.mode='idle'; }  /* waiting: idle, not frozen mid-run */
     const m=M(u)[u.pose]; if(!live&&m&&m.loop) u.f=Math.floor(T*1000/m.ms)%m.frames;
     if(live){ fx+=u.px; fy+=u.py; fn++; } }
   C.segs.forEach((S,k)=>{ if(T<S.start) return; S.ev.forEach((E,i)=>{ const id=k+':'+i; if(R.fired.has(id)||S.start+E.t-S.off>T) return; R.fired.add(id); const D=E.data;
