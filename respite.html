@@ -921,6 +921,85 @@ function paintGround(cv, cellD, ox, oy, seed){
     D[i*4]=c[0]; D[i*4+1]=c[1]; D[i*4+2]=c[2]; D[i*4+3]=255; }
   const tc=document.createElement('canvas'); tc.width=W; tc.height=H; tc.getContext('2d').putImageData(img,0,0); cv.getContext('2d').drawImage(tc,0,0);
 }
+
+// ---- painted outdoor props (trees, boulders, standing stones, basalt pillars, bushes): drawn pixel by pixel like the grass, so they share its
+// grain - faceted stone lit from the upper left (after the Wuxia Arena's stones), layered leaf clusters with leaf-sized texture and ragged edges
+const WSPR={}; let WSPR_SEED=-1;
+function makeWildSprites(seed){
+  if(WSPR_SEED===seed) return WSPR; WSPR_SEED=seed; for(const k in WSPR) delete WSPR[k];
+  let s=(seed>>>0)||3; const rng=()=>{ s=(Math.imul(s,1664525)+1013904223)>>>0; return s/4294967296; };
+  const hx=c=>[parseInt(c.slice(1,3),16),parseInt(c.slice(3,5),16),parseInt(c.slice(5,7),16)];
+  const BY=[0,8,2,10,12,4,14,6,3,11,1,9,15,7,13,5].map(v=>(v+.5)/16), dith=(x,y)=>BY[(y&3)*4+(x&3)];
+  const hash=(x,y)=>{ let h=Math.imul(x|0,374761393)^Math.imul(y|0,668265263); h=Math.imul(h^(h>>>13),1274126177); return ((h^(h>>>16))>>>0)/4294967296; };
+  const LEAF=['#070a06','#0c1209','#121b0d','#192511','#213016','#2c3d1b','#3b4d22'].map(hx), BARK=['#0e0b08','#18130e','#241c14','#32271c','#433426'].map(hx);
+  const ROCK=['#100f0e','#1b1a18','#282623','#373430','#48443e','#5c5850'].map(hx), LICH=hx('#3c4421'), LICHP=hx('#5e604a'), MOSS=['#1f2d13','#2f4019','#43571f'].map(hx);
+  const buf=(w,h)=>({w,h,c:new Array(w*h).fill(null)});
+  const put=(b,x,y,c)=>{ x|=0; y|=0; if(x>=0&&y>=0&&x<b.w&&y<b.h) b.c[y*b.w+x]=c; };
+  const ramp=(r,t,x,y)=>{ t=Math.max(0,Math.min(.999,t)); const f=t*(r.length-1), i=Math.floor(f); return r[Math.min(r.length-1,i+(f-i>dith(x,y)?1:0))]; };
+  const fin=(b,ax,ay,shadow)=>{ const cv=document.createElement('canvas'); cv.width=b.w; cv.height=b.h; const g=cv.getContext('2d'), im=g.createImageData(b.w,b.h);
+    for(let i=0;i<b.c.length;i++){ const c=b.c[i]; if(!c) continue; im.data[i*4]=c[0]; im.data[i*4+1]=c[1]; im.data[i*4+2]=c[2]; im.data[i*4+3]=255; } g.putImageData(im,0,0); return {cv,w:b.w,h:b.h,ax,ay,shadow}; };
+  // faceted stone inside a polygon: each pixel takes the facet (Voronoi site) nearest it; facets face out from the centre and up
+  const stone=(b,V,cx,cy,sites,R,opt={})=>{
+    let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9; for(const v of V){ x0=Math.min(x0,v[0]); x1=Math.max(x1,v[0]); y0=Math.min(y0,v[1]); y1=Math.max(y1,v[1]); }
+    const ins=(x,y)=>{ let c=false; for(let i=0,j=V.length-1;i<V.length;j=i++){ const a=V[i],d=V[j]; if((a[1]>y)!==(d[1]>y)&&x<(d[0]-a[0])*(y-a[1])/(d[1]-a[1])+a[0]) c=!c; } return c; };
+    const F=sites.map(([sx,sy])=>{ const nx=(sx-cx)/R, ny=(sy-cy)/R, nz=Math.sqrt(Math.max(.05,1-nx*nx-ny*ny)); return {sx,sy,lit:(-.55*nx-.45*ny+.7*nz)}; });
+    const salt=rng()*999|0;
+    for(let y=Math.floor(y0);y<=y1;y++) for(let x=Math.floor(x0);x<=x1;x++){ if(!ins(x+.5,y+.5)) continue;
+      let bd=1e9,bi=0,bd2=1e9; for(let i=0;i<F.length;i++){ const d=(x-F[i].sx)**2+(y-F[i].sy)**2; if(d<bd){ bd2=bd; bd=d; bi=i; } else if(d<bd2) bd2=d; }
+      const f=F[bi]; let v=.42+f.lit*.42-(y-cy)/R*.18+(hash(x+salt,y)-.5)*.16;
+      if(Math.sqrt(bd2)-Math.sqrt(bd)<1.1) v-=.16;                         // the crease between two facets
+      if(!ins(x+2.2,y+2.2)) v-=.22; if(!ins(x-1.2,y-1.2)) v+=.12;          // dark rim away from the light, a lit lip toward it
+      let c=ramp(opt.ramp||ROCK,v,x,y);
+      if(f.lit>.55&&hash(((x/3)|0)+salt,(y/3)|0)<(opt.lichen??.32)&&hash(x*7+salt,y*5)<.75) c=hash(x,y+salt)<.8?LICH:LICHP;
+      put(b,x,y,c); } };
+  const blobPoly=(cx,cy,rx,ry,n,j)=>{ const V=[]; const p=rng()*6.28; for(let i=0;i<n;i++){ const a=i/n*6.283+p+(rng()-.5)*.4, r=1-j+rng()*j*1.6; V.push([cx+Math.cos(a)*rx*r, cy+Math.sin(a)*ry*r]); } return V; };
+  const sitesIn=(cx,cy,rx,ry,n)=>Array.from({length:n},()=>{ const a=rng()*6.283, r=Math.sqrt(rng())*.85; return [cx+Math.cos(a)*rx*r, cy+Math.sin(a)*ry*r]; });
+  // boulders: a big stone, sometimes with a smaller one leaning on it, and rubble
+  for(let v=0;v<3;v++){ const R=[19,25,31][v], b=buf(R*4,R*3), cx=R*2, base=R*2.5;
+    if(v>0){ const r2=R*.5, c2=[cx+R*.95,base-r2*.7]; stone(b,blobPoly(c2[0],c2[1],r2,r2*.8,7,.25),c2[0],c2[1],sitesIn(c2[0],c2[1],r2,r2*.8,4),r2); }
+    const cy=base-R*.78; stone(b,blobPoly(cx,cy,R*1.1,R*.85,9,.22),cx,cy,sitesIn(cx,cy,R,R*.8,7),R);
+    for(let k=0;k<3;k++){ const x=cx+(rng()-.5)*R*2.6, y=base-2+rng()*3, r=2+rng()*2; stone(b,blobPoly(x,y-r*.5,r,r*.7,5,.2),x,y-r*.5,[[x-r*.3,y-r*.8]],r,{lichen:0}); }
+    WSPR['bld'+v]=fin(b,cx,base-4,[R*1.3,R*.55]); }
+  // standing stones: tall, a little lean, weathered
+  for(let v=0;v<2;v++){ const h=48+v*10, w=13, b=buf(40,h+12), cx=20, base=h+8, lean=(rng()-.5)*6;
+    const V=[[cx-w*.55,base],[cx-w*.6+lean*.3,base-h*.5],[cx-w*.35+lean,base-h],[cx+w*.2+lean,base-h-3],[cx+w*.55+lean*.6,base-h*.6],[cx+w*.5,base]];
+    stone(b,V,cx+lean*.5,base-h*.55,[[cx-w*.3,base-h*.3],[cx+w*.3,base-h*.35],[cx-w*.2+lean,base-h*.8],[cx+w*.2+lean,base-h*.75],[cx,base-h*.5]],h*.5,{lichen:.4});
+    WSPR['stone'+(v?'1':'')]=fin(b,cx,base-3,[11,5]); }
+  // basalt columns: hex prisms - a lit face, a dark face, a mossy top, joints across them
+  for(let v=0;v<3;v++){ const b=buf(110,190), base=178, cols=[];
+    for(let k=0;k<5;k++) cols.push({x:55+(rng()-.5)*52, w:15+rng()*7, h:55+rng()*100, back:rng()});
+    cols.sort((p,q)=>(q.back*30-q.x*.1)-(p.back*30-p.x*.1)).sort((p,q)=>p.back-q.back);
+    for(const c of cols){ const yb=base-(1-c.back)*0-c.back*10, yt=yb-c.h, hw=c.w/2, salt=rng()*999|0, joints=[]; for(let y=yt+10+rng()*10;y<yb-6;y+=12+rng()*14) joints.push(y|0);
+      for(let y=Math.floor(yt);y<=yb;y++) for(let x=Math.floor(c.x-hw);x<=c.x+hw;x++){ const u=(x-c.x)/hw; let t=u<-.1?.62-(u+1)*.08:u<.35?.42:.2; t+=(hash(x+salt,(y/3)|0)-.5)*.14-(y-yt)/c.h*.12;
+        if(joints.some(j=>Math.abs(y-(j+(u<.35?-u*1.5:u*2)))<.8)) t-=.24; if(Math.abs(u+.1)<.12||Math.abs(u-.35)<.1) t-=.08; if(u>.86) t-=.15; put(b,x,y,ramp(ROCK,t,x,y)); }
+      for(let y=-5;y<=5;y++) for(let x=-hw;x<=hw;x++){ if(Math.abs(x/hw)+Math.abs(y/5)*.5>1||Math.abs(y)>4.6) continue; put(b,c.x+x,yt+y,hash(x+salt,y)<.6?MOSS[1+(hash(x,y+salt)*2|0)]:ramp(ROCK,.75,x,y)); }  // the top, half moss
+      for(let k=0;k<4;k++) put(b,c.x+(rng()-.5)*c.w,yt+3+k,MOSS[0]); }
+    for(let k=0;k<26;k++){ const x=10+rng()*90, y=base-1+rng()*4; put(b,x,y,MOSS[rng()*3|0]); put(b,x,y-1,MOSS[rng()*2|0]); }
+    WSPR['pil'+v]=fin(b,55,base-6,[38,14]); }
+  // leaf masses: clusters drawn back to front; each lit from the upper left, darker underneath, with leaf grain, a dark rim where it meets
+  // the one behind, ragged edges and a few holes
+  const foliage=(b,cl,cy0,ry)=>{ cl.sort((p,q)=>p[1]-q[1]); for(const [cx,cy,r] of cl){ const salt=rng()*999|0, ph=rng()*6.28;
+      const rr=a=>r*(1+.18*Math.sin(a*3+ph)+.1*Math.sin(a*7+ph*2)); const ins=(dx,dy)=>Math.hypot(dx,dy*1.15)<rr(Math.atan2(dy,dx));
+      for(let dy=-r*1.4;dy<=r*1.4;dy++) for(let dx=-r*1.4;dx<=r*1.4;dx++){ const x=Math.round(cx+dx), y=Math.round(cy+dy);
+        if(!ins(dx,dy)){ if(hash(x*3+salt,y*5)<.07&&ins(dx*.85,dy*.85)) put(b,x,y,LEAF[2]); continue; }
+        const lx=((x>>1)+((y>>1)&1))|0, ly=(y>>1)|0, leaf=hash(lx+salt,ly);  // 2px leaves
+        let t=.5+(-dx*.5-dy*.75)/r*.42-(cy-cy0)/ry*.18+(leaf-.5)*.42;
+        if(!ins(dx+2.5,dy+2.5)) t-=.28; if(!ins(dx-2,dy-2)) t+=.1;
+        if(hash(x+salt*3,y)<.025) t=0;
+        put(b,x,y,ramp(LEAF,t,x,y)); } } };
+  const trunk=(b,x0,y0,h,w0,w1,bend,ph)=>{ for(let k=0;k<=h;k++){ const t=k/h, cx=x0+Math.sin(t*2.6+ph)*bend, w=w0+(w1-w0)*t, y=y0-k;
+      for(let x=Math.floor(cx-w/2);x<=cx+w/2;x++){ const u=(x-cx)/(w/2); put(b,x,y,ramp(BARK,.62-u*.45+(hash(x,(y/5)|0)-.5)*.3-(Math.abs(u)>.8?.2:0),x,y)); } } };
+  const limb=(b,x0,y0,x1,y1,w)=>{ const n=Math.ceil(Math.hypot(x1-x0,y1-y0)); for(let k=0;k<=n;k++){ const t=k/n, x=x0+(x1-x0)*t, y=y0+(y1-y0)*t, ww=w*(1-t*.6); for(let d=-ww/2;d<=ww/2;d++) put(b,x+d,y,ramp(BARK,.5-d/ww*.5,x,y)); } };
+  for(let v=0;v<3;v++){ const H=[165,180,195][v], b=buf(190,H+10), x0=95, base=H+2, th=H*.33+rng()*8, ph=rng()*6;
+    trunk(b,x0,base,th,17,9,3,ph);
+    for(let k=0;k<4;k++){ const a=(k/4)*6.283+rng(), L=10+rng()*12; limb(b,x0,base-2,x0+Math.cos(a)*L*1.6,base+Math.sin(a)*L*.4,4); }  // roots
+    const top=[x0+Math.sin(2.6+ph)*4,base-th], cl=[];
+    for(let k=0;k<6;k++){ const a=-Math.PI/2+(k/5-.5)*2.6+(rng()-.5)*.4, L=22+rng()*26, e=[top[0]+Math.cos(a)*L*1.3,top[1]-12+Math.sin(a)*L*.8+rng()*10]; limb(b,top[0],top[1]+12,e[0],e[1],4); cl.push([e[0],e[1],14+rng()*8]); }
+    const cy0=top[1]-42; for(let k=0;k<30;k++){ const a=rng()*6.283, d=Math.sqrt(rng()); cl.push([x0+Math.cos(a)*d*70, cy0+Math.sin(a)*d*50+(rng()-.5)*10, 13+rng()*11]); }
+    foliage(b,cl,cy0,55); WSPR['tree'+v]=fin(b,x0,base-3,[54,18]); }
+  { const b=buf(70,50), cl=[]; for(let k=0;k<9;k++){ const a=rng()*6.283, d=Math.sqrt(rng()); cl.push([35+Math.cos(a)*d*20, 30+Math.sin(a)*d*10-(1-d)*6, 8+rng()*5]); } foliage(b,cl,26,14); WSPR.shrub=fin(b,35,42,[22,8]); }
+  return WSPR;
+}
 function genDungeon(seed,size){
   let s=(seed>>>0)||1; const R=()=>{ s=(Math.imul(s,1664525)+1013904223)>>>0; return s/4294967296; }, RI=(a,b)=>a+Math.floor(R()*(b-a+1)), pick=a=>a[Math.floor(R()*a.length)];
   const Z=DSIZES[size]||DSIZES.large, W=Z.W, H=Z.H, rooms=[];
@@ -1004,8 +1083,10 @@ function genDungeon(seed,size){
   const ox=40*H+60, oy=170, cv=document.createElement('canvas'); cv.width=40*(W+H)+120; cv.height=20*(W+H)+280; const q=cv.getContext('2d'); q.imageSmoothingEnabled=false; q.fillStyle='#0a090a'; q.fillRect(0,0,cv.width,cv.height);
   if(WILD&&WGROUND==='painted') paintGround(cv,WC,ox,oy,seed);
   items.sort((p,r)=>p[0]-r[0]);
+  const WS=WILD?makeWildSprites(7):null;
+  if(WS){ q.save(); q.fillStyle='rgba(4,6,3,.42)'; for(const [d,n,a,b] of items){ const sp=WS[n]; if(!sp) continue; const X=ox+(a-b)*40, Y=oy+(a+b)*20+20; q.beginPath(); q.ellipse(X+sp.shadow[0]*.25,Y+3,sp.shadow[0],sp.shadow[1],0,0,6.283); q.fill(); } q.restore(); }
   const OCC=[];
-  for(const [d,n,a,b] of items){ const m=P[n]; if(!m) continue; const [x,y,w,h,ax,ay]=m, X=Math.round(ox+(a-b)*40-ax), Y=Math.round(oy+(a+b)*20+20-ay); q.drawImage(DA,x,y,w,h,X,Y,w,h);
+  for(const [d,n,a,b] of items){ const sp=WS&&WS[n]; if(sp){ const X=Math.round(ox+(a-b)*40-sp.ax), Y=Math.round(oy+(a+b)*20+20-sp.ay); q.drawImage(sp.cv,X,Y); OCC.push({d:d+.01,n,X,Y,w:sp.w,h:sp.h,sx:0,sy:0,img:sp.cv}); continue; } const m=P[n]; if(!m) continue; const [x,y,w,h,ax,ay]=m, X=Math.round(ox+(a-b)*40-ax), Y=Math.round(oy+(a+b)*20+20-ay); q.drawImage(DA,x,y,w,h,X,Y,w,h);
     if(!/^(fs|fo_|g\d_|bones|corpse|tuft|fern)/.test(n)) OCC.push({d:d+(/^(pier|sarc|candel|urns|shrub|sapling|log|bld|stone|stump|pil|tree)/.test(n)?.01:0),n,X,Y,w,h,sx:x,sy:y,img:DA}); }  // everything that stands up can hide a unit behind it
   return { OCC, GROUPS, PROPS, name:ZN[0].toUpperCase()+ZN.slice(1), w:W, h:H, ox, oy, RECTS, BLOCK:[...BLOCK,...SHUT], FIRE:[], ETERNAL:[], WATER:[], START:start, LIGHTS, bg:[cv.toDataURL()] };
 }
