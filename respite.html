@@ -121,7 +121,7 @@ body,button,select{font-family:'Pixelify Sans',monospace}
 <div class="drawer v" id="setp"><div class="hd"><span class="cap">S</span>ettings</div><label><input type="checkbox" id="dcolc"> Coloured dither behind walls</label><label><input type="checkbox" id="tiltc" checked> Tilt-shift (miniature)</label><div class="row" style="margin-top:8px"><button id="zoom">Zoom</button><button id="fs">Fullscreen</button></div></div>
 <div class="drawer v" id="devp"><div class="hd"><span class="cap">D</span>ev</div><div class="k">MAP</div><div class="row"><select id="map" style="background:var(--panel);color:var(--ink);border:1px solid #3a322b;padding:8px;font:inherit"><option value="test">Map: Test room</option></select><select id="dsize"><option value="random">Size: random</option><option value="small">Size: small (test room)</option><option value="medium">Size: medium</option><option value="large">Size: large</option></select><button id="reroll">New dungeon</button><button id="repick">Party</button></div><div class="row"><select id="cxd"><option value="auto">Crypt grass: joints, broken tiles in 35%</option><option value="sj">Crypt grass: joints + broken tiles</option><option value="j">Crypt grass: joints only</option><option value="">Crypt grass: off</option></select><select id="doors"><option value="off">Doorways: none</option><option value="door">Doorways: single arch</option><option value="arcade">Doorways: arcade</option></select></div><div class="k">SPAWN</div><div class="row"><button id="reset">Horde wave</button><button id="husks">Husk wave</button><button id="thrb">Thralls</button><button id="bersb">Berserker</button><button id="low">Low health</button></div></div>
 <script>/* startup errors on screen (GANK's phone showed a black screen with no clue why): the first error is shown in a box at the top, with the build */
-window.BUILD='1123-1401'; window.__errs=[];
+window.BUILD='1123-1440'; window.__errs=[];
 (function(){ const show=m=>{ window.__errs.push(m); let d=document.getElementById('errbox'); if(!d){ d=document.createElement('div'); d.id='errbox'; d.style.cssText='position:fixed;left:6px;right:6px;top:6px;z-index:99;background:#3a0d0d;color:#ffd8c8;border:1px solid #c05040;font:12px/1.35 monospace;padding:8px;white-space:pre-wrap;max-height:40vh;overflow:auto'; (document.body||document.documentElement).appendChild(d); } d.textContent='Respite build '+window.BUILD+' hit an error (please screenshot this):\n'+window.__errs.slice(0,4).join('\n\n'); };
   addEventListener('error',e=>show((e.message||'error')+' @ '+(e.lineno||'?')+':'+(e.colno||'?')+(e.error&&e.error.stack?'\n'+String(e.error.stack).split('\n').slice(0,4).join('\n'):'')));
   addEventListener('unhandledrejection',e=>show('promise: '+(e.reason&&(e.reason.stack||e.reason.message)||e.reason))); })();
@@ -982,7 +982,7 @@ function riseFallen(){ for(const h of HEROES){ if(!h.dead||h.risen||h.fellRound=
     log('The spores take '+h.name+'… the body lurches up as an Eternal Warrior.'); } }
 const unRise=()=>{ for(const h of HEROES){ h.risen=false; h.fellRound=undefined; if(!U.includes(h)) U.push(h); } };
 function newRound(first){ for(const u of U) u.stepUsed=false;  /* the Hunter-Killer's sidestep: once a round */
-  if(!first) riseFallen(); caltrops=caltrops.filter(C=>C.until>round+(first?0:1)); order=U.slice().map(u=>({u,ini:rnd(1,20)+(u.ini||0)})).sort((a,b)=>b.ini-a.ini).map(o=>o.u); order=order.filter(u=>u.ch!=='herald').concat(order.filter(u=>u.ch==='herald'));  /* the Spine Heralds always act last, so a hero always gets a turn between an aim and its release */ if(!first)round++; turnIdx=-1; nextTurn(); }
+  if(!first) riseFallen(); caltrops=caltrops.filter(C=>C.until>round+(first?0:1)); order=U.slice().map(u=>({u,ini:rnd(1,20)+(u.ini||0)})).sort((a,b)=>b.ini-a.ini).map(o=>o.u); order=order.filter(u=>u.ch!=='herald'&&u.ch!=='envoy').concat(order.filter(u=>u.ch==='envoy'),order.filter(u=>u.ch==='herald'));  /* GANK: Envoys next to last, Heralds last - so a swap lands just before the volley it sets up, and both read on the board */  /* the Spine Heralds always act last, so a hero always gets a turn between an aim and its release */ if(!first)round++; turnIdx=-1; nextTurn(); }
 // enemies next to each other in the turn order act together: each one decides a moment after the last (so it sees where the others are heading), and the turn moves on when all have finished
 let grp=null;
 const prelude=v=>{ v.stimLate=false; v.stepped=false; v.kissed=false; v.shot=false; v.moved=false; v.charged=false; v.hunted=false; v.curMove=v.slow?1:v.move; v.slow=false; if(v.snared){ v.curMove=0; v.snared=false; } };
@@ -1040,20 +1040,31 @@ function spineLine(x,y,dx,dy,me){ const P=[]; let a=x+dx,b=y+dy;
     const v=U.find(w=>w!==me&&!w.dead&&w.x===a&&w.y===b); if(v) return {P,hit:v,end:[a,b]};
     const q=PROPS.find(q=>q.x===a&&q.y===b&&SOLID.has(q.kind)); if(q) return {P,hit:null,prop:q,end:[a,b]}; P.push([a,b]); }
   return {P,hit:null,end:[a-dx,b-dy],open:true}; }
+// a line from (x,y) as it will be once u stands there: when u is about to trade places with P, P will stand on u's own tile
+function lineFrom(u,x,y,dx,dy,P){ const L=spineLine(x,y,dx,dy,u); if(P&&!(x===u.x&&y===u.y)){ const i=L.P.findIndex(([a,b])=>a===u.x&&b===u.y); if(i>=0) return {P:L.P.slice(0,i),hit:P,end:[u.x,u.y]}; } return L; }
+function swapOf(u){ const e=U.find(e=>e.ch==='envoy'&&!e.dead&&e.swap&&e.swap.includes(u)); return e?e.swap.find(v=>v!==u):null; }
 function heraldTurn(u){ const H=seen();
   if(u.aim){ const A=u.aim; return heraldRelease(u,A); }
   if(!H.length) return setTimeout(nextTurn,200);
-  const taken=U.filter(v=>v!==u&&v.ch==='herald'&&v.aim&&!v.dead).map(v=>spineLine(v.x,v.y,...v.aim,v).hit);
-  const D=bfs(u,u.curMove,true); let best=null,bs=-1e9;
-  for(const [k,[d]] of D){ const [a,b]=k.split(',').map(Number); if(hazard(k)) continue; const near=Math.min(...H.map(h=>cheb(h,a,b)));
-    for(const [dx,dy] of N8){ const L=spineLine(a,b,dx,dy,u), t=L.hit; if(!foeOf(u,t)||t.invis) continue;
-      const Ls=new Set(L.P.map(p=>key(...p))), esc=N8.filter(([ex,ey])=>{ const x=t.x+ex,y=t.y+ey; return walk(x,y)&&!Ls.has(key(x,y))&&!(x===a&&y===b); }).length;
-      const sc=20+(t.snared||t.stun?14:0)+(8-esc)*2.2+(t.hp<t.max*.4?4:0)-(taken.includes(t)?7:0)-(near<=1?14:0)-d*.3+(cheb(t,a,b)>=2?2:0)+Math.random()*.5;
-      if(sc>bs){ bs=sc; best=[a,b,dx,dy,t]; } } }
-  const aimNow=()=>{ const [,, dx,dy,t]=best; u.aim=[dx,dy]; face(u,u.x+dx,u.y+dy); log('A Spine Herald rears and levels its quills at '+(isHero(t)?t.short:'a '+t.short.toLowerCase())+'.'); ui();
+  const others=U.filter(v=>v!==u&&v.ch==='herald'&&v.aim&&!v.dead).map(v=>({v,L:spineLine(v.x,v.y,...v.aim,v)})), taken=others.map(o=>o.L.hit);
+  const otherCells=new Set(); for(const o of others){ for(const q of o.L.P) otherCells.add(key(...q)); otherCells.add(key(o.v.x,o.v.y)); }
+  // a line is scored from where it will fire: a Herald marked for a swap aims from the tile it is about to be moved to (the Envoy's combo)
+  const score=(a,b,dx,dy,d,P)=>{ const L=lineFrom(u,a,b,dx,dy,P), t=L.hit; if(!foeOf(u,t)||t.invis) return null;
+    if(L.P.some(q=>others.some(o=>o.v.x===q[0]&&o.v.y===q[1]))) return null;
+    const Ls=new Set([...L.P.map(p=>key(...p)),...otherCells]), esc=N8.filter(([ex,ey])=>{ const x=t.x+ex,y=t.y+ey; return walk(x,y)&&!Ls.has(key(x,y))&&!(x===a&&y===b); }).length;
+    let cross=0; for(const o of others) if(o.L.hit===t){ const [ox,oy]=o.v.aim; if(ox*dx+oy*dy===0) cross+=(!dx||!dy)&&(!ox||!oy)?12:8; else if(ox===-dx&&oy===-dy) cross+=2; else cross-=10; }  /* GANK: two Heralds on one hero cross it, one on X and one on Y; never one behind the other */
+    const near=Math.min(...H.map(h=>cheb(h,a,b)));
+    return 20+(t.snared||t.stun?14:0)+(8-esc)*2.2+(t.hp<t.max*.4?4:0)-(taken.includes(t)&&cross<=0?7:0)+cross-(near<=1?14:0)-d*.3+(cheb(t,a,b)>=2?2:0)+Math.random()*.5; };
+  const aimNow=(dx,dy,t)=>{ u.aim=[dx,dy]; face(u,u.x+dx,u.y+dy); log('A Spine Herald rears and levels its quills at '+(isHero(t)?t.short:'a '+t.short.toLowerCase())+'.'); ui();
     act(u,'aim',()=>{},()=>{ u.mode='idle'; setPose(u,'idle'); setTimeout(nextTurn,250); }); };
-  if(best){ if(best[0]===u.x&&best[1]===u.y) return aimNow(); return moveAlong(u,pathTo(u,D,best[0],best[1]),()=>setTimeout(aimNow,80)); }
-  let mv=null,ms=1e9; for(const [k,[d]] of D){ const [a,b]=k.split(',').map(Number); if(hazard(k)) continue; const mn=Math.min(...H.map(h=>cheb(h,a,b))); const sc=Math.abs(mn-4)*3+(mn<=1?20:0)+d*.2; if(sc<ms){ ms=sc; mv=[a,b]; } }
+  const P=swapOf(u);
+  if(P){ let bb=null,bsc=-1e9; for(const [dx,dy] of N8){ const sc=score(P.x,P.y,dx,dy,0,P); if(sc!=null&&sc>bsc){ bsc=sc; bb=[dx,dy,lineFrom(u,P.x,P.y,dx,dy,P).hit]; } }
+    if(bb){ log('The marked Herald holds its ground and aims from where it will stand.'); return aimNow(...bb); } }
+  const D=bfs(u,u.curMove,true); let best=null,bs=-1e9;
+  for(const [k,[d]] of D){ const [a,b]=k.split(',').map(Number); if(hazard(k)||otherCells.has(k)) continue;
+    for(const [dx,dy] of N8){ const sc=score(a,b,dx,dy,d,null); if(sc!=null&&sc>bs){ bs=sc; best=[a,b,dx,dy,spineLine(a,b,dx,dy,u).hit]; } } }
+  if(best){ const go=()=>aimNow(best[2],best[3],best[4]); if(best[0]===u.x&&best[1]===u.y) return go(); return moveAlong(u,pathTo(u,D,best[0],best[1]),()=>setTimeout(go,80)); }
+  let mv=null,ms=1e9; for(const [k,[d]] of D){ const [a,b]=k.split(',').map(Number); if(hazard(k)||otherCells.has(k)) continue; const mn=Math.min(...H.map(h=>cheb(h,a,b))); const sc=Math.abs(mn-4)*3+(mn<=1?20:0)+d*.2; if(sc<ms){ ms=sc; mv=[a,b]; } }
   if(!mv||(mv[0]===u.x&&mv[1]===u.y)) return setTimeout(nextTurn,100);
   moveAlong(u,pathTo(u,D,...mv),()=>setTimeout(nextTurn,100)); }
 // ---- the DRONE: moves 2 (it runs). A free blade cut at any hero who pulls out of its reach. On its turn it works for the Heralds: it goes for
@@ -1076,6 +1087,7 @@ function droneCuts(h,path){ for(const d of U){ if(d.ch!=='drone'||d.dead||d.asle
 // to 3, each bleeding 1 at the start of the hero's turn; they close when the hero starts a turn out of its reach). A cut on a hero under a quarter
 // of their health is a finisher (double). Once a round it sidesteps the first melee blow (heroStrike) and comes up behind the attacker; its next
 // cut on them comes from behind and can't be turned aside.
+function hkCan(t,fx,fy){ if(!t||t.ch!=='hk'||t.dead||t.stepUsed||t.stun||t.asleep) return null; const sx=Math.sign(t.x-fx), sy=Math.sign(t.y-fy), bx=fx-sx, by=fy-sy; return floorOK(bx,by)&&!occ(bx,by)?[bx,by]:null; }
 function hkSidestep(u,h,bx,by,done){ const sx=Math.sign(u.x-h.x), sy=Math.sign(u.y-h.y), sides=[[h.x+sy,h.y-sx],[h.x-sy,h.y+sx]].filter(([x,y])=>floorOK(x,y)&&!occ(x,y));
   log('The Hunter-Killer slips round '+h.short+'\'s blow and comes up behind them.');
   moveAlong(u,sides.length?[sides[0],[bx,by]]:[[bx,by]],()=>{ u.behind=h; face(u,h.x,h.y);  /* and cuts them from behind, free (GANK) */
@@ -1096,18 +1108,22 @@ function hkTurn(u){ const H=seen(); if(!H.length) return setTimeout(nextTurn,200
     ()=>{ u.mode='idle'; setPose(u,'idle'); setTimeout(nextTurn,250); }); };
   if(best[0]===u.x&&best[1]===u.y) return go(); moveAlong(u,pathTo(u,D,best[0],best[1]),()=>setTimeout(go,60)); }
 const swapFx=[];
-function bestSwap(E){ const L=U.filter(v=>v.team===1&&!v.dead&&LAT.has(v.ch)), H=seen(); if(L.length<2||!H.length) return null;
-  const near=(x,y)=>Math.min(...H.map(h=>cheb(h,x,y)));
-  const val=(v,x,y)=>{ if(v.ch==='herald'){ if(v.aim){ const t=spineLine(x,y,...v.aim,v).hit; return foeOf(v,t)?40:t&&LAT.has(t.ch)?-30:-5; }
-      let b=0; for(const [dx,dy] of N8){ const t=spineLine(x,y,dx,dy,v).hit; if(foeOf(v,t)) b=14; } return b-(near(x,y)<=1?10:0); }
-    if(v.ch==='drone'||v.ch==='hk'){ const d=near(x,y); return d===1?(v.ch==='hk'?20:16):-d*2; }
-    return Math.min(near(x,y),5)*3; };
+function swapVal(v,x,y,P,near){ if(v.ch==='herald'){ if(v.aim){ const t=lineFrom(v,x,y,...v.aim,P).hit; return foeOf(v,t)?40:t&&LAT.has(t.ch)?-30:-5; }
+    let b=0; for(const [dx,dy] of N8){ const t=lineFrom(v,x,y,dx,dy,P).hit; if(foeOf(v,t)) b=14; } return b-(near(x,y)<=1?10:0); }
+  if(v.ch==='drone'||v.ch==='hk'){ const d=near(x,y); return d===1?(v.ch==='hk'?20:16):-d*2; }
+  return Math.min(near(x,y),5)*3; }
+// what a swap of A and B gains; null if it would take an aiming Herald off a hero it has in its line (GANK: never swap a Herald out of its shot)
+function swapGain(A,B){ const H=seen(); if(!H.length) return null; const near=(x,y)=>Math.min(...H.map(h=>cheb(h,x,y)));
+  for(const [X,Y] of [[A,B],[B,A]]) if(X.ch==='herald'&&X.aim&&foeOf(X,spineLine(X.x,X.y,...X.aim,X).hit)&&!foeOf(X,lineFrom(X,Y.x,Y.y,...X.aim,Y).hit)) return null;
+  return swapVal(A,B.x,B.y,B,near)+swapVal(B,A.x,A.y,A,near)-swapVal(A,A.x,A.y,null,near)-swapVal(B,B.x,B.y,null,near); }
+function bestSwap(E){ const L=U.filter(v=>v.team===1&&!v.dead&&LAT.has(v.ch)); if(L.length<2||!seen().length) return null;
   let best=null,bs=12;
   for(let i=0;i<L.length;i++) for(let j=i+1;j<L.length;j++){ const A=L[i],B=L[j]; if(A.ch===B.ch&&A.ch!=='herald') continue;
-    const gain=val(A,B.x,B.y)+val(B,A.x,A.y)-val(A,A.x,A.y)-val(B,B.x,B.y); if(gain>bs){ bs=gain; best=[A,B]; } }
+    const gain=swapGain(A,B); if(gain!=null&&gain>bs){ bs=gain; best=[A,B]; } }
   return best; }
 function envoyTurn(u){ const H=seen(); if(!H.length) return setTimeout(nextTurn,200);
   if(u.swap){ const [A,B]=u.swap; u.swap=null; if(A.dead||B.dead){ log('The Envoy\'s thread goes slack.'); return setTimeout(nextTurn,200); }
+    const gn=swapGain(A,B); if(gn==null||gn<=0){ log('The Envoy lets its thread go slack — the swap no longer serves.'); ui(); return envoyTurn(u); }  /* the board changed since the mark: it plans again */
     face(u,A.x,A.y); act(u,'swap',()=>{ const ax=A.x,ay=A.y; A.x=A.px=B.x; A.y=A.py=B.y; B.x=B.px=ax; B.y=B.py=ay; swapFx.push({x:A.x,y:A.y,t:0},{x:B.x,y:B.y,t:0}); shake=.12;
       log('The Envoy\'s neck snaps out — the '+A.short.toLowerCase()+' and the '+B.short.toLowerCase()+' trade places.'); ui(); },()=>{ u.mode='idle'; setPose(u,'idle'); setTimeout(nextTurn,300); }); return; }
   const lines=aimCells(), D=bfs(u,u.curMove); let mv=null,ms=-1e9;
@@ -1361,8 +1377,8 @@ function chainHits(me,t,arc){  // true chain: the blow jumps from each unit it h
   return out.slice(0,4); }
 function heroStrike(a,b,mode){ if(cheb(hero,a,b)!==1&&!(hero.ch==='wayfinder'&&reach2(hero,a,b)))return; const me=hero; face(me,a,b); setAtk(false); skill=null; syncBtns(); busyLock=true;
   { const hk=U.find(u=>u.ch==='hk'&&!u.dead&&u.x===a&&u.y===b);  /* the Hunter-Killer's sidestep: once a round the first melee blow at it finds nothing - it circles to the tile behind the attacker, if that tile is free */
-    if(hk&&!hk.stepUsed&&!hk.stun&&!hk.asleep){ const sx=Math.sign(a-me.x), sy=Math.sign(b-me.y), bx=me.x-sx, by=me.y-sy;
-      if(floorOK(bx,by)&&!occ(bx,by)){ hk.stepUsed=true; act(me,me.ch==='wand'?'cleave':(me.atk||'attack'),()=>pop(hk,'sidestep','#cfe6ff'),()=>{ me.mode='idle'; setPose(me,idleOf(me)); }); hkSidestep(hk,me,bx,by,endAct(me)); return; } } }
+    { const B=hkCan(hk,me.x,me.y); const [bx,by]=B||[];
+      if(B){ hk.stepUsed=true; act(me,me.ch==='wand'?'cleave':(me.atk||'attack'),()=>pop(hk,'sidestep','#cfe6ff'),()=>{ me.mode='idle'; setPose(me,idleOf(me)); }); hkSidestep(hk,me,bx,by,endAct(me)); return; } } }
   if(me.ch==='wand'){
     if(mode==='arc') me.mp-=10; const tgt=unitAt(a,b);
     act(me,'cleave',()=>{ const n=10+(me.low?3:0), hit=chainHits(me,tgt,mode==='arc'); let kills=0; const allies=[];
@@ -1397,8 +1413,9 @@ function glide(u,x1,y1,ms,cb){ const x0=u.px,y0=u.py,t0=performance.now(); const
 function lancingLeap(L){ const me=hero; me.mp-=15; me.guard=true; skill=null; setAtk(false); syncBtns(); busyLock=true; reachH=new Map(); face(me,L.t.x,L.t.y); const sx=me.x, sy=me.y; me.x=L.lx; me.y=L.ly;  // claim the tile beside the target at once
   const ms=M(me).leap?M(me).leap.ms:40;  /* the animation (redrafted Nov 22): slides in over frames 3-8, drives the spear home at 9 (held), wrenches it free and hops back over 15-19 */
   setTimeout(()=>glide(me,L.lx,L.ly,ms*6),ms*3);
-  act(me,M(me).leap?'leap':'attack',()=>{ const n=4+rnd(...me.dmg); damage(L.t,n,me,true); log('Lancing Leap: she slides in under the '+L.t.short.toLowerCase()+'’s guard and drives the spear home — '+n+(L.t.dead?', and it falls':'')+'.'); ui();
-    me.x=sx; me.y=sy; setTimeout(()=>glide(me,sx,sy,ms*4.5),ms*8); }, ()=>{ me.px=me.x; me.py=me.y; endAct(me)(); }); }
+  const HB=hkCan(L.t,sx,sy); if(HB) L.t.stepUsed=true;  /* the Hunter-Killer slips the leap, and comes round behind the tile she hops back to */
+  act(me,M(me).leap?'leap':'attack',()=>{ if(HB){ pop(L.t,'sidestep','#cfe6ff'); me.x=sx; me.y=sy; setTimeout(()=>glide(me,sx,sy,ms*4.5),ms*8); return; } const n=4+rnd(...me.dmg); damage(L.t,n,me,true); log('Lancing Leap: she slides in under the '+L.t.short.toLowerCase()+'’s guard and drives the spear home — '+n+(L.t.dead?', and it falls':'')+'.'); ui();
+    me.x=sx; me.y=sy; setTimeout(()=>glide(me,sx,sy,ms*4.5),ms*8); }, ()=>{ me.px=me.x; me.py=me.y; if(HB&&!L.t.dead){ const B2=hkCan({...L.t,stepUsed:false},sx,sy)||HB; if(!occ(...B2)) return hkSidestep(L.t,me,...B2,endAct(me)); } endAct(me)(); }); }
 // Vault (5 MP each, uses her move but not her action): over the unit beside her, friend or foe, to the free tile beyond; chain as many as her MP allows, like a checkers jump.
 function vaultAt(me,a,b){ const L=lineOf(me,a,b); if(!L||L[2]!==2||me.mp<5) return null; const m=unitAt(me.x+L[0],me.y+L[1]); if(!m||m===me||m.dead||!floorOK(a,b)||unitAt(a,b)) return null; return {a,b,over:m}; }
 function vault(V){ const me=hero; me.mp-=5; if(!me.guard){ me.guard=true; setTimeout(()=>pop(me,'pelt guard','#d8d0c0'),300); } me.moved=true; busyLock=true; reachH=new Map(); face(me,V.a,V.b); const ms=(M(me).vault?M(me).vault.ms*M(me).vault.frames:640); me.x=V.a; me.y=V.b;
@@ -1416,7 +1433,7 @@ function inspire(t){ const me=hero; if(me.mp<10||!inReach(me,t)||t===me) return;
   if(t.wrath!==undefined){ t.wrath+=15; what='15 wrath'; } else if(t.focus!==undefined&&t.mp===undefined){ t.focus=Math.min(3,(t.focus||0)+1); what='a point of focus'; } else { const n=Math.min(15,t.mpMax-t.mp); t.mp+=n; what=n+(t.ch==='galvanist'?' charge':' MP'); }
   pop(t,'inspired','#ffe0a0'); log('Inspire: the Cleric steadies '+t.short+' — '+what+'.'); }); }
 function exchange(a,b){ const me=hero, n=Math.min(10,a.hp-1,b.max-b.hp); if(me.mp<10||n<=0){ log(n<=0?'Nothing to graft.':'Not enough MP.'); exSrc=null; setSkill(null); return; }
-  clericAct(me,b,()=>{ me.mp-=10; a.hp-=n; b.hp+=n; pop(a,'-'+n,'#ff9a7a'); pop(b,'+'+n,'#9aff9a'); log('Graft: '+n+' HP from '+(a===me?'the Cleric':a.short)+' to '+(b===me?'the Cleric':b.short)+'.'); }); }
+  clericAct(me,b,()=>{ me.mp-=10; a.hp-=n; b.hp+=n; pop(a,'-'+n,'#ff9a7a'); pop(b,'+'+n,'#9aff9a'); const cl=b.lac; b.lac=0; log('Graft: '+n+' HP from '+(a===me?'the Cleric':a.short)+' to '+(b===me?'the Cleric':b.short)+(cl?' — and their lacerations close':'')+'.'); }); }
 // Undertow (Wanderer, 10 MP, takes his move): every enemy two tiles out is dragged in beside him; he can still strike after
 function undertow(){ const me=hero; if(me.mp<10||me.moved||!myTurn())return; me.mp-=10; me.moved=true; reachH=new Map(); busyLock=true; skill=null; syncBtns();
   const ring=N8.map(([dx,dy])=>[me.x+dx,me.y+dy]).filter(([x,y])=>walk(x,y,null)), taken=new Set(); let pending=0;
@@ -1427,6 +1444,7 @@ function undertow(){ const me=hero; if(me.mp<10||me.moved||!myTurn())return; me.
 // Vicious Thrust (Knight, 20 wrath): runs the target through - 10 to it and 10 to each enemy in line up to two tiles behind it
 const thrustLine=(me,a,b)=>[1,2,3].map(k=>[me.x+(a-me.x)*k,me.y+(b-me.y)*k]);
 function thrust(a,b){ const me=hero, t1=unitAt(a,b); if(cheb(me,a,b)!==1||!t1||isHero(t1)||me.wrath<20)return; me.wrath-=20; face(me,a,b); skill=null; syncBtns(); busyLock=true;
+  { const B=hkCan(t1,me.x,me.y); if(B){ t1.stepUsed=true; act(me,M(me).thrust?'thrust':'attack',()=>pop(t1,'sidestep','#cfe6ff'),()=>{ me.mode='idle'; setPose(me,idleOf(me)); }); hkSidestep(t1,me,...B,endAct(me)); return; } }  /* melee techniques trigger the sidestep too (GANK) */
   act(me,M(me).thrust?'thrust':'attack',()=>{ let hits=0, kills=0; for(const [x,y] of thrustLine(me,a,b)){ const t=unitAt(x,y); if(!t||isHero(t))continue; damage(t,10,me,true); hits++; if(t.dead)kills++; } log('Vicious Thrust runs through '+hits+(kills?', '+kills+' fall':'')+'.'); ui(); }, endAct(me)); }
 // Riposte (Knight, 15 wrath): he readies a counter and can still act. The next melee hit he takes, he answers at once for 4-6. One at a time.
 function riposte(k,a){ if(k.dead||a.dead) return; face(k,a.x,a.y); act(k,'attack',()=>{ if(a.dead) return; const n=rnd(4,6); damage(a,n,k,true); log('The Knight ripostes — '+(isHero(a)?a.short:'the '+a.short.toLowerCase())+' takes '+n+(a.dead?' and falls':'')+'.'); ui(); },()=>{ k.mode='idle'; setPose(k,idleOf(k)); ui(); }); }
@@ -2365,7 +2383,14 @@ function frame(now){const rdt=Math.min(.05,(now-last)/1000); let dt=rdt; last=no
     if(hover)dia(hover[0],hover[1],null,MOB?'rgba(255,230,180,'+(.55+.4*Math.sin(now/150)).toFixed(2)+')':'rgba(255,230,180,.8)');  /* on a phone the marked tile pulses: tap it again to act */
     if(!atk&&!skill&&canMv()&&hover&&reachH.has(key(...hover))&&!(hover[0]===hero.x&&hover[1]===hero.y)){ const hk=key(...hover)+'|'+hero.x+','+hero.y; if(hero.prevKey!==hk){hero.prevKey=hk; hero.prev=smoothPath([[hero.x,hero.y],...pathTo(hero,reachH,...hover)],hero);}
       const R=hero.prev, tot=R.L[R.L.length-1]; g.fillStyle='rgba(255,236,190,.9)'; for(let d=.2;d<tot;d+=.2){const [x,y]=along(R,d); const [qx,qy]=iso(x*T2+2,y*T2+2); g.fillRect(Math.round(qx-cx)-1,Math.round(qy-cy)-1,3,2);} } }
-  const sorted=U.filter(u=>!(RP&&u._rh)).sort((a,b)=>(a.dead&&a.mode==='dead'?-1:0)-(b.dead&&b.mode==='dead'?-1:0)||(a.px+a.py)-(b.px+b.py)); UREC=[]; const OCCL=(CRYPTS&&CRYPTS[mapKey]&&CRYPTS[mapKey].OCC)||[]; const DL=[...sorted.map(u=>({u,d:u.px+u.py})),...PROPS.map(q=>({q,d:q.x+q.y-.01})),...OCCL.map(o=>({o,d:o.d}))].sort((a,b)=>(a.u&&a.u.dead&&a.u.mode==='dead'?-1:0)-(b.u&&b.u.dead&&b.u.mode==='dead'?-1:0)||a.d-b.d); for(const it of DL){ if(it.u){ footGrass(it.u,cx,cy,0,now); drawUnit(it.u,cx,cy,dt); footGrass(it.u,cx,cy,1,now); } else if(it.o) drawOcc(it.o,cx,cy); else { const pg=it.q._g||(it.q._g={px:it.q.x,py:it.q.y,pose:''}); footGrass(pg,cx,cy,0,now); drawProp(it.q,cx,cy); footGrass(pg,cx,cy,1,now); } }
+  const QD=[];  /* quills join the depth sort (GANK: they drew over things in front of them): flying ones at their place along the flight, stuck ones just after the unit they're in */
+  for(let i=bolts.length-1;i>=0;i--){ const B=bolts[i]; if(B.kind!=='quill') continue;
+    B.t+=dt/B.dur; const t=Math.min(1,B.t), [sx,sy]=iso(B.x0*T2+2,B.y0*T2+2), [tx,ty]=iso(B.x1*T2+2,B.y1*T2+2), X0=sx-cx+B.o0[0], Y0=sy-cy+B.o0[1], X1=tx-cx+B.o1[0], Y1=ty-cy+B.o1[1];
+    const ang=Math.atan2(Y1-Y0,X1-X0); QD.push({q2:[X0+(X1-X0)*t,Y0+(Y1-Y0)*t,ang,30,1],d:B.x0+(B.x1-B.x0)*t+B.y0+(B.y1-B.y0)*t+.02});
+    if(B.t>=1){ bolts.splice(i,1); const T=B.tgt&&!B.tgt.dead?B.tgt:null; const sa=ang+(Math.random()-.5)*.7, sl=13+Math.random()*10; stuckQ.push(T?{u:T,ox:X1-(tx-cx),oy:Y1-(ty-cy),ang:sa,len:sl,t0:now}:{x:B.x1,y:B.y1,ox:B.o1[0],oy:B.o1[1],ang:sa,len:sl,t0:now}); if(stuckQ.length>120) stuckQ.shift(); B.cb(); } }
+  for(let i=stuckQ.length-1;i>=0;i--){ const S=stuckQ[i], age=(now-S.t0)/1000; if(age>9){ stuckQ.splice(i,1); continue; }
+    const [bx,by]=S.u?iso(S.u.px*T2+2,S.u.py*T2+2):iso(S.x*T2+2,S.y*T2+2); QD.push({q2:[bx-cx+S.ox,by-cy+S.oy,S.ang,S.len||19,Math.min(1,(9-age)/1.2)],d:S.u?S.u.px+S.u.py+.001:S.x+S.y+.02}); }
+  const sorted=U.filter(u=>!(RP&&u._rh)).sort((a,b)=>(a.dead&&a.mode==='dead'?-1:0)-(b.dead&&b.mode==='dead'?-1:0)||(a.px+a.py)-(b.px+b.py)); UREC=[]; const OCCL=(CRYPTS&&CRYPTS[mapKey]&&CRYPTS[mapKey].OCC)||[]; const DL=[...sorted.map(u=>({u,d:u.px+u.py})),...PROPS.map(q=>({q,d:q.x+q.y-.01})),...OCCL.map(o=>({o,d:o.d})),...QD].sort((a,b)=>(a.u&&a.u.dead&&a.u.mode==='dead'?-1:0)-(b.u&&b.u.dead&&b.u.mode==='dead'?-1:0)||a.d-b.d); for(const it of DL){ if(it.u){ footGrass(it.u,cx,cy,0,now); drawUnit(it.u,cx,cy,dt); footGrass(it.u,cx,cy,1,now); } else if(it.o) drawOcc(it.o,cx,cy); else if(it.q2){ drawQuill(...it.q2); g.globalAlpha=1; } else { const pg=it.q._g||(it.q._g={px:it.q.x,py:it.q.y,pose:''}); footGrass(pg,cx,cy,0,now); drawProp(it.q,cx,cy); footGrass(pg,cx,cy,1,now); } }
   for(const u of U) if(u.pull){ const [sx,sy]=iso(u.px*T2+2,u.py*T2+2), [wx,wy]=iso(u.pull[0]*T2+2,u.pull[1]*T2+2), o=muz(u); g.strokeStyle='rgba(150,150,160,.9)'; g.setLineDash([2,2]); g.lineWidth=1; g.beginPath(); g.moveTo(sx-cx+o[0],sy-cy+o[1]); g.lineTo(wx-cx,wy-cy-40); g.stroke(); g.setLineDash([]); }
   for(const u of U) if(u.pose==='hover'&&!u.dead){ const [hx,hy]=iso(u.px*T2+2,u.py*T2+2); g.fillStyle='rgba(0,0,0,.35)'; g.beginPath(); g.ellipse(hx-cx,hy-cy,9,4,0,0,6.283); g.fill(); }  // a shadow left on the floor while he floats
   for(let i=bolts.length-1;i>=0;i--){ const B=bolts[i];
@@ -2394,12 +2419,11 @@ function frame(now){const rdt=Math.min(.05,(now-last)/1000); let dt=rdt; last=no
   for(const v of U){ if(v.ch==='envoy'&&v.swap&&!v.dead) drawSwapMark(v,true,cx,cy,now); if(v.ch==='herald'&&v.aim&&!v.dead) drawAimLine(v,true,cx,cy,now); }  /* the indicators again over everything, dithered: they read through units and props in front of them */
   for(let i=swapFx.length-1;i>=0;i--){ const F=swapFx[i]; F.t+=dt; if(F.t>.6){ swapFx.splice(i,1); continue; } const [bx,by]=iso(F.x*T2+2,F.y*T2+2), r=4+F.t*46, al=1-F.t/.6;  /* a cold ring where each one lands in the swap */
     g.strokeStyle='rgba(170,220,240,'+al.toFixed(2)+')'; g.lineWidth=1; g.beginPath(); g.ellipse(bx-cx,by-cy-2,r,r*.5,0,0,Math.PI*2); g.stroke(); g.beginPath(); g.ellipse(bx-cx,by-cy-26,r*.4,r*.8,0,0,Math.PI*2); g.stroke(); }
-  for(let i=stuckQ.length-1;i>=0;i--){ const S=stuckQ[i], age=(now-S.t0)/1000; if(age>9){ stuckQ.splice(i,1); continue; }  /* quills stuck in a unit (they follow it) or in the stone, for a while */
-    const [bx,by]=S.u?iso(S.u.px*T2+2,S.u.py*T2+2):iso(S.x*T2+2,S.y*T2+2); drawQuill(bx-cx+S.ox,by-cy+S.oy,S.ang,S.len||19,Math.min(1,(9-age)/1.2)); }
   for(let i=blasts.length-1;i>=0;i--){ const X=blasts[i]; X.t+=dt; if(X.t>.6){blasts.splice(i,1);continue;} const [bx,by]=iso(X.x*T2+2,X.y*T2+2), k=X.t/.6, r=10+k*46;
     g.globalAlpha=1-k; g.fillStyle='rgba(255,190,90,.85)'; g.beginPath(); g.ellipse(bx-cx,by-cy-6-k*8,r,r*.55,0,0,6.283); g.fill(); g.fillStyle='rgba(255,240,200,.9)'; g.beginPath(); g.ellipse(bx-cx,by-cy-8-k*10,r*.45,r*.3,0,0,6.283); g.fill(); g.globalAlpha=1; }
   if(LIGHTB) lightPass(cx,cy,now);
   drawBehind(cx,cy);
+  { const mt=myTurn(); if(mt!==window._mt){ window._mt=mt; if(mt) ui(); } }  /* the action bar follows the turn even when a lock clears without a ui() (the End button could stay greyed out) */
   // hover label: hidden HP, shown as a state
   { const tg=hover&&U.find(u=>!u.dead&&u.x===hover[0]&&u.y===hover[1]); const key=tg?tg.id+'|'+tg.hp+'|'+!!tg.asleep+'|'+!!tg.marked+'|'+!!tg.poison+'|'+!!tg.stun:''; if(key!==tgKey){ tgKey=key; targetPanel(tg); } }
   for(let i=floats.length-1;i>=0;i--){const p=floats[i]; p.t+=dt; if(p.t>1.1){floats.splice(i,1);continue;} if(!p.txt||p.t<0)continue; const [qx,qy]=iso(p.x*T2+2,p.y*T2+2); g.font='bold 10px Georgia'; g.textAlign='center'; g.fillStyle='rgba(0,0,0,.7)'; g.fillText(p.txt,Math.round(qx-cx)+1,Math.round(qy-cy-90-p.t*18)+1); g.fillStyle=p.col; g.fillText(p.txt,Math.round(qx-cx),Math.round(qy-cy-90-p.t*18));}
