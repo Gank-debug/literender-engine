@@ -80,6 +80,31 @@ body,button,select{font-family:'Pixelify Sans',monospace}
 .tip{position:fixed;z-index:30;width:240px;padding:8px 10px;font-size:12px;line-height:1.35;color:var(--ink);pointer-events:none;display:none} .tip b{display:block;font-family:var(--hf);font-weight:normal;font-size:20px;color:var(--hc)}
 #crt{position:fixed;inset:0;pointer-events:none;display:none;z-index:15;mix-blend-mode:multiply;background:repeating-linear-gradient(0deg,rgba(0,0,0,.28) 0 1px,transparent 1px 3px),repeating-linear-gradient(90deg,rgba(255,215,215,1) 0 1px,rgba(215,255,215,1) 1px 2px,rgba(215,215,255,1) 2px 3px);box-shadow:inset 0 0 140px rgba(0,0,0,.6),inset 0 0 30px rgba(0,0,0,.4);animation:crtf 4s infinite steps(1)}
 #crt.on{display:block} body.crt canvas{filter:contrast(1.12) saturate(1.12) brightness(1.04)} @keyframes crtf{0%{opacity:1}47%{opacity:.94}48%{opacity:1}83%{opacity:.97}}
+
+/* ---- phones (html.mob: a touch screen or a small one): a thin turn strip at the top, the party as four chips under it, the latest two lines of
+   the Chronicle (tap for all of it), the action bar along the bottom (scrolls sideways, End turn pinned), Guide / Settings / Dev behind a menu */
+.corner #menub{display:none}
+.mob .v{outline:1px solid #0a0706;box-shadow:inset 0 0 0 1px #6a5236,0 4px 12px rgba(0,0,0,.6)} .mob .v:before,.mob .v:after{display:none}
+.mob .top{display:block}
+.mob .turn{position:fixed;left:6px;right:52px;top:calc(6px + env(safe-area-inset-top));padding:3px 8px;gap:8px;overflow-x:auto;overflow-y:hidden} .mob #turnt{font-size:20px} .mob .order{flex-wrap:nowrap} .mob .order span{font-size:11px;padding:2px 5px;white-space:nowrap}
+.mob #party{position:fixed;left:6px;right:6px;top:calc(44px + env(safe-area-inset-top));width:auto;display:flex;gap:4px;padding:0;background:none;border:0;outline:0;box-shadow:none;pointer-events:none}
+.mob #party .hd{display:none}
+.mob #party .s{flex:1;min-width:0;grid-template-columns:30px 1fr;gap:5px;padding:3px 4px;border:1px solid #3a2c20;background:rgba(16,12,9,.85)} .mob #party .s.now{border-color:var(--hc)}
+.mob #party .s .pt{width:30px;height:30px;object-fit:cover} .mob #party .s b{font-size:14px} .mob #party .s small{font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .mob #party .s .bars{margin-top:2px}
+.mob .rcol{position:fixed;left:6px;right:6px;top:calc(92px + env(safe-area-inset-top));align-items:stretch;gap:6px;pointer-events:none}
+.mob .log{width:auto;padding:3px 8px;font-size:11px;background:rgba(12,9,7,.72);border:0;outline:0;box-shadow:none;max-height:34px;overflow:hidden;pointer-events:auto}
+.mob .log .hd{display:none} .mob .log div{border:0;padding:1px 0} .mob #log div:nth-child(n+3){display:none}
+.mob .log.open{max-height:55vh;overflow-y:auto;background:rgba(12,9,7,.94);border:1px solid #4a3a28;padding:6px 10px} .mob .log.open .hd{display:block;font-size:22px} .mob .log.open #log div{display:block;border-bottom:1px solid var(--rule);padding:3px 0}
+.mob .tgt{position:fixed;left:6px;right:6px;bottom:calc(58px + env(safe-area-inset-bottom));width:auto;padding:5px 8px;box-sizing:border-box} .mob .tgt p{font-size:11px;margin-top:3px}
+.mob .hud.v{left:0;right:0;transform:none;bottom:0;padding:6px 6px calc(6px + env(safe-area-inset-bottom));overflow-x:auto;justify-content:flex-start;gap:5px;background:rgba(10,8,6,.92);border:0;border-top:1px solid #4a3a28;outline:0;box-shadow:none}
+.mob .hud button{flex:none;font-size:13px;padding:6px 9px} .mob .hud button small{font-size:9px} .mob #end{position:sticky;right:0;margin-left:auto;background:linear-gradient(#3a2a18,#1d140c);box-shadow:-8px 0 10px rgba(10,8,6,.95)}
+.mob .corner{top:calc(6px + env(safe-area-inset-top));right:6px;bottom:auto;flex-direction:column;align-items:flex-end;gap:4px;z-index:25}
+.mob .corner button{display:none;font-size:13px;padding:6px 10px} .mob .corner #menub{display:block;width:40px;height:32px;padding:0;font-size:18px;line-height:1} .mob .corner.open button{display:block}
+.mob .drawer.v{left:6px!important;right:6px!important;width:auto!important;transform:none!important;bottom:calc(58px + env(safe-area-inset-bottom))!important;max-height:60vh;overflow-y:auto;box-sizing:border-box}
+.mob #pick .pp{max-height:calc(100% - 20px);overflow-y:auto;padding:12px 14px;box-sizing:border-box} .mob #pick .grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr))} .mob #pick .fac{flex-wrap:wrap}
+.mob #guide .v{width:calc(100% - 16px);max-height:calc(100% - 16px);padding:14px 12px} .mob #guide .hd{font-size:30px}
+.mob .gvp{bottom:calc(60px + env(safe-area-inset-bottom))}
+@media (orientation:landscape){ .mob #party{flex-direction:column;right:auto;width:150px;top:calc(42px + env(safe-area-inset-top))} .mob #party .s{flex:none} .mob .rcol{left:162px;top:calc(42px + env(safe-area-inset-top))} .mob .tgt{left:162px} }
 </style></head><body>
 <canvas id="c"></canvas>
 <div id="fx" style="position:fixed;inset:0;pointer-events:none"><div id="fxt" style="position:absolute;inset:0"></div><div id="fxg" style="position:absolute;inset:-64px"></div><div id="fxv" style="position:absolute;inset:0"></div></div>
@@ -91,7 +116,7 @@ body,button,select{font-family:'Pixelify Sans',monospace}
 <div class="hud v"><button id="satb">Satchel</button><button id="atk">Strike</button><button id="sk1"></button><button id="sk2"></button><button id="sk3" style="display:none">Stimulus</button><button id="sk4" style="display:none">Electrostatic Field</button><button id="end">End turn</button></div>
 <div id="crt"></div><div id="guide"><div class="v"><span class="x" id="guidex">✕</span><div id="guidec"></div></div></div><div class="v tip" id="tip"></div>
 <div id="legacy"><button id="bbelly" style="display:none">Belly: burst</button><button id="wfhelm" style="display:none">Helm: winged</button><button id="wfcape" style="display:none">Cape: off</button><button id="wfpelt" style="display:none">Pelt: white</button><button id="antl" style="display:none">Antlers: tines</button><button id="filt">Filter: current</button><button id="lightb" class="on">Look: pixels + light</button><button id="gridl">Lines: off</button><button id="darkb">Dark: normal</button><button id="outl" class="on">Outline</button><button id="ten">Room: current</button><button id="behind">Behind: dither</button><button id="dcol">Dither: plain</button></div>
-<div class="corner"><button id="guideb">Guide</button><button id="setb">Settings</button><button id="devb">Dev</button></div>
+<div class="corner"><button id="menub" aria-label="Menu">☰</button><button id="guideb">Guide</button><button id="setb">Settings</button><button id="devb">Dev</button></div>
 <div class="drawer v" id="satp" style="left:50%;right:auto;transform:translateX(-50%);bottom:96px;width:340px"></div>
 <div class="drawer v" id="setp"><div class="hd"><span class="cap">S</span>ettings</div><label><input type="checkbox" id="dcolc"> Coloured dither behind walls</label><label><input type="checkbox" id="tiltc" checked> Tilt-shift (miniature)</label><div class="row" style="margin-top:8px"><button id="zoom">Zoom</button><button id="fs">Fullscreen</button></div></div>
 <div class="drawer v" id="devp"><div class="hd"><span class="cap">D</span>ev</div><div class="k">MAP</div><div class="row"><select id="map" style="background:var(--panel);color:var(--ink);border:1px solid #3a322b;padding:8px;font:inherit"><option value="test">Map: Test room</option></select><select id="dsize"><option value="random">Size: random</option><option value="small">Size: small (test room)</option><option value="medium">Size: medium</option><option value="large">Size: large</option></select><button id="reroll">New dungeon</button><button id="repick">Party</button></div><div class="row"><select id="cxd"><option value="auto">Crypt grass: joints, broken tiles in 35%</option><option value="sj">Crypt grass: joints + broken tiles</option><option value="j">Crypt grass: joints only</option><option value="">Crypt grass: off</option></select><select id="doors"><option value="off">Doorways: none</option><option value="door">Doorways: single arch</option><option value="arcade">Doorways: arcade</option></select></div><div class="k">SPAWN</div><div class="row"><button id="reset">Horde wave</button><button id="husks">Husk wave</button><button id="thrb">Thralls</button><button id="bersb">Berserker</button><button id="low">Low health</button></div></div>
@@ -1196,7 +1221,8 @@ function huskTurn(u,strike){ const T=threatMap(), D=bfs(u,u.curMove,true), H=see
     const sc=-t.thr*15-Math.abs(md-3)*6-dp*1.5+spread*2-t.d*.1; if(sc>bs){bs=sc;b=[t.a,t.b,null];} }
   goStrike(u,D,b,strike); }
 // ---- the player's turn: move (once), then strike; striking ends the turn
-let reachH=new Map(); let atk=false, zoom=2, camX=0, camY=0, hover=null, bgT=0, bgF=0;
+const MOB=matchMedia('(pointer:coarse)').matches||Math.min(innerWidth,innerHeight)<560; if(MOB) document.documentElement.classList.add('mob');
+let reachH=new Map(); let atk=false, zoom=MOB?1:2, camX=0, camY=0, hover=null, bgT=0, bgF=0;
 const myTurn=()=>!RP&&cur()===hero&&isHero(hero)&&!busyLock&&hero.mode==='idle'&&!hero.dead;
 let skill=null;  // 'arc' | 'thrust' | 'charge' while picking a target
 const syncBtns=()=>{ document.getElementById('atk').classList.toggle('on',atk); document.getElementById('sk1').classList.toggle('on',skill==='arc'||skill==='thrust'||skill==='ward'||skill==='nade'||skill==='pin'||skill==='trap'||skill==='carc'||skill==='kiss'||skill==='leap'||(skill==='exch'&&hero.ch==='cleric')); document.getElementById('sk2').classList.toggle('on',skill==='charge'||(skill==='exch'&&hero.ch!=='cleric')||skill==='insp'||skill==='rech'||skill==='hunt'||skill==='spasm'||skill==='mark'||skill==='vault'); };
@@ -1359,11 +1385,13 @@ document.getElementById('dsize').onchange=e=>{ DSIZE=e.target.value; askMap('dun
 
 if(document.getElementById('fringe')) document.getElementById('fringe').onclick=()=>{ galvFringe=!galvFringe; document.getElementById('fringe').textContent='Brow hair: '+(galvFringe?'on':'off'); };
 const BMODES=['off','ghost','silhouette','outline','dither']; let BEHIND='dither', DCOL=false;  // DCOL: hidden units dithered in their side's colour (a player option)
-for(const [b,p,o] of [['setb','setp','devp'],['devb','devp','setp']]) document.getElementById(b).onclick=()=>{ document.getElementById(o).classList.remove('on'); document.getElementById(p).classList.toggle('on'); };
+for(const [b,p,o] of [['setb','setp','devp'],['devb','devp','setp']]) document.getElementById(b).onclick=()=>{ document.querySelector('.corner').classList.remove('open'); document.getElementById(o).classList.remove('on'); document.getElementById(p).classList.toggle('on'); };
 document.getElementById('tiltc').onchange=e=>{ TILT=e.target.checked; c.style.filter=TILT?TILTCSS:''; };
 
 document.getElementById('satb').onclick=()=>satchelOpen(!document.getElementById('satp').classList.contains('on'));
-document.getElementById('guideb').onclick=()=>guide(GTAB); document.getElementById('guidex').onclick=()=>document.getElementById('guide').classList.remove('on');
+document.getElementById('menub').onclick=()=>document.querySelector('.corner').classList.toggle('open');
+document.querySelector('.log').onclick=()=>{ if(MOB) document.querySelector('.log').classList.toggle('open'); };
+document.getElementById('guideb').onclick=()=>{ document.querySelector('.corner').classList.remove('open'); guide(GTAB); }; document.getElementById('guidex').onclick=()=>document.getElementById('guide').classList.remove('on');
 document.getElementById('guide').onclick=e=>{ if(e.target.id==='guide') e.target.classList.remove('on'); };
 addEventListener('keydown',e=>{ if(e.key==='Escape') document.getElementById('guide').classList.remove('on'); if((e.key==='g'||e.key==='G')&&!e.target.closest('input,select')) { const G=document.getElementById('guide'); G.classList.contains('on')?G.classList.remove('on'):guide(GTAB); } });
 document.getElementById('dcolc').onchange=e=>{ DCOL=e.target.checked; };
@@ -1440,8 +1468,20 @@ function resize(){const W=innerWidth,H=innerHeight; c.style.width=W+'px'; c.styl
 addEventListener('resize',()=>{ resize(); ui(); }); resize();
 const tileAt=(bx,by)=>{const dx=bx-OX, dy=by-OY, gx=(dx/10+dy/5)/2, gy=(dy/5-dx/10)/2; return [Math.floor(gx/T2),Math.floor(gy/T2)];};
 const toBuf=e=>{const r=c.getBoundingClientRect(); return [(e.clientX-r.left)/zoom+camX,(e.clientY-r.top)/zoom+camY];};
-c.addEventListener('pointermove',e=>{hover=tileAt(...toBuf(e));});
-c.addEventListener('pointerdown',e=>{const [a,b]=tileAt(...toBuf(e)); tileClick(a,b);});
+/* touch: one finger drags the view (it snaps back to the action when the turn passes), two fingers pinch the zoom (1-3); a tap marks a tile
+   (the path, the target and its panel show as they do under a mouse) and a second tap on the same tile acts. The mouse works as before. */
+const PTR=new Map(); let tapS=null, pinch0=0, zoom0=2, PAN=[0,0], panU=null;
+c.addEventListener('pointermove',e=>{ if(e.pointerType==='mouse'){ hover=tileAt(...toBuf(e)); return; }
+  const P=PTR.get(e.pointerId); if(!P) return; P.x=e.clientX; P.y=e.clientY;
+  if(PTR.size>=2){ const [A,B]=[...PTR.values()], d=Math.hypot(A.x-B.x,A.y-B.y); if(!pinch0){ pinch0=d; zoom0=zoom; } const nz=Math.max(1,Math.min(3,Math.round(zoom0*d/pinch0)));
+    if(nz!==zoom){ zoom=nz; resize(); ui(); } tapS=null; return; }
+  if(tapS){ const dx=e.clientX-tapS.x, dy=e.clientY-tapS.y; if(!tapS.drag&&Math.hypot(dx,dy)>10) tapS.drag=true; if(tapS.drag){ PAN[0]=tapS.px-dx/zoom; PAN[1]=tapS.py-dy/zoom; } } });
+c.addEventListener('pointerdown',e=>{ if(e.pointerType==='mouse'){ const [a,b]=tileAt(...toBuf(e)); tileClick(a,b); return; }
+  PTR.set(e.pointerId,{x:e.clientX,y:e.clientY}); if(PTR.size===1) tapS={x:e.clientX,y:e.clientY,px:PAN[0],py:PAN[1],drag:false}; else { tapS=null; pinch0=0; } });
+const ptrUp=e=>{ if(e.pointerType==='mouse') return; PTR.delete(e.pointerId); if(PTR.size<2) pinch0=0;
+  if(tapS&&!tapS.drag&&e.type==='pointerup'){ const T=tileAt(...toBuf(e)); if(hover&&hover[0]===T[0]&&hover[1]===T[1]) tileClick(...T); else hover=T; }
+  if(!PTR.size) tapS=null; };
+c.addEventListener('pointerup',ptrUp); c.addEventListener('pointercancel',ptrUp);
 function tileClick(a,b){ hover=[a,b]; if(!myTurn())return;
   { const q=propAt(a,b); if(q&&SOLID.has(q.kind)&&!skill&&!atk){ if(cheb(hero,a,b)===1) useProp(q); else log('Move next to it first.'); return; } } const adj=cheb(hero,a,b)===1, enemy=U.some(u=>u.team===1&&!u.dead&&u.x===a&&u.y===b);
   if(skill==='bomb'){ const t=unitAt(a,b); if(bombOK(hero,t)) throwBomb(t); else setSkill(null); return; }
@@ -2150,7 +2190,8 @@ function frame(now){const rdt=Math.min(.05,(now-last)/1000); let dt=rdt; last=no
   bgT+=dt; if(bgT>.16){bgT=0;bgF=(bgF+1)%bgs.length;}
   if(RP) rpApply(dt); else for(const u of U){ hairWatch(u); stepUnit(u,dt); }
   const fo=cur()||hero, [fx,fy]=window.CAMLOCK?iso(CAMLOCK[0]*T2+2,CAMLOCK[1]*T2+2):FOCUS&&now<FOCUS.until?iso(FOCUS.x*T2+2,FOCUS.y*T2+2):iso((fo.px+hero.px)/2*T2+2,(fo.py+hero.py)/2*T2+2);  // CAMLOCK: a fixed view for comparison shots
-  const tx=fx-c.width/2, ty=fy-c.height*.52; camX+=(tx-camX)*Math.min(1,dt*4); camY+=(ty-camY)*Math.min(1,dt*4);
+  { const cu=cur(); if(cu!==panU){ panU=cu; PAN=[0,0]; if(MOB) hover=null; } }
+  const tx=fx-c.width/2+PAN[0], ty=fy-c.height*(MOB?.56:.52)+PAN[1]; camX+=(tx-camX)*Math.min(1,dt*4); camY+=(ty-camY)*Math.min(1,dt*4);
   let sx=0,sy=0; if(shake>0){shake-=dt; sx=(Math.random()-.5)*4; sy=(Math.random()-.5)*3;}
   const cx=Math.round(camX+sx), cy=Math.round(camY+sy);
   g.fillStyle=(BGNOW&&BGNOW.voidCol)||'#000'; g.fillRect(0,0,c.width,c.height); const bg0=bgs[bgF]; if(bg0.complete&&bg0.naturalWidth){ const bg=AFILT?bgA(bg0):LIGHTB?bgB(bg0):bg0; BGNOW=bg; const sx0=Math.max(0,cx), sy0=Math.max(0,cy), w=Math.min(c.width-(sx0-cx),bg.width-sx0), h=Math.min(c.height-(sy0-cy),bg.height-sy0); if(w>0&&h>0) g.drawImage(bg,sx0,sy0,w,h,sx0-cx,sy0-cy,w,h); }
@@ -2204,7 +2245,7 @@ function frame(now){const rdt=Math.min(.05,(now-last)/1000); let dt=rdt; last=no
       const [sx,sy]=iso(v.px*T2+2,v.py*T2+2), [tx,ty]=iso(E[0]*T2+2,E[1]*T2+2), len=Math.hypot(tx-sx,ty-sy), ph=(now/90)%6;  /* the Herald's aim: a thin dotted line, dithered in two cold tones, creeping toward the target */
       for(let d=8;d<len;d+=3){ const f=d/len, x=Math.round(sx-cx+(tx-sx)*f), y=Math.round(sy-cy+(ty-sy)*f)-4; g.fillStyle=((Math.floor(d/3)+Math.floor(ph))%2)?'rgba(200,236,246,.9)':'rgba(110,160,185,.75)'; g.fillRect(x,y,1,1); }
       if(L.hit||L.prop){ const X=Math.round(tx-cx), Y=Math.round(ty-cy)-4; g.fillStyle='rgba(200,236,246,.9)'; for(const [a,b] of [[-3,-2],[3,-2],[-3,2],[3,2],[-2,-1],[2,-1],[-2,1],[2,1]]) g.fillRect(X+a,Y+b,1,1); } }
-    if(hover)dia(hover[0],hover[1],null,'rgba(255,230,180,.8)');
+    if(hover)dia(hover[0],hover[1],null,MOB?'rgba(255,230,180,'+(.55+.4*Math.sin(now/150)).toFixed(2)+')':'rgba(255,230,180,.8)');  /* on a phone the marked tile pulses: tap it again to act */
     if(!atk&&!skill&&canMv()&&hover&&reachH.has(key(...hover))&&!(hover[0]===hero.x&&hover[1]===hero.y)){ const hk=key(...hover)+'|'+hero.x+','+hero.y; if(hero.prevKey!==hk){hero.prevKey=hk; hero.prev=smoothPath([[hero.x,hero.y],...pathTo(hero,reachH,...hover)],hero);}
       const R=hero.prev, tot=R.L[R.L.length-1]; g.fillStyle='rgba(255,236,190,.9)'; for(let d=.2;d<tot;d+=.2){const [x,y]=along(R,d); const [qx,qy]=iso(x*T2+2,y*T2+2); g.fillRect(Math.round(qx-cx)-1,Math.round(qy-cy)-1,3,2);} } }
   const sorted=U.filter(u=>!(RP&&u._rh)).sort((a,b)=>(a.dead&&a.mode==='dead'?-1:0)-(b.dead&&b.mode==='dead'?-1:0)||(a.px+a.py)-(b.px+b.py)); UREC=[]; const OCCL=(CRYPTS&&CRYPTS[mapKey]&&CRYPTS[mapKey].OCC)||[]; const DL=[...sorted.map(u=>({u,d:u.px+u.py})),...PROPS.map(q=>({q,d:q.x+q.y-.01})),...OCCL.map(o=>({o,d:o.d}))].sort((a,b)=>(a.u&&a.u.dead&&a.u.mode==='dead'?-1:0)-(b.u&&b.u.dead&&b.u.mode==='dead'?-1:0)||a.d-b.d); for(const it of DL){ if(it.u){ footGrass(it.u,cx,cy,0,now); drawUnit(it.u,cx,cy,dt); footGrass(it.u,cx,cy,1,now); } else if(it.o) drawOcc(it.o,cx,cy); else { const pg=it.q._g||(it.q._g={px:it.q.x,py:it.q.y,pose:''}); footGrass(pg,cx,cy,0,now); drawProp(it.q,cx,cy); footGrass(pg,cx,cy,1,now); } }
