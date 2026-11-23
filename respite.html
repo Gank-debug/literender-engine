@@ -121,7 +121,7 @@ body,button,select{font-family:'Pixelify Sans',monospace}
 <div class="drawer v" id="setp"><div class="hd"><span class="cap">S</span>ettings</div><label><input type="checkbox" id="dcolc"> Coloured dither behind walls</label><label><input type="checkbox" id="tiltc" checked> Tilt-shift (miniature)</label><div class="row" style="margin-top:8px"><button id="zoom">Zoom</button><button id="fs">Fullscreen</button></div></div>
 <div class="drawer v" id="devp"><div class="hd"><span class="cap">D</span>ev</div><div class="k">MAP</div><div class="row"><select id="map" style="background:var(--panel);color:var(--ink);border:1px solid #3a322b;padding:8px;font:inherit"><option value="test">Map: Test room</option></select><select id="dsize"><option value="random">Size: random</option><option value="small">Size: small (test room)</option><option value="medium">Size: medium</option><option value="large">Size: large</option></select><button id="reroll">New dungeon</button><button id="repick">Party</button></div><div class="row"><select id="cxd"><option value="auto">Crypt grass: joints, broken tiles in 35%</option><option value="sj">Crypt grass: joints + broken tiles</option><option value="j">Crypt grass: joints only</option><option value="">Crypt grass: off</option></select><select id="doors"><option value="off">Doorways: none</option><option value="door">Doorways: single arch</option><option value="arcade">Doorways: arcade</option></select></div><div class="k">SPAWN</div><div class="row"><button id="reset">Horde wave</button><button id="husks">Husk wave</button><button id="thrb">Thralls</button><button id="bersb">Berserker</button><button id="low">Low health</button></div></div>
 <script>/* startup errors on screen (GANK's phone showed a black screen with no clue why): the first error is shown in a box at the top, with the build */
-window.BUILD='1123-1326'; window.__errs=[];
+window.BUILD='1123-1352'; window.__errs=[];
 (function(){ const show=m=>{ window.__errs.push(m); let d=document.getElementById('errbox'); if(!d){ d=document.createElement('div'); d.id='errbox'; d.style.cssText='position:fixed;left:6px;right:6px;top:6px;z-index:99;background:#3a0d0d;color:#ffd8c8;border:1px solid #c05040;font:12px/1.35 monospace;padding:8px;white-space:pre-wrap;max-height:40vh;overflow:auto'; (document.body||document.documentElement).appendChild(d); } d.textContent='Respite build '+window.BUILD+' hit an error (please screenshot this):\n'+window.__errs.slice(0,4).join('\n\n'); };
   addEventListener('error',e=>show((e.message||'error')+' @ '+(e.lineno||'?')+':'+(e.colno||'?')+(e.error&&e.error.stack?'\n'+String(e.error.stack).split('\n').slice(0,4).join('\n'):'')));
   addEventListener('unhandledrejection',e=>show('promise: '+(e.reason&&(e.reason.stack||e.reason.message)||e.reason))); })();
@@ -1117,6 +1117,37 @@ function envoyTurn(u){ const H=seen(); if(!H.length) return setTimeout(nextTurn,
     log('The Envoy reaches out on its chain and marks the '+P[0].short.toLowerCase()+' and the '+P[1].short.toLowerCase()+' — they will trade places.'); ui();
     act(u,'mark',()=>{},()=>{ u.mode='idle'; setPose(u,'idle'); setTimeout(nextTurn,250); }); };
   if(mv&&(mv[0]!==u.x||mv[1]!==u.y)) return moveAlong(u,pathTo(u,D,...mv),()=>setTimeout(plan,80)); plan(); }
+// ---- indicators. The Herald's aim: a bold red line along the floor to the first thing in the way, a red reticle there; drawn again over
+// everything in a checker dither, so it shows through what stands in front of it.
+function drawAimLine(v,top,cx,cy,now){ const L=spineLine(v.x,v.y,...v.aim,v), [dx,dy]=v.aim, E=L.wall?[L.end[0]-dx*.5,L.end[1]-dy*.5]:L.end;
+  const [sx,sy]=iso(v.px*T2+2,v.py*T2+2), [tx,ty]=iso(E[0]*T2+2,E[1]*T2+2), len=Math.hypot(tx-sx,ty-sy), ph=(now/70)%8, pul=.75+.25*Math.sin(now/160);
+  for(let d=7;d<len;d+=1){ const f=d/len, x=Math.round(sx-cx+(tx-sx)*f), y=Math.round(sy-cy+(ty-sy)*f)-3; if(top&&((x+y)&1)) continue;
+    const on=((d+ph*2)%8)<5; if(!on) continue; g.fillStyle=top?'rgba(255,70,50,'+(.55*pul).toFixed(2)+')':'rgba(235,45,35,'+(.95*pul).toFixed(2)+')'; g.fillRect(x,y,1,top?1:2); }
+  if(L.hit||L.prop){ const X=Math.round(tx-cx), Y=Math.round(ty-cy)-3, r=5+Math.round(Math.sin(now/200)); g.fillStyle=top?'rgba(255,70,50,.6)':'rgba(235,45,35,.95)';
+    for(let k=0;k<16;k++){ const a=k/16*6.283, x=Math.round(X+Math.cos(a)*r*1.6), y=Math.round(Y+Math.sin(a)*r*.8); if(top&&((x+y)&1)) continue; g.fillRect(x,y,1,1); }
+    for(const [a,b] of [[-r*2,0],[r*2,0],[0,-r],[0,r]]){ const x=Math.round(X+a*.75), y=Math.round(Y+b*.75); g.fillRect(x-(a?1:0),y-(b?1:0),a?3:1,b?2:1); } } }
+// The Envoy's swap: drafts of the indicator (Dev: window.SWAPSTYLE = 'a' | 'b' | 'c' | 'd')
+//  a ghosts: each of the two drawn faint and dithered on the other's tile, where it will land, with a cold ring under both
+//  b pillars: a column of cold light rising from each tile, linked by an arc of travelling sparks
+//  c glyphs: the same rune under both (a ring with turning ticks and a mark inside), an arching dashed thread between them
+//  d arrows: two curved arrows crossing between them, over their heads
+window.SWAPSTYLE=window.SWAPSTYLE||'a';
+function drawSwapMark(v,top,cx,cy,now){ const [A,B]=v.swap; if(A.dead||B.dead) return; const st=window.SWAPSTYLE, col=a=>'rgba(150,232,255,'+Math.min(1,a).toFixed(2)+')', pul=.7+.3*Math.sin(now/170);
+  const P=u=>{ const [x,y]=iso(u.px*T2+2,u.py*T2+2); return [x-cx,y-cy]; }, [ax,ay]=P(A), [bx,by]=P(B);
+  const arc=(h,step,dash,lift,fn)=>{ const L=Math.hypot(bx-ax,by-ay); for(let d=0;d<=L;d+=step){ const f=d/L, x=ax+(bx-ax)*f, y=ay+(by-ay)*f-lift-Math.sin(f*Math.PI)*h; if(dash&&Math.floor((d+now/30)/dash)%2) continue; fn(Math.round(x),Math.round(y),f); } };
+  const ring=(x,y,r,a)=>{ g.fillStyle=col(a); for(let k=0;k<44;k++){ const t=k/44*6.283, px=Math.round(x+Math.cos(t)*r*1.6), py=Math.round(y+Math.sin(t)*r*.8); if(top&&((px+py)&1)) continue; g.fillRect(px,py,2,1); } };
+  const glow=(x,y)=>{ if(top) return; g.save(); g.globalCompositeOperation='lighter'; const G=g.createRadialGradient(x,y-14,2,x,y-14,30); G.addColorStop(0,'rgba(90,170,210,'+(.28*pul).toFixed(2)+')'); G.addColorStop(1,'rgba(90,170,210,0)'); g.fillStyle=G; g.fillRect(x-32,y-46,64,64); g.restore(); };
+  glow(ax,ay); glow(bx,by);
+  if(st==='a'){ if(!top){ ring(ax,ay,9,.8*pul); ring(bx,by,9,.8*pul); arc(8,2,4,2,(x,y)=>{ g.fillStyle=col(.95); g.fillRect(x,y,2,1); }); return; }
+    for(const [U1,U2] of [[A,B],[B,A]]){ const ox=U1.px, oy=U1.py; U1.px=U2.px; U1.py=U2.py; g.globalAlpha=.4+.15*pul; drawUnit0(U1,cx,cy,0); g.globalAlpha=1; U1.px=ox; U1.py=oy; } return; }
+  if(st==='b'){ for(const [x,y] of [[ax,ay],[bx,by]]){ g.save(); g.globalCompositeOperation='lighter'; for(let h=0;h<64;h++){ const a=(1-h/64)*.85*pul; for(let w=-5;w<=5;w++){ const px=x+w, py=Math.round(y-h); if((px+py)&1) continue; g.fillStyle=col(a*(1-Math.abs(w)/6)); g.fillRect(px,py,1,1); } } g.restore(); ring(x,y,8,.8*pul); }
+    arc(22,2,0,50,(x,y,f)=>{ if(top&&((x+y)&1)) return; const k=((f*10+now/140)%1); g.fillStyle=col(k<.25?1:.45); g.fillRect(x,y,2,k<.25?2:1); }); return; }
+  if(st==='c'){ for(const [x,y] of [[ax,ay],[bx,by]]){ ring(x,y,10,.85*pul); ring(x,y,6,.55); g.fillStyle=col(.9); const t0=now/600; for(let k=0;k<4;k++){ const t=t0+k*1.5708, px=Math.round(x+Math.cos(t)*16), py=Math.round(y+Math.sin(t)*8); if(!(top&&((px+py)&1))) g.fillRect(px-1,py,3,1); }
+      for(const [p,q] of [[0,-4],[0,-3],[0,-2],[0,-1],[0,0],[-2,-2],[2,-2],[-3,-2],[3,-2]]) if(!(top&&((x+p+y+q)&1))) g.fillRect(Math.round(x+p),Math.round(y+q),1,1); }
+    arc(30,2,5,2,(x,y)=>{ if(top&&((x+y)&1)) return; g.fillStyle=col(1); g.fillRect(x,y,2,1); }); return; }
+  if(st==='d'){ const hx=0, lift=56; for(const [sgn,ax2,ay2,bx2,by2] of [[1,ax,ay,bx,by],[-1,bx,by,ax,ay]]){ const L=Math.hypot(bx2-ax2,by2-ay2); let lx=0,ly=0;
+      for(let d=0;d<=L;d+=1.5){ const f=d/L, x=ax2+(bx2-ax2)*f, y=ay2+(by2-ay2)*f-lift-sgn*Math.sin(f*Math.PI)*16; lx=x; ly=y; const px=Math.round(x), py=Math.round(y); if(top&&((px+py)&1)) continue; g.fillStyle=col(.95*pul); g.fillRect(px,py,2,2); }
+      const ang=Math.atan2(by2-ay2,bx2-ax2)-sgn*.5; g.fillStyle=col(1); for(let k=0;k<9;k++){ for(const s2 of [-1,1]){ const t=ang+Math.PI+s2*.55; g.fillRect(Math.round(lx+Math.cos(t)*k),Math.round(ly+Math.sin(t)*k),2,2); } } } return; } }
 const stuckQ=[];  // quills stuck in what they hit: {u (follows it) or tile x,y; screen offset; angle; time}
 function heraldRelease(u,A){ const [dx,dy]=A; face(u,u.x+dx,u.y+dy); const L=spineLine(u.x,u.y,dx,dy,u), n=rnd(...u.dmg), t=L.hit;
   const [ex,ey]=L.wall?[L.end[0]-dx*.5,L.end[1]-dy*.5]:L.end, dist=Math.hypot(ex-u.x,ey-u.y);
@@ -2327,14 +2358,7 @@ function frame(now){const rdt=Math.min(.05,(now-last)/1000); let dt=rdt; last=no
       if(!atk&&!skill&&canMv()) for(const [k,[d]] of reachH) if(d&&(hero.moved||d>hero.curMove)){ const [a,b]=k.split(',').map(Number); dia(a,b,'rgba(150,120,255,.12)','rgba(190,170,255,.45)'); } }
     if(myTurn()&&!atk&&!skill) for(const q of PROPS) if(SOLID.has(q.kind)&&(!q.used||q.kind==='Bookshelf')&&q.kind!=='Lock'&&cheb(hero,q.x,q.y)===1) dia(q.x,q.y,'rgba(255,215,120,.12)','rgba(255,215,120,.75)');
     if(skill==='charge') for(const [x,y] of chargeTiles(hero)) dia(x,y,'rgba(220,180,60,.2)','rgba(250,210,90,.75)');
-    for(const v of U) if(v.ch==='envoy'&&v.swap&&!v.dead){ const [A,B]=v.swap; if(A.dead||B.dead) continue;  /* the Envoy's mark: a cold ring under each of the two, a dashed thread between them */
-      const pul=.55+.35*Math.sin(now/180); for(const W of [A,B]) dia(W.x,W.y,'rgba(140,200,230,.10)','rgba(170,220,240,'+pul.toFixed(2)+')');
-      const [sx,sy]=iso(A.px*T2+2,A.py*T2+2), [tx,ty]=iso(B.px*T2+2,B.py*T2+2), len=Math.hypot(tx-sx,ty-sy);
-      for(let d=6;d<len-6;d+=2){ if(Math.floor((d+now/40)/6)%2) continue; const f=d/len; g.fillStyle='rgba(170,220,240,.75)'; g.fillRect(Math.round(sx-cx+(tx-sx)*f),Math.round(sy-cy+(ty-sy)*f)-3,1,1); } }
-    for(const v of U) if(v.ch==='herald'&&v.aim&&!v.dead){ const L=spineLine(v.x,v.y,...v.aim,v), [dx,dy]=v.aim, E=L.wall?[L.end[0]-dx*.5,L.end[1]-dy*.5]:L.end;
-      const [sx,sy]=iso(v.px*T2+2,v.py*T2+2), [tx,ty]=iso(E[0]*T2+2,E[1]*T2+2), len=Math.hypot(tx-sx,ty-sy), ph=(now/90)%6;  /* the Herald's aim: a thin dotted line, dithered in two cold tones, creeping toward the target */
-      for(let d=8;d<len;d+=3){ const f=d/len, x=Math.round(sx-cx+(tx-sx)*f), y=Math.round(sy-cy+(ty-sy)*f)-4; g.fillStyle=((Math.floor(d/3)+Math.floor(ph))%2)?'rgba(200,236,246,.9)':'rgba(110,160,185,.75)'; g.fillRect(x,y,1,1); }
-      if(L.hit||L.prop){ const X=Math.round(tx-cx), Y=Math.round(ty-cy)-4; g.fillStyle='rgba(200,236,246,.9)'; for(const [a,b] of [[-3,-2],[3,-2],[-3,2],[3,2],[-2,-1],[2,-1],[-2,1],[2,1]]) g.fillRect(X+a,Y+b,1,1); } }
+    for(const v of U){ if(v.ch==='envoy'&&v.swap&&!v.dead) drawSwapMark(v,false,cx,cy,now); if(v.ch==='herald'&&v.aim&&!v.dead) drawAimLine(v,false,cx,cy,now); }
     if(hover)dia(hover[0],hover[1],null,MOB?'rgba(255,230,180,'+(.55+.4*Math.sin(now/150)).toFixed(2)+')':'rgba(255,230,180,.8)');  /* on a phone the marked tile pulses: tap it again to act */
     if(!atk&&!skill&&canMv()&&hover&&reachH.has(key(...hover))&&!(hover[0]===hero.x&&hover[1]===hero.y)){ const hk=key(...hover)+'|'+hero.x+','+hero.y; if(hero.prevKey!==hk){hero.prevKey=hk; hero.prev=smoothPath([[hero.x,hero.y],...pathTo(hero,reachH,...hover)],hero);}
       const R=hero.prev, tot=R.L[R.L.length-1]; g.fillStyle='rgba(255,236,190,.9)'; for(let d=.2;d<tot;d+=.2){const [x,y]=along(R,d); const [qx,qy]=iso(x*T2+2,y*T2+2); g.fillRect(Math.round(qx-cx)-1,Math.round(qy-cy)-1,3,2);} } }
@@ -2364,6 +2388,7 @@ function frame(now){const rdt=Math.min(.05,(now-last)/1000); let dt=rdt; last=no
       if(B.t>=1){ bolts.splice(i,1); B.cb(); } continue; }
     g.moveTo(Math.round(bx-cx+qa),Math.round(by-cy+qb)); g.lineTo(Math.round(ax-cx+pa),Math.round(ay-cy+pb)); g.stroke(); g.fillStyle='#ffe28a'; g.fillRect(Math.round(ax-cx+pa)-1,Math.round(ay-cy+pb)-1,3,3);
     if(B.t>=1){ bolts.splice(i,1); B.cb(); } }
+  for(const v of U){ if(v.ch==='envoy'&&v.swap&&!v.dead) drawSwapMark(v,true,cx,cy,now); if(v.ch==='herald'&&v.aim&&!v.dead) drawAimLine(v,true,cx,cy,now); }  /* the indicators again over everything, dithered: they read through units and props in front of them */
   for(let i=swapFx.length-1;i>=0;i--){ const F=swapFx[i]; F.t+=dt; if(F.t>.6){ swapFx.splice(i,1); continue; } const [bx,by]=iso(F.x*T2+2,F.y*T2+2), r=4+F.t*46, al=1-F.t/.6;  /* a cold ring where each one lands in the swap */
     g.strokeStyle='rgba(170,220,240,'+al.toFixed(2)+')'; g.lineWidth=1; g.beginPath(); g.ellipse(bx-cx,by-cy-2,r,r*.5,0,0,Math.PI*2); g.stroke(); g.beginPath(); g.ellipse(bx-cx,by-cy-26,r*.4,r*.8,0,0,Math.PI*2); g.stroke(); }
   for(let i=stuckQ.length-1;i>=0;i--){ const S=stuckQ[i], age=(now-S.t0)/1000; if(age>9){ stuckQ.splice(i,1); continue; }  /* quills stuck in a unit (they follow it) or in the stone, for a while */
