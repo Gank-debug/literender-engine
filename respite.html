@@ -83,7 +83,7 @@ body,button,select{font-family:'Pixelify Sans',monospace}
 </style></head><body>
 <canvas id="c"></canvas>
 <div id="fx" style="position:fixed;inset:0;pointer-events:none"><div id="fxt" style="position:absolute;inset:0"></div><div id="fxg" style="position:absolute;inset:-64px"></div><div id="fxv" style="position:absolute;inset:0"></div></div>
-<div id="pick"><div class="pp"><h3>CHOOSE YOUR PARTY</h3><div class="sub">Four heroes go in.</div><div class="grid"></div><div class="fac"><span>Who holds the dungeon</span><button data-f="fungal">The Fungal Horde</button><button data-f="moreau">The Moreau</button></div><button class="go">Enter</button></div></div>
+<div id="pick"><div class="pp"><h3>CHOOSE YOUR PARTY</h3><div class="sub">Four heroes go in.</div><div class="grid"></div><div class="fac" style="display:none"><span>Who holds the dungeon</span><button data-f="fungal">The Fungal Horde</button><!-- moreau parked: <button data-f="moreau">The Moreau</button> --></div><button class="go">Enter</button></div></div>
 <div class="top"><div id="party" class="v"></div>
 <div class="turn v"><div id="turnt">Round 1</div><div class="order" id="order"></div></div>
 <div class="rcol"><div class="log v"><div class="hd"><span class="cap">C</span>hronicle</div><div id="log"></div></div><div class="v tgt" id="tgt" style="display:none"></div></div></div>
@@ -619,7 +619,7 @@ for(const k in PAINTED){ const P=PAINTED[k]; CH[k]={paint:P.kind,meta:{name:P.na
 const OVL=new Set([]),  /* the painted overlays and colony are off (GANK: the painted look clashes with the 2.5D renders) */ OVC=new Map(), useed=u=>u._sd??(u._sd=(([...String(u.id)].reduce((a,c)=>(a*31+c.charCodeAt(0))>>>0,7))%4)+1);
 function grown(ch,pose,f,row,base,seed){ const k=ch+'|'+pose+'|'+f+'|'+row+'|'+seed; let c=OVC.get(k); if(c) return c; const m=CH[ch].meta.poses[pose], t=f/Math.max(1,m.frames);
   c=ch==='necro'?BEAST.colony(base,t,seed):BEAST.overlay(base,seed,t); if(OVC.size>2500) OVC.clear(); OVC.set(k,c); return c; }
-let FACTION='fungal'; try{ FACTION=localStorage.getItem('respite.faction')||'fungal'; }catch(e){}  // who holds the dungeon: the Fungal Horde or the Moreau (the mutated beasts)
+let FACTION='fungal'; try{ FACTION=localStorage.getItem('respite.faction')||'fungal'; }catch(e){} if(FACTION==='moreau') FACTION='fungal';  /* the Moreau are parked for now */  // who holds the dungeon: the Fungal Horde or the Moreau (the mutated beasts)
 // ---- characters rendered as parts (partpack.py): each look is merged, coloured and inked from the part sheets, all its poses together, in a
 // worker so the game never stalls; the old look stays on screen until the whole new one is ready, then they swap at once.
 const LOOK={wayfinder:{on:{body:1,wing:1,cape:0},pal:{}},bers:{on:{body:1,belly:1},pal:{}},hunter:{on:{body:1,tines:0,rack:1},pal:{}},galvanist:{on:{body:1,wild:0,calm:0,coat:1,wildf:1,calmf:0},pal:{}}};
