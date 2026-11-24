@@ -146,7 +146,7 @@ body.inmenu>*:not(canvas):not(#rmenu):not(#pick):not(#errbox){visibility:hidden}
 <div class="drawer v" id="devp"><div class="hd"><span class="cap">D</span>ev</div><div class="k">MAP</div><div class="row"><select id="map" style="background:var(--panel);color:var(--ink);border:1px solid #3a322b;padding:8px;font:inherit"></select><select id="dsize"><option value="random">Size: random</option><option value="compact">Size: compact</option><option value="small">Size: small</option><option value="medium">Size: medium</option><option value="large">Size: large</option></select><select id="depth"><option value="0">Depth: off (test spawns)</option><option value="1">Depth 1</option><option value="2">Depth 2</option><option value="3">Depth 3</option><option value="4">Depth 4</option><option value="5">Depth 5</option><option value="6">Depth 6</option><option value="7">Depth 7</option><option value="8">Depth 8</option><option value="9">Depth 9</option><option value="10">Depth 10</option><option value="11">Depth 11</option><option value="12">Depth 12</option></select><select id="dmul"><option value="0.8">Budget ×0.8</option><option value="1">Budget ×1</option><option value="1.2">Budget ×1.2</option><option value="1.4">Budget ×1.4</option></select><select id="wsty"><option value="b">Water: B (murky)</option><option value="a">Water: A (first draft)</option><option value="c">Water: C (clear)</option></select><button id="reroll">New dungeon</button><button id="repick">Party</button></div></div>
 <script>
 const DEVX=id=>document.getElementById(id)||{classList:{toggle(){}},style:{}};  /* dev controls removed (GANK: decided) *//* startup errors on screen (GANK's phone showed a black screen with no clue why): the first error is shown in a box at the top, with the build */
-window.BUILD='1124-1630'; window.__errs=[];
+window.BUILD='1124-1701'; window.__errs=[];
 (function(){ const show=m=>{ window.__errs.push(m); let d=document.getElementById('errbox'); if(!d){ d=document.createElement('div'); d.id='errbox'; d.style.cssText='position:fixed;left:6px;right:6px;top:6px;z-index:99;background:#3a0d0d;color:#ffd8c8;border:1px solid #c05040;font:12px/1.35 monospace;padding:8px;white-space:pre-wrap;max-height:40vh;overflow:auto'; (document.body||document.documentElement).appendChild(d); } d.textContent='Respite build '+window.BUILD+' hit an error (please screenshot this):\n'+window.__errs.slice(0,4).join('\n\n'); };
   addEventListener('error',e=>show((e.message||'error')+' @ '+(e.lineno||'?')+':'+(e.colno||'?')+(e.error&&e.error.stack?'\n'+String(e.error.stack).split('\n').slice(0,4).join('\n'):'')));
   addEventListener('unhandledrejection',e=>show('promise: '+(e.reason&&(e.reason.stack||e.reason.message)||e.reason))); })();
@@ -776,7 +776,7 @@ N.act = d => { if (N.hostPeer) send(N.hostPeer, { t: 'act', d }); if (d.k !== 's
 
 // ---------------------------------------------------------------- the main menu (after The Hollow Brother's)
 const myName = () => (store('crown-name') || '').trim() || 'Wanderer';
-const HOW = `<p><b>The descent.</b> Choose three to five heroes and go down. Each depth is one map: clear it and the way down opens. Deeper is harder, and new things wait at their own depths, each with a line in the Chronicle on how it fights.</p>
+const HOW = `<p><b>The labyrinth.</b> Choose three to five heroes and go down. Each depth is one level of the labyrinth: clear it and the way down opens. Deeper is harder, and new things wait at their own depths, each with a line in the Chronicle on how it fights.</p>
   <p><b>Turns.</b> Everyone rolls for the order each round. On a hero's turn: move, then strike or use a technique (click a tile; the buttons along the bottom). Some techniques let you move after.</p>
   <p><b>The ground.</b> Fire burns, fumes sicken, ice slides you on, water slows you to a tile, wild spices restore the spirit. Chests, the fallen and the shelves have things in them; springs heal once.</p>
   <p><b>Together.</b> Host a room and send the code. The heroes are dealt round the table: with two of you, two each. If someone drops out, the host plays their heroes until they come back with the same name.</p>`;
@@ -786,7 +786,7 @@ const MENU = window.RMENU = { tab: 'solo', info: null,
   hide() { if (MENU.el) MENU.el.style.display = 'none'; document.body.classList.remove('inmenu'); },
   draw() { const el = MENU.el; if (!el || el.style.display === 'none') return;
     let left = `<div class="mtitle"><span class="cap">R</span>espite</div>
-      <p class="mpitch">Under the old chapel the ground has opened. Something grows down there in the wet and the dark, and something older keeps it. Go down with what friends you have, depth by depth, as far as you dare, and come back up.</p>
+      <p class="mpitch">An ancient labyrinth runs down beneath the hills, older than any name for it. Something grows in its wet dark halls, and something older keeps them. Go down with what friends you have, depth by depth, as far as you dare, and come back up.</p>
       <div class="row"><span class="btn small" id="rhow">How to play</span></div>`;
     const tabs = [['solo', 'Singleplayer'], ['host', 'Host online'], ['join', 'Join with a code']];
     let r = `<div class="mtabs">${tabs.map(([k, t]) => `<span class="${MENU.tab === k ? 'on' : ''}" data-mtab="${k}">${t}</span>`).join('')}</div>`;
