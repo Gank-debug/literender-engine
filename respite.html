@@ -121,7 +121,7 @@ body,button,select{font-family:'Pixelify Sans',monospace}
 <div class="drawer v" id="setp"><div class="hd"><span class="cap">S</span>ettings</div><label><input type="checkbox" id="dcolc"> Coloured dither behind walls</label><label><input type="checkbox" id="tiltc" checked> Tilt-shift (miniature)</label><div class="row" style="margin-top:8px"><button id="zoom">Zoom</button><button id="fs">Fullscreen</button></div></div>
 <div class="drawer v" id="devp"><div class="hd"><span class="cap">D</span>ev</div><div class="k">MAP</div><div class="row"><select id="map" style="background:var(--panel);color:var(--ink);border:1px solid #3a322b;padding:8px;font:inherit"><option value="duel">Map: Duel (1 hero vs 1 enemy)</option></select><select id="dsize"><option value="random">Size: random</option><option value="small">Size: small</option><option value="medium">Size: medium</option><option value="large">Size: large</option></select><button id="reroll">New dungeon</button><button id="repick">Party</button></div><div class="row"><select id="cxd"><option value="auto">Crypt grass: joints, broken tiles in 35%</option><option value="sj">Crypt grass: joints + broken tiles</option><option value="j">Crypt grass: joints only</option><option value="">Crypt grass: off</option></select><select id="doors"><option value="off">Doorways: none</option><option value="door">Doorways: single arch</option><option value="arcade">Doorways: arcade</option></select></div><div class="k">SPAWN</div><div class="row"><button id="reset">Horde wave</button><button id="husks">Husk wave</button><button id="thrb">Thralls</button><button id="bersb">Berserker</button><button id="low">Low health</button></div></div>
 <script>/* startup errors on screen (GANK's phone showed a black screen with no clue why): the first error is shown in a box at the top, with the build */
-window.BUILD='1123-1848'; window.__errs=[];
+window.BUILD='1123-1919'; window.__errs=[];
 (function(){ const show=m=>{ window.__errs.push(m); let d=document.getElementById('errbox'); if(!d){ d=document.createElement('div'); d.id='errbox'; d.style.cssText='position:fixed;left:6px;right:6px;top:6px;z-index:99;background:#3a0d0d;color:#ffd8c8;border:1px solid #c05040;font:12px/1.35 monospace;padding:8px;white-space:pre-wrap;max-height:40vh;overflow:auto'; (document.body||document.documentElement).appendChild(d); } d.textContent='Respite build '+window.BUILD+' hit an error (please screenshot this):\n'+window.__errs.slice(0,4).join('\n\n'); };
   addEventListener('error',e=>show((e.message||'error')+' @ '+(e.lineno||'?')+':'+(e.colno||'?')+(e.error&&e.error.stack?'\n'+String(e.error.stack).split('\n').slice(0,4).join('\n'):'')));
   addEventListener('unhandledrejection',e=>show('promise: '+(e.reason&&(e.reason.stack||e.reason.message)||e.reason))); })();
@@ -1211,6 +1211,11 @@ function drawAimLine(v,top,cx,cy,now,org){ const O=org||[v.x,v.y], fa=org?.45:1,
 //  c glyphs: the same rune under both (a ring with turning ticks and a mark inside), an arching dashed thread between them
 //  d arrows: two curved arrows crossing between them, over their heads
 window.SWAPSTYLE=window.SWAPSTYLE||'ca';  /* GANK: C's glyphs with A's ghosts; an aiming Herald's ghost carries a faint red line from where it will stand */
+// a swap ghost (GANK: much fainter, dithered): the unit drawn at its partner's tile through a sparse dot screen (one pixel in four)
+let GHOSTP=null; const GW=120, GH=200;
+function ghostAt(U1,U2,cx,cy){ if(!GHOSTP){ GHOSTP=new Path2D(); for(let y=0;y<GH;y+=2) for(let x=(y>>1)&1;x<GW;x+=2) GHOSTP.rect(x,y,1,1); }
+  const [X,Y]=iso(U2.px*T2+2,U2.py*T2+2), X0=Math.round(X-cx-GW/2), Y0=Math.round(Y-cy-GH+30), ox=U1.px, oy=U1.py;
+  g.save(); g.translate(X0,Y0); g.clip(GHOSTP); g.translate(-X0,-Y0); g.globalAlpha=.85; U1.px=U2.px; U1.py=U2.py; drawUnit0(U1,cx,cy,0); U1.px=ox; U1.py=oy; g.restore(); }
 function drawSwapMark(v,top,cx,cy,now){ const [A,B]=v.swap; if(A.dead||B.dead) return; const st=window.SWAPSTYLE, col=a=>'rgba(150,232,255,'+Math.min(1,a).toFixed(2)+')', pul=.7+.3*Math.sin(now/170);
   const P=u=>{ const [x,y]=iso(u.px*T2+2,u.py*T2+2); return [x-cx,y-cy]; }, [ax,ay]=P(A), [bx,by]=P(B);
   const arc=(h,step,dash,lift,fn)=>{ const L=Math.hypot(bx-ax,by-ay); for(let d=0;d<=L;d+=step){ const f=d/L, x=ax+(bx-ax)*f, y=ay+(by-ay)*f-lift-Math.sin(f*Math.PI)*h; if(dash&&Math.floor((d+now/30)/dash)%2) continue; fn(Math.round(x),Math.round(y),f); } };
@@ -1219,7 +1224,7 @@ function drawSwapMark(v,top,cx,cy,now){ const [A,B]=v.swap; if(A.dead||B.dead) r
   glow(ax,ay); glow(bx,by);
   if(st==='ca'){ const sv=window.SWAPSTYLE; window.SWAPSTYLE='c'; drawSwapMark(v,top,cx,cy,now); window.SWAPSTYLE=sv;
     for(const [U1,U2] of [[A,B],[B,A]]){ if(U1.ch==='herald'&&U1.aim) drawAimLine(U1,top,cx,cy,now,[U2.x,U2.y]);
-      if(top){ const ox=U1.px, oy=U1.py; U1.px=U2.px; U1.py=U2.py; g.globalAlpha=.4+.15*pul; drawUnit0(U1,cx,cy,0); g.globalAlpha=1; U1.px=ox; U1.py=oy; } } return; }
+      if(top) ghostAt(U1,U2,cx,cy); } return; }
   if(st==='a'){ if(!top){ ring(ax,ay,9,.8*pul); ring(bx,by,9,.8*pul); arc(8,2,4,2,(x,y)=>{ g.fillStyle=col(.95); g.fillRect(x,y,2,1); }); return; }
     for(const [U1,U2] of [[A,B],[B,A]]){ const ox=U1.px, oy=U1.py; U1.px=U2.px; U1.py=U2.py; g.globalAlpha=.4+.15*pul; drawUnit0(U1,cx,cy,0); g.globalAlpha=1; U1.px=ox; U1.py=oy; } return; }
   if(st==='b'){ for(const [x,y] of [[ax,ay],[bx,by]]){ g.save(); g.globalCompositeOperation='lighter'; for(let h=0;h<64;h++){ const a=(1-h/64)*.85*pul; for(let w=-5;w<=5;w++){ const px=x+w, py=Math.round(y-h); if((px+py)&1) continue; g.fillStyle=col(a*(1-Math.abs(w)/6)); g.fillRect(px,py,1,1); } } g.restore(); ring(x,y,8,.8*pul); }
