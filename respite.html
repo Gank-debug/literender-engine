@@ -26,7 +26,7 @@ button.on{border-color:var(--acc);background:#3a2014;color:#fff} button:disabled
 #pick.on{display:flex} #pick .pp{background:#16131a;border:1px solid #3a3240;padding:18px 20px;max-width:560px;width:calc(100% - 32px);color:#e8dcc4;font:14px/1.4 Georgia,serif}
 #pick h3{margin:0 0 4px;font-weight:normal;letter-spacing:.08em} #pick .sub{color:#9a8f80;font-size:12px;margin-bottom:12px}
 #pick .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px} #pick .h{border:1px solid #3a3240;background:#1d1922;color:#cbbfa8;padding:8px 10px;text-align:left;cursor:pointer;font:inherit}
-#pick .h.sel{border-color:#c9a35a;background:#2a2218;color:#f1e3c2} #pick .fac{display:flex;align-items:center;gap:8px;margin:12px 0 2px;color:#9a8f80;font-size:12px} #pick .fac span{margin-right:auto} #pick .fac button{border:1px solid #3a3240;background:#1d1922;color:#cbbfa8;padding:6px 10px;cursor:pointer;font:13px Georgia,serif} #pick .fac button.sel{border-color:#c9a35a;background:#2a2218;color:#f1e3c2} #pick .h small{display:block;color:#8e8474;font-size:11px}
+#pick .h.sel{border-color:#c9a35a;background:#2a2218;color:#f1e3c2} #pick .h.taken{opacity:.5;cursor:default} #pick .h .who{display:block;color:#c9a35a;font-size:11px;margin-top:2px} #pick .h.sel .who{color:#f0d68a} #pick .fac{display:flex;align-items:center;gap:8px;margin:12px 0 2px;color:#9a8f80;font-size:12px} #pick .fac span{margin-right:auto} #pick .fac button{border:1px solid #3a3240;background:#1d1922;color:#cbbfa8;padding:6px 10px;cursor:pointer;font:13px Georgia,serif} #pick .fac button.sel{border-color:#c9a35a;background:#2a2218;color:#f1e3c2} #pick .h small{display:block;color:#8e8474;font-size:11px}
 #pick .go{margin-top:14px;width:100%;padding:10px;background:#c9a35a;color:#16131a;border:0;font:inherit;letter-spacing:.06em;cursor:pointer} #pick .go:disabled{background:#4a4234;color:#8e8474;cursor:default}
 
 /* ---- the game's UI, after The Hollow Brother: framed panels, blackletter heads with a red drop cap, pixel body type */
@@ -41,7 +41,7 @@ body,button,select{font-family:'Pixelify Sans',monospace}
 .s{display:grid;grid-template-columns:46px 1fr;gap:8px;align-items:center;padding:6px 4px;border-bottom:1px solid var(--rule)} .s:last-child{border-bottom:0}
 .s .pt{width:44px;height:44px;object-fit:none;object-position:50% 0;background:radial-gradient(ellipse at 50% 30%,#3a2c22,#120d0a 75%);border:1px solid #6a5236;box-shadow:0 0 0 1px #0a0706;image-rendering:pixelated;display:block}
 .s b{font-family:var(--hf);font-weight:normal;font-size:22px;color:var(--ink);line-height:1.1} .s b i{font-style:normal;color:var(--cap)} .s small{display:block;font-size:11px;color:var(--dim);margin-top:2px}
-.s.now{background:var(--hl);box-shadow:inset 2px 0 var(--cap)} .s.dead{opacity:.45} .s.dead b{text-decoration:line-through}
+html:not(.mob) #party .s+.s{margin-top:7px} .s.now{background:var(--hl);box-shadow:inset 2px 0 var(--cap)} .s.dead{opacity:.45} .s.dead b{text-decoration:line-through}
 .s .bars{display:flex;flex-direction:column;gap:2px;margin-top:4px}
 .s .bars span{display:block;height:4px;background:#241a14;box-shadow:0 0 0 1px #0a0706} .s .bars span i{display:block;height:100%;transition:width .3s}
 .s .hpb i{background:#a83a26} .s .mpb i{background:#4f7fc4} .s .wrb i{background:#d0a040} .s .fcb i{background:#8cc49a}
@@ -143,10 +143,10 @@ body.inmenu>*:not(canvas):not(#rmenu):not(#pick):not(#errbox){visibility:hidden}
 <div class="corner"><button id="menub" aria-label="Menu">☰</button><button id="guideb">Guide</button><button id="setb">Settings</button><button id="devb">Dev</button></div>
 <div class="drawer v" id="satp" style="left:50%;right:auto;transform:translateX(-50%);bottom:96px;width:340px"></div>
 <div class="drawer v" id="setp"><div class="hd"><span class="cap">S</span>ettings</div><label><input type="checkbox" id="dcolc"> Coloured dither behind walls</label><label><input type="checkbox" id="tiltc" checked> Tilt-shift (miniature)</label><div class="row" style="margin-top:8px"><button id="zoom">Zoom</button><button id="fs">Fullscreen</button></div></div>
-<div class="drawer v" id="devp"><div class="hd"><span class="cap">D</span>ev</div><div class="k">MAP</div><div class="row"><select id="map" style="background:var(--panel);color:var(--ink);border:1px solid #3a322b;padding:8px;font:inherit"></select><select id="dsize"><option value="random">Size: random</option><option value="compact">Size: compact</option><option value="small">Size: small</option><option value="medium">Size: medium</option><option value="large">Size: large</option></select><select id="depth"><option value="0">Depth: off (test spawns)</option><option value="1">Depth 1</option><option value="2">Depth 2</option><option value="3">Depth 3</option><option value="4">Depth 4</option><option value="5">Depth 5</option><option value="6">Depth 6</option><option value="7">Depth 7</option><option value="8">Depth 8</option><option value="9">Depth 9</option><option value="10">Depth 10</option><option value="11">Depth 11</option><option value="12">Depth 12</option></select><select id="dmul"><option value="0.8">Budget ×0.8</option><option value="1">Budget ×1</option><option value="1.2">Budget ×1.2</option><option value="1.4">Budget ×1.4</option></select><select id="wsty"><option value="b">Water: B (murky)</option><option value="a">Water: A (first draft)</option><option value="c">Water: C (clear)</option></select><button id="reroll">New dungeon</button><button id="repick">Party</button></div></div>
+<div class="drawer v" id="devp"><div class="hd"><span class="cap">D</span>ev</div><div class="k">MAP</div><div class="row"><select id="map" style="background:var(--panel);color:var(--ink);border:1px solid #3a322b;padding:8px;font:inherit"></select><select id="dsize"><option value="random">Size: random</option><option value="compact">Size: compact</option><option value="small">Size: small</option><option value="medium">Size: medium</option><option value="large">Size: large</option></select><select id="depth"><option value="0">Depth: off (test spawns)</option><option value="1">Depth 1</option><option value="2">Depth 2</option><option value="3">Depth 3</option><option value="4">Depth 4</option><option value="5">Depth 5</option><option value="6">Depth 6</option><option value="7">Depth 7</option><option value="8">Depth 8</option><option value="9">Depth 9</option><option value="10">Depth 10</option><option value="11">Depth 11</option><option value="12">Depth 12</option></select><select id="dmul"><option value="0.8">Budget ×0.8</option><option value="1">Budget ×1</option><option value="1.2">Budget ×1.2</option><option value="1.4">Budget ×1.4</option></select><button id="reroll">New dungeon</button><button id="repick">Party</button></div></div>
 <script>
 const DEVX=id=>document.getElementById(id)||{classList:{toggle(){}},style:{}};  /* dev controls removed (GANK: decided) *//* startup errors on screen (GANK's phone showed a black screen with no clue why): the first error is shown in a box at the top, with the build */
-window.BUILD='1124-1701'; window.__errs=[];
+window.BUILD='1124-2138'; window.__errs=[];
 (function(){ const show=m=>{ window.__errs.push(m); let d=document.getElementById('errbox'); if(!d){ d=document.createElement('div'); d.id='errbox'; d.style.cssText='position:fixed;left:6px;right:6px;top:6px;z-index:99;background:#3a0d0d;color:#ffd8c8;border:1px solid #c05040;font:12px/1.35 monospace;padding:8px;white-space:pre-wrap;max-height:40vh;overflow:auto'; (document.body||document.documentElement).appendChild(d); } d.textContent='Respite build '+window.BUILD+' hit an error (please screenshot this):\n'+window.__errs.slice(0,4).join('\n\n'); };
   addEventListener('error',e=>show((e.message||'error')+' @ '+(e.lineno||'?')+':'+(e.colno||'?')+(e.error&&e.error.stack?'\n'+String(e.error.stack).split('\n').slice(0,4).join('\n'):'')));
   addEventListener('unhandledrejection',e=>show('promise: '+(e.reason&&(e.reason.stack||e.reason.message)||e.reason))); })();
@@ -672,7 +672,7 @@ const cleanRoom = s => { const m = /([A-Z0-9]{4})\s*$/.exec((s || '').toUpperCas
 const store = (k, v) => { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; } };
 const MAXP = 5;
 
-const N = window.NET = { on: false, host: false, guest: false, started: false, seat: 0, code: null, lobby: [], peerSeat: {}, seatPeer: {}, hostPeer: null, own: {}, acting: false, last: {}, msg: '', seen: {} };
+const N = window.NET = { on: false, host: false, guest: false, started: false, seat: 0, code: null, lobby: [], peerSeat: {}, seatPeer: {}, hostPeer: null, own: {}, acting: false, last: {}, msg: '', seen: {}, claims: {}, picking: false };
 N.mine = h => !N.on || N.acting || !h || (N.own[h.id] ?? 0) === N.seat;
 N.ownerName = h => { const s = N.own[h.id] ?? 0, L = N.lobby[s]; return L ? L.name : 'the host'; };
 const send = (pid, m) => { try { N.chan && N.chan.send(JSON.stringify(m), { target: pid }); } catch (e) {} };
@@ -697,6 +697,7 @@ const unitOut = u => { const o = {}; for (const k in u) { if (SKIP.has(k)) conti
 const fx = () => ({ floats: floats.map(f => ({ ...f })), bolts: bolts.map(b => enc(Object.fromEntries(Object.entries(b).filter(([k]) => k !== 'cb')))), blasts: blasts.map(b => ({ ...b })), grenades: enc(grenades), traps: enc(traps), caltrops: enc(caltrops), pods: enc(pods), stuckQ: enc(stuckQ.slice(-40)) });
 
 function snapshot(seat, all) { const L = N.last[seat] || (N.last[seat] = { u: {} }), out = { t: 'snap', r: round, ti: turnIdx, ord: order.map(u => u.id), hero: hero && hero.id, busy: busyLock, gold, sat: SATCHEL.slice(), shake: Math.max(0, shake), cap: CAP ? enc(CAP) : null, fx: fx(),
+    reach: (() => { const k = JSON.stringify(reachH ? [...reachH] : []); if (all || L.reach !== k) { L.reach = k; return JSON.parse(k); } return undefined; })(),
     props: PROPS.map(q => [q.used ? 1 : 0, q.seen ? 1 : 0, q.hp ?? null, q.read ? 1 : 0]), sets: { fire: [...fireSet], efire: [...efireSet], fume: [...fumeSet] }, logs: logs.slice(), dsc: typeof dBtn !== 'undefined' && dBtn.style.display !== 'none' ? dBtn.textContent : null, U: [] };
   for (const u of U) { const o = unitOut(u), prev = L.u[u.id] || {}, d = { id: u.id }; let any = all || !L.u[u.id];
     for (const k in o) { const s = JSON.stringify(o[k]); if (all || prev[k] !== s) { d[k] = o[k]; prev[k] = s; any = true; } }
@@ -708,11 +709,20 @@ function hostOpen() { N.on = true; N.host = true; N.guest = false; N.seat = 0; N
 function lobbySend() { const names = N.lobby.map(x => x.name); N.lobby.forEach((x, i) => { if (x.peer) send(x.peer, { t: 'lobby', names, you: i }); }); MENU.draw(); }
 function hostMsg(pid, m) { const seat = N.peerSeat[pid]; if (seat != null) N.seen[seat] = Date.now();
   if (m.t === 'hi') { const nm = String(m.name || '').replace(/[<>&"]/g, '').slice(0, 16).trim() || 'A wanderer';
-    if (!N.started) { if (N.lobby.some(x => x.peer === pid)) return; if (N.lobby.length >= MAXP) return send(pid, { t: 'full' }); N.lobby.push({ name: nm, peer: pid }); N.peerSeat[pid] = N.lobby.length - 1; lobbySend(); return; }
+    if (!N.started) { if (N.lobby.some(x => x.peer === pid)) return; if (N.lobby.length >= MAXP) return send(pid, { t: 'full' }); N.lobby.push({ name: nm, peer: pid }); N.peerSeat[pid] = N.lobby.length - 1; lobbySend(); if (N.picking) { send(pid, { t: 'pick' }); claimsSend(); } return; }
     const s = N.lobby.findIndex((x, i) => i && x.name.toLowerCase() === nm.toLowerCase() && !x.peer); if (s < 0) return send(pid, { t: 'full', inGame: true });
     N.lobby[s].peer = pid; N.peerSeat[pid] = s; N.seatPeer[s] = pid; sendStart(s); log(nm + ' is back.'); return; }
+  if (seat != null && !N.started && m.t === 'name') { const nm = String(m.name || '').replace(/[<>&"]/g, '').slice(0, 16).trim() || 'A wanderer'; if (N.lobby[seat]) { N.lobby[seat].name = nm; lobbySend(); } return; }
+  if (seat != null && !N.started && m.t === 'claim') return claim(seat, m.id);
   if (seat == null || !N.started) return;
   if (m.t === 'act') hostAct(seat, m.d); }
+// ---------------------------------------------------------------- choosing heroes: each player picks their own (GANK), the host goes in
+function claim(seat, id) { if (!ALLH.some(h => h.id === id)) return; const C = N.claims;
+  if (C[id] === seat) delete C[id]; else if (C[id] == null && Object.keys(C).length < 5) C[id] = seat; else return;
+  claimsSend(); }
+function claimsSend() { N.lobby.forEach((x, i) => { if (x.peer) send(x.peer, { t: 'claims', claims: N.claims, names: N.lobby.map(y => y.name) }); }); window.PICKDRAW && PICKDRAW(); }
+N.claim = id => { if (N.host) claim(0, id); else if (N.hostPeer) send(N.hostPeer, { t: 'claim', id }); };
+function pickOpen() { N.picking = true; N.claims = {}; window.NEWRUN && NEWRUN(); MENU.hide(); showPick('dungeon'); N.lobby.forEach(x => { if (x.peer) send(x.peer, { t: 'pick' }); }); claimsSend(); }
 function hostAct(seat, d) { if (!d) return; if (d.k === 'descend') { if (typeof dBtn !== 'undefined' && dBtn.style.display !== 'none') descend(); return; }
   const h = cur(); if (!h || !isHero(h) || (N.own[h.id] ?? 0) !== seat) return; N.acting = true;
   try { if (d.k === 'click') { setAtk(!!d.atk); skill = d.skill || null; if (d.gv) { gvD = d.gv[0]; gvR = d.gv[1]; } if (d.stim != null) stimOn = !!d.stim; if (d.bomb != null) bombIdx = d.bomb; tileClick(d.a, d.b); }
@@ -721,10 +731,10 @@ function hostAct(seat, d) { if (!d) return; if (d.k === 'descend') { if (typeof 
     else if (d.k === 'skill') { skill = d.skill || null; } } catch (e) { console.error(e); }
   N.acting = false; ui(); }
 function hostLeave(pid) { const seat = N.peerSeat[pid]; delete N.peerSeat[pid];
-  if (!N.started) { N.lobby = N.lobby.filter(x => x.peer !== pid); N.lobby.forEach((x, i) => { if (x.peer) N.peerSeat[x.peer] = i; }); lobbySend(); return; }
+  if (!N.started) { for (const id in N.claims) { if (N.claims[id] === seat) delete N.claims[id]; else if (N.claims[id] > seat) N.claims[id]--; } N.lobby = N.lobby.filter(x => x.peer !== pid); N.lobby.forEach((x, i) => { if (x.peer) N.peerSeat[x.peer] = i; }); lobbySend(); if (N.picking) claimsSend(); return; }
   if (seat != null) { delete N.seatPeer[seat]; if (N.lobby[seat]) N.lobby[seat].peer = null; for (const id in N.own) if (N.own[id] === seat) N.own[id] = 0; log((N.lobby[seat] || {}).name + ' has gone. You take their heroes until they come back.'); ui(); } }
 // the party is picked on the host's screen, then its heroes are dealt round the table, the host first
-N.partyPicked = () => { if (!N.host || !N.room) return; const seats = N.lobby.map((x, i) => i).filter(i => i === 0 || N.lobby[i].peer); N.own = {}; HEROES.forEach((h, k) => { N.own[h.id] = seats[k % seats.length]; });
+N.partyPicked = () => { if (!N.host || !N.room) return; const seats = N.lobby.map((x, i) => i).filter(i => i === 0 || N.lobby[i].peer); N.own = {}; HEROES.forEach((h, k) => { N.own[h.id] = N.claims[h.id] ?? seats[k % seats.length]; }); N.picking = false;
   N.lobby.forEach((x, i) => { if (x.peer) N.seatPeer[i] = x.peer; }); N.started = true; MENU.hide(); for (const s of seats) if (s) sendStart(s);
   log('You lead ' + HEROES.filter(h => N.own[h.id] === 0).map(h => h.short).join(' and ') + '. ' + seats.filter(s => s).map(s => N.lobby[s].name + ': ' + HEROES.filter(h => N.own[h.id] === s).map(h => h.short).join(', ')).join('; ') + '.'); ui(); };
 function mapArgs() { const A = window.LASTMAP || {}; return { ...A, theme: DTHEME, doors: typeof DOORS !== 'undefined' ? DOORS : 'off', cx: window.CX, ttm: typeof TTM !== 'undefined' ? TTM : 0, depth: DEPTH, fac: FACTION, wst: typeof WSTYLE !== 'undefined' ? WSTYLE : 'b' }; }
@@ -741,14 +751,16 @@ function guestJoin(code, name) { N.on = true; N.guest = true; N.host = false; N.
 function guestMsg(pid, m) {
   if (m.t === 'host' && !N.hostPeer) { N.hostPeer = pid; send(pid, { t: 'hi', name: N.myName }); N.msg = 'Found the host.'; MENU.draw(); return; }
   if (pid !== N.hostPeer) return;
-  if (m.t === 'lobby') { N.lobby = m.names.map(n => ({ name: n })); N.seat = m.you; N.msg = ''; MENU.draw(); return; }
+  if (m.t === 'lobby') { N.lobby = m.names.map(n => ({ name: n, peer: 1 })); N.seat = m.you; N.msg = ''; MENU.draw(); window.PICKDRAW && PICKDRAW(); return; }
+  if (m.t === 'pick') { N.picking = true; MENU.hide(); showPick('dungeon'); return; }
+  if (m.t === 'claims') { N.claims = m.claims || {}; if (m.names) N.lobby = m.names.map(n => ({ name: n, peer: 1 })); window.PICKDRAW && PICKDRAW(); return; }
   if (m.t === 'full') { N.msg = m.inGame ? 'That game is under way and has no empty place.' : 'The party is full.'; MENU.draw(); return; }
   if (m.t === 'start') return guestStart(m);
   if (m.t === 'map') { if (N.started) guestMap(m.map); return; }
   if (m.t === 'snap' && N.started) return guestSnap(m); }
 function guestMap(A) { DTHEME = A.theme; window.DTH = undefined; if (A.doors != null) DOORS = A.doors; window.CX = A.cx; TTM = A.ttm || 0; DEPTH = A.depth; FACTION = A.fac; WSTYLE = A.wst || 'b'; window.DSEED = A.seed; window.DSZ = A.sz; PROTO = '';
   N.pending = []; loadMap('dungeon'); }
-function guestStart(m) { N.started = true; N.seat = m.seat; N.own = m.own; N.lobby = m.names.map(n => ({ name: n })); MENU.hide(); document.getElementById('pick').classList.remove('on');
+function guestStart(m) { N.started = true; N.picking = false; ['devb', 'devp'].forEach(id => { const e = $(id); if (e) e.style.display = 'none'; });  /* guests don't get the dev tools (GANK) */ N.seat = m.seat; N.own = m.own; N.lobby = m.names.map(n => ({ name: n })); MENU.hide(); document.getElementById('pick').classList.remove('on');
   pickSel = new Set(m.party); setParty(pickSel); guestMap(m.map); log('You lead ' + HEROES.filter(h => N.own[h.id] === N.seat).map(h => h.short).join(' and ') + '.'); }
 const dec = v => { if (typeof v === 'string' && v[0] === '#') return U.find(u => u.id === v.slice(1)) || null; if (Array.isArray(v)) return v.map(dec); if (v && typeof v === 'object') { const o = {}; for (const k in v) o[k] = dec(v[k]); return o; } return v; };
 function guestSnap(m) {
@@ -759,6 +771,7 @@ function guestSnap(m) {
   for (let i = U.length - 1; i >= 0; i--) if (!ids.has(U[i].id)) U.splice(i, 1);
   for (const u of U) for (const k of ['swap', 'lock', 'tgt', 'pull', 'mark']) if (typeof u[k] === 'string' || Array.isArray(u[k])) u[k] = dec(u[k]);
   order = m.ord.map(id => U.find(u => u.id === id)).filter(Boolean); turnIdx = m.ti; round = m.r; hero = U.find(u => u.id === m.hero) || hero;
+  if (m.reach) reachH = new Map(m.reach);  /* the blue tiles: where the hero can step, as the host worked it out */
   busyLock = m.busy || N.wait > performance.now(); gold = m.gold; SATCHEL.length = 0; SATCHEL.push(...m.sat); if (m.shake > shake) shake = m.shake;
   CAP = m.cap ? dec(m.cap) : CAP && !m.cap ? null : CAP;
   m.props.forEach((a, i) => { const q = PROPS[i]; if (!q) return; q.used = !!a[0]; q.seen = !!a[1]; if (a[2] != null) q.hp = a[2]; q.read = !!a[3]; if (q.used && q.kind === 'Calcified Remains') blocked.delete(key(q.x, q.y)); });
@@ -775,11 +788,13 @@ function guestLost() { if (!N.started) { N.msg = 'The host has gone.'; N.hostPee
 N.act = d => { if (N.hostPeer) send(N.hostPeer, { t: 'act', d }); if (d.k !== 'skill' && d.k !== 'btn') N.wait = performance.now() + 400; };
 
 // ---------------------------------------------------------------- the main menu (after The Hollow Brother's)
-const myName = () => (store('crown-name') || '').trim() || 'Wanderer';
+const ses = (k, v) => { try { if (v === undefined) return sessionStorage.getItem(k); sessionStorage.setItem(k, v); } catch (e) { return null; } };
+const rawName = () => ses('respite-name') ?? store('crown-name') ?? '';  /* this tab's own name first: two tabs on one machine used to share one name */
+const myName = () => (rawName() || '').trim() || 'Wanderer';
 const HOW = `<p><b>The labyrinth.</b> Choose three to five heroes and go down. Each depth is one level of the labyrinth: clear it and the way down opens. Deeper is harder, and new things wait at their own depths, each with a line in the Chronicle on how it fights.</p>
   <p><b>Turns.</b> Everyone rolls for the order each round. On a hero's turn: move, then strike or use a technique (click a tile; the buttons along the bottom). Some techniques let you move after.</p>
   <p><b>The ground.</b> Fire burns, fumes sicken, ice slides you on, water slows you to a tile, wild spices restore the spirit. Chests, the fallen and the shelves have things in them; springs heal once.</p>
-  <p><b>Together.</b> Host a room and send the code. The heroes are dealt round the table: with two of you, two each. If someone drops out, the host plays their heroes until they come back with the same name.</p>`;
+  <p><b>Together.</b> Host a room and send the code. Each player picks their own heroes, three to five in all: with two of you, two each. If someone drops out, the host plays their heroes until they come back with the same name.</p>`;
 const MENU = window.RMENU = { tab: 'solo', info: null,
   open() { MENU.el = MENU.el || Object.assign(document.createElement('div'), { id: 'rmenu' }); document.body.appendChild(MENU.el); MENU.el.style.display = ''; document.body.classList.add('inmenu');
     const m = /#(join|room)=([^&]+)/.exec(location.hash); if (m) { MENU.tab = 'join'; const c = cleanRoom(decodeURIComponent(m[2])); if (c) { MENU.code = c; guestJoin(c, myName()); } } MENU.draw(); },
@@ -791,26 +806,30 @@ const MENU = window.RMENU = { tab: 'solo', info: null,
     const tabs = [['solo', 'Singleplayer'], ['host', 'Host online'], ['join', 'Join with a code']];
     let r = `<div class="mtabs">${tabs.map(([k, t]) => `<span class="${MENU.tab === k ? 'on' : ''}" data-mtab="${k}">${t}</span>`).join('')}</div>`;
     if (MENU.tab === 'solo') r += `<p class="sub">You lead the whole party: three to five heroes.</p><div class="row" style="justify-content:flex-end"><span class="btn go big" id="rsolo">Choose your party</span></div>`;
-    if (MENU.tab === 'host') { if (!N.host) r += `<p class="sub">Open a room and send its code to your friends: up to five players. You choose the party; its heroes are dealt round the table.</p><div class="row" style="justify-content:flex-end"><span class="btn go" id="ropen">Open a room</span></div>`;
+    if (MENU.tab === 'host') { if (!N.host) r += `<p class="sub">Open a room and send its code to your friends: up to five players. Each of you picks your own heroes; three to five go in.</p><div class="row" style="justify-content:flex-end"><span class="btn go" id="ropen">Open a room</span></div>`;
       else r += `<div class="mroom"><b>${N.code || '…'}</b><span class="btn small" id="rcopy">${MENU.copied ? 'Copied' : 'Copy'}</span></div><p class="sub">Send this to your friends. They press <b>Join with a code</b> and type it in.</p>${N.msg ? `<p class="sub">${esc(N.msg)}</p>` : ''}
         <div class="hd2">At the table · ${N.lobby.length} of ${MAXP}</div><div class="mseats">${N.lobby.map((x, i) => `<div><i class="chip"></i><b>${esc(x.name)}</b><small>${i ? 'joined' : 'you, the host'}</small></div>`).join('')}</div>
         <div class="row" style="justify-content:space-between"><span class="btn" id="rclose">Close the room</span><span class="btn go big" id="rbegin">Choose the party</span></div>`; }
     if (MENU.tab === 'join') { if (!N.guest) r += `<p class="sub">Type the room code your host sent you.</p><div class="mrow"><input id="rcode" placeholder="DEPTH-XXXX" maxlength="10" value="${esc(MENU.code || '')}"><span class="btn go" id="rjoin">Join</span></div>`;
-      else r += `<div class="mroom"><b>${esc(N.code)}</b></div>${N.msg ? `<p class="sub">${esc(N.msg)}</p>` : ''}${N.lobby.length ? `<div class="hd2">At the table</div><div class="mseats">${N.lobby.map((x, i) => `<div><i class="chip"></i><b>${esc(x.name)}</b><small>${i === 0 ? 'host' : i === N.seat ? 'you' : ''}</small></div>`).join('')}</div><p class="sub">Waiting for the host to choose the party.</p>` : ''}<div class="row"><span class="btn" id="rleave">Leave</span></div>`; }
-    r += `<div class="mname"><span>Your name</span><input id="rname" maxlength="16" placeholder="Your name" value="${esc(store('crown-name') || '')}"></div>`;
+      else r += `<div class="mroom"><b>${esc(N.code)}</b></div>${N.msg ? `<p class="sub">${esc(N.msg)}</p>` : ''}${N.lobby.length ? `<div class="hd2">At the table</div><div class="mseats">${N.lobby.map((x, i) => `<div><i class="chip"></i><b>${esc(x.name)}</b><small>${i === 0 ? 'host' : i === N.seat ? 'you' : ''}</small></div>`).join('')}</div><p class="sub">Waiting for the host. Then each of you picks your own heroes.</p>` : ''}<div class="row"><span class="btn" id="rleave">Leave</span></div>`; }
+    r += `<div class="mname"><span>Your name</span><input id="rname" maxlength="16" placeholder="Your name" value="${esc(rawName())}"></div>`;
+    const focusName = document.activeElement && document.activeElement.id === 'rname', caret = focusName ? document.activeElement.selectionStart : 0;
     el.innerHTML = `<div class="mleft">${left}</div><div class="mright">${r}</div>${MENU.info ? `<div class="minfo"><div class="mright"><div class="hd2">How to play</div>${HOW}<div class="row"><span class="btn go" id="rinfox">Close</span></div></div></div>` : ''}`;
     const on = (id, f) => { const e = $(id); if (e) e.onclick = f; };
     on('rhow', () => { MENU.info = 1; MENU.draw(); }); on('rinfox', () => { MENU.info = null; MENU.draw(); });
     el.querySelectorAll('[data-mtab]').forEach(b => b.onclick = () => { if (N.room && !N.started) { roomClose(); N.host = N.guest = N.on = false; N.lobby = []; N.msg = ''; } MENU.tab = b.dataset.mtab; MENU.draw(); });
-    on('rsolo', () => { MENU.hide(); showPick('dungeon'); });  /* the party screen, then the first depth */
+    on('rsolo', () => { window.NEWRUN && NEWRUN(); MENU.hide(); showPick('dungeon'); });  /* a new run: depth 1 */  /* the party screen, then the first depth */
     on('ropen', hostOpen);
     on('rcopy', () => { try { navigator.clipboard.writeText(N.code); } catch (e) {} MENU.copied = 1; MENU.draw(); setTimeout(() => { MENU.copied = 0; MENU.draw(); }, 1500); });
     on('rclose', () => { roomClose(); N.host = N.on = false; N.lobby = []; MENU.draw(); });
-    on('rbegin', () => { MENU.hide(); showPick('dungeon'); });
+    on('rbegin', pickOpen);
     const join = () => { const c = cleanRoom($('rcode').value); if (!c) { $('rcode').focus(); return; } MENU.code = c; guestJoin(c, myName()); };
     on('rjoin', join); if ($('rcode')) $('rcode').onkeydown = e => { if (e.key === 'Enter') join(); };
     on('rleave', () => { roomClose(); N.guest = N.on = false; N.lobby = []; N.msg = ''; MENU.draw(); });
-    const nm = $('rname'); if (nm) nm.oninput = () => { store('crown-name', nm.value); if (N.host && N.lobby[0]) N.lobby[0].name = nm.value || 'Wanderer'; }; } };
+    const nm = $('rname'); if (nm) { if (focusName) { nm.focus(); try { nm.setSelectionRange(caret, caret); } catch (e) {} }  /* a lobby update redraws the menu: keep typing where you were */
+      nm.oninput = () => { ses('respite-name', nm.value); store('crown-name', nm.value); N.myName = myName();
+        if (N.host && N.lobby[0]) { N.lobby[0].name = myName(); clearTimeout(N.nmT); N.nmT = setTimeout(lobbySend, 250); }
+        if (N.guest && N.hostPeer && !N.started) { clearTimeout(N.nmT); N.nmT = setTimeout(() => send(N.hostPeer, { t: 'name', name: myName() }), 250); } }; } } };
 })();
 </script>
 <script>
@@ -945,7 +964,7 @@ function spawnRoster(R){ const free=[]; for(let a=0;a<MW;a++)for(let b=0;b<MH;b+
 // and built round that enemy, so its mechanics can be learned. Bosses arrive on their own depths with an escort.
 var DEPTH=1, DPLAN=null; try{ const v=localStorage.getItem('respite.depth'); if(v!==null) DEPTH=+v; }catch(_){}
 const THREAT={myc:1,slimeL:2.5,arb:1.5,thrall:2,husk:2.5,eternal:3,drone:2.5,herald:3,envoy:2,hk:4,warden:6,necro:7,bers:7,attila:10};  /* repriced after the depth test: slimes split into many, thralls feed pods, the Necrophage's calls grow with the fight, the Warden with a Hunter-Killer broke depth 11 */
-const INTRO={fungal:[['myc',1],['arb',2],['eternal',3],['husk',4],['slimeL',5],['thrall',6],['necro',7],['bers',9]],lattice:[['drone',1],['herald',2],['envoy',3],['hk',5],['warden',6],['attila',8]]};
+const INTRO={fungal:[['myc',1],['arb',1],['eternal',3],['husk',4],['slimeL',5],['thrall',6],['necro',7],['bers',9]],lattice:[['drone',1],['herald',2],['envoy',3],['hk',5],['warden',6],['attila',8]]};
 const DBOSS=new Set(['necro','bers','attila']);
 const DWEIGHT={myc:5,drone:3,arb:2,herald:2,eternal:1.5,husk:1.5,thrall:1.5,slimeL:1,envoy:1,hk:1,warden:.6};
 const TEACH={arb:'Osseous Arbalests shoot from exactly two tiles. Close in, or stay out of their line.',eternal:'Eternal Warriors are slow and hard to put down. Don’t let one pin your party.',husk:'Putrefied Husks hunt in packs: they strike and pull back. Keep together.',slimeL:'Fungal Slimes split when struck. Every piece still bites.',thrall:'Fungal Thralls leave spore pods. Crush a pod by stepping on it before a Mycelid takes it.',necro:'The Necrophage calls the legion every third turn and curses whoever its gaff catches.',bers:'The Fungal Berserker slams when crowded and rages below half health.',
@@ -966,6 +985,7 @@ function depthPlan(d,fac,n){ const R=Math.random, L=6.75*Math.max(1,n)*(SKILL[fa
   let pool=open.filter(k=>!DBOSS.has(k)&&!intro.includes(k)); if(!pool.length) pool=open.filter(k=>!DBOSS.has(k));  /* the new enemy stays at two, so the lesson is readable */
   for(let guard=0;guard<80;guard++){ const ok=pool.filter(k=>(ro[k]||0)<(cap[k]||99)&&THREAT[k]<=left+.6); if(!ok.length) break; let w=ok.reduce((a,k)=>a+DWEIGHT[k],0), r=R()*w, k=ok[0]; for(const q of ok){ if((r-=DWEIGHT[q])<0){ k=q; break; } } add(k); left-=THREAT[k]; }
   return {d,fac,size,budget,spent:budget-left,roster:ro,intro,boss}; }
+window.NEWRUN=()=>{ DEPTH=1; try{ localStorage.setItem('respite.depth',DEPTH); }catch(_){} TTM=0; PROTO=''; window.ROSTER=undefined; window.DSEED=undefined; window.DSZ=undefined; if(DTHEME!=='wild') DTHEME='crypt'; const ds=document.getElementById('depth'); if(ds) ds.value='1'; };
 function descend(){ DEPTH++; try{ localStorage.setItem('respite.depth',DEPTH); }catch(_){} dBtn.style.display='none'; recBtn.style.display='none'; loadMap('dungeon'); }
 var dBtn=(()=>{ const b=document.createElement('button'); b.id='descend'; b.textContent='Descend'; b.style.cssText='position:fixed;z-index:45;left:50%;top:118px;transform:translateX(-50%);display:none;padding:9px 18px;background:#1c140e;color:#f0dcae;border:1px solid #c9a35a;font:15px Georgia,serif;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.6)'; document.body.appendChild(b); b.onclick=()=>descend(); return b; })();
 function depthCheck(){ if(!DEPTH||mapKey!=='dungeon'||!gatePassed) return; const clear=!U.some(u=>u.team===1&&(!u.dead||u.willRise))&&living().length; if(clear&&dBtn.style.display==='none'){ dBtn.textContent='Descend to depth '+(DEPTH+1); dBtn.style.display=''; log('The way down opens.'); } else if(!clear) dBtn.style.display='none'; }
@@ -1436,7 +1456,7 @@ function drawAimLine(v,top,cx,cy,now,org){ const O=org||[v.x,v.y], fa=org?.45:1,
 //  b pillars: a column of cold light rising from each tile, linked by an arc of travelling sparks
 //  c glyphs: the same rune under both (a ring with turning ticks and a mark inside), an arching dashed thread between them
 //  d arrows: two curved arrows crossing between them, over their heads
-window.SWAPSTYLE=window.SWAPSTYLE||'ca';  /* GANK: C's glyphs with A's ghosts; an aiming Herald's ghost carries a faint red line from where it will stand */
+window.SWAPSTYLE='ca';  /* GANK: C's glyphs with A's ghosts; an aiming Herald's ghost carries a faint red line from where it will stand */
 // a swap ghost (GANK: much fainter, dithered): the unit drawn at its partner's tile through a sparse dot screen (one pixel in four)
 let GHOSTP=null; const GW=120, GH=200;
 function ghostAt(U1,U2,cx,cy){ if(!GHOSTP){ GHOSTP=new Path2D(); for(let y=0;y<GH;y+=2) for(let x=(y>>1)&1;x<GW;x+=2) GHOSTP.rect(x,y,1,1); }
@@ -1834,7 +1854,7 @@ document.getElementById('dcol').onclick=e=>{ DCOL=!DCOL; e.target.textContent='D
 document.getElementById('behind').onclick=e=>{ BEHIND=BMODES[(BMODES.indexOf(BEHIND)+1)%BMODES.length]; e.target.textContent='Behind: '+BEHIND; };
 document.getElementById('reroll').onclick=()=>askMap('dungeon'); { const ds=document.getElementById('depth'); ds.value=String(DEPTH); ds.onchange=e=>{ TTM=0; DEPTH=+e.target.value; try{ localStorage.setItem('respite.depth',DEPTH); }catch(_){} askMap('dungeon'); }; const dm=document.getElementById('dmul'); dm.value=String(DMUL()); dm.onchange=e=>{ try{ localStorage.setItem('respite.dmul',e.target.value); }catch(_){} askMap('dungeon'); }; }  /* depth sets the map size; Size only applies with depth off */
 var TTM=0;
-document.getElementById('wsty').onchange=e=>{ WSTYLE=e.target.value; askMap('dungeon'); };   /* water and spring drafts */
+/* water: B, murky (GANK, decided) */
 document.getElementById('map').onchange=e=>{ let k=e.target.value; PROTO=''; TTM=0; if(k.startsWith('dungeon:tt:')){ TTM=1; DTHEME=k.slice(11); k='dungeon'; e.target.value='dungeon:tt:'+DTHEME; return askMap(k); } if(k.startsWith('dungeon:p:')){ PROTO=k.slice(10); DTHEME='crypt'; k='dungeon'; } else if(k.startsWith('dungeon:')){ DTHEME=k.slice(8); k='dungeon'; } e.target.value=mapKey==='dungeon'?(PROTO?'dungeon:p:'+PROTO:'dungeon:'+DTHEME):mapKey; askMap(k); };
 DEVX('cxd').onchange=e=>{ window.CX=e.target.value==='auto'?undefined:e.target.value; DTHEME='crypt'; askMap('dungeon'); };
 document.getElementById('repick').onclick=()=>showPick(mapKey);
@@ -2166,13 +2186,23 @@ setParty(pickSel); warm(Object.keys(CH).filter(c=>!ALLH.some(h=>h.ch===c)&&!/^(g
 function showPick(k){ pickTo=k; const P=document.getElementById('pick'), G=P.querySelector('.grid'), go=P.querySelector('.go');
   const DU=k==='duel', okN=n=>DU?n>=1:n>=3&&n<=5; if(!DU&&pickSel.size<3){ for(const h of ALLH){ if(pickSel.size>=4) break; pickSel.add(h.id); } }  /* a duel takes any number of heroes (GANK) */
   P.querySelector('h3').textContent=k==='duel'?'CHOOSE THE DUEL':'CHOOSE YOUR PARTY'; P.querySelector('.sub').textContent=k==='duel'?'Any of your heroes against one enemy, in a bare room.':'Three to five heroes go in. The dungeon scales to match.';
-  const draw=()=>{ G.innerHTML=ALLH.map(h=>'<button class="h'+(pickSel.has(h.id)?' sel':'')+'" data-id="'+h.id+'">'+h.name+'<small>'+(ROLE[h.ch]||'')+'</small></button>').join(''); go.disabled=!okN(pickSel.size); go.textContent=okN(pickSel.size)?'Enter with '+pickSel.size:DU?'Choose a hero':'Choose '+(pickSel.size<3?3-pickSel.size+' more':pickSel.size-5+' fewer'); };
+  const ON=NET.on&&!NET.started&&!DU;  /* online (GANK): every player picks their own heroes; three to five in all */
+  if(ON) P.querySelector('.sub').textContent='Each of you picks your own heroes: three to five in all. '+(NET.host?'You choose who holds the dungeon and when to go in.':'The host chooses who holds the dungeon and when to go in.');
+  const draw=()=>{ if(ON){ const C=NET.claims||{}, n=Object.keys(C).length, seats=NET.lobby.map((x,i)=>i).filter(i=>i===0||NET.lobby[i].peer!==null), cnt=s=>Object.values(C).filter(v=>v===s).length, empty=seats.filter(s=>!cnt(s));
+      G.innerHTML=ALLH.map(h=>{ const s=C[h.id], mine=s===NET.seat, tk=s!=null&&!mine; return '<button class="h'+(mine?' sel':'')+(tk?' taken':'')+'" data-id="'+h.id+'">'+h.name+'<small>'+(ROLE[h.ch]||'')+'</small>'+(s!=null?'<span class="who">'+(mine?'yours':(NET.lobby[s]||{}).name||'')+'</span>':'')+'</button>'; }).join('');
+      const ok=n>=3&&n<=5&&!(NET.host&&empty.length&&NET.lobby.some((x,i)=>i&&x.peer));
+      if(NET.host){ go.disabled=!ok; go.textContent=ok?'Enter with '+n:n<3?'Choose '+(3-n)+' more between you':n>5?'Choose '+(n-5)+' fewer between you':'Waiting for '+empty.map(s=>(NET.lobby[s]||{}).name).join(', ')+' to pick'; }
+      else { go.disabled=true; go.textContent=cnt(NET.seat)?'Waiting for the host to go in ('+n+' chosen)':'Pick your hero'; }
+      return; }
+    G.innerHTML=ALLH.map(h=>'<button class="h'+(pickSel.has(h.id)?' sel':'')+'" data-id="'+h.id+'">'+h.name+'<small>'+(ROLE[h.ch]||'')+'</small></button>').join(''); go.disabled=!okN(pickSel.size); go.textContent=okN(pickSel.size)?'Enter with '+pickSel.size:DU?'Choose a hero':'Choose '+(pickSel.size<3?3-pickSel.size+' more':pickSel.size-5+' fewer'); };
+  window.PICKDRAW=()=>{ if(P.classList.contains('on')) draw(); };
   const FB=P.querySelector('.fac'), DB=P.querySelector('.duelf'); FB.style.display=k==='duel'?'none':''; DB.style.display=k==='duel'?'':'none';
   DB.innerHTML='<span>Against</span>'+DUELF.filter(([c])=>CH[c]).map(([c,S])=>'<button data-c="'+c+'"'+(c===DUELFOE?' class="sel"':'')+'>'+S.name.replace(/^The /,'')+'</button>').join('');
   DB.onclick=e=>{ const b=e.target.closest('button'); if(!b) return; DUELFOE=b.dataset.c; try{ localStorage.setItem('respite.duelfoe',DUELFOE); }catch(_){} warm([DUELFOE]); DB.querySelectorAll('button').forEach(x=>x.classList.toggle('sel',x.dataset.c===DUELFOE)); };
-  const fac=()=>FB.querySelectorAll('button').forEach(b=>b.classList.toggle('sel',b.dataset.f===FACTION)); fac(); FB.onclick=e=>{ const b=e.target.closest('button'); if(!b) return; FACTION=b.dataset.f; try{ localStorage.setItem('respite.faction',FACTION); }catch(_){} fac(); };
-  G.onclick=e=>{ const b=e.target.closest('.h'); if(!b) return; const id=b.dataset.id; if(pickSel.has(id)) pickSel.delete(id); else pickSel.add(id); draw(); };
-  go.onclick=()=>{ if(!okN(pickSel.size)) return; P.classList.remove('on'); setParty(pickSel); if(k==='duel') warm([DUELFOE]); loadMap(pickTo); if(NET.host&&!NET.started) NET.partyPicked(); };
+  if(ON&&NET.guest) FB.style.display='none';
+  const fac=()=>FB.querySelectorAll('button').forEach(b=>b.classList.toggle('sel',b.dataset.f===FACTION)); fac(); FB.onclick=e=>{ const b=e.target.closest('button'); if(!b||NET.guest) return; FACTION=b.dataset.f; try{ localStorage.setItem('respite.faction',FACTION); }catch(_){} fac(); };
+  G.onclick=e=>{ const b=e.target.closest('.h'); if(!b) return; const id=b.dataset.id; if(ON){ NET.claim(id); return; } if(pickSel.has(id)) pickSel.delete(id); else pickSel.add(id); draw(); };
+  go.onclick=()=>{ if(ON){ if(!NET.host||go.disabled) return; pickSel=new Set(Object.keys(NET.claims)); } if(!okN(pickSel.size)) return; P.classList.remove('on'); setParty(pickSel); if(k==='duel') warm([DUELFOE]); loadMap(pickTo); if(NET.host&&!NET.started) NET.partyPicked(); };
   draw(); P.classList.add('on'); }
 
 // ---- a procedural dungeon from the kit: rooms joined by corridors, back walls drawn from the kit's wall pieces, ragged low walls on
