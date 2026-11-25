@@ -155,7 +155,7 @@ body.inmenu>*:not(canvas):not(#rmenu):not(#pick):not(#errbox){visibility:hidden}
 <div class="drawer v" id="devp"><div class="hd"><span class="cap">D</span>ev</div><div class="k">MAP</div><div class="row"><select id="map" style="background:var(--panel);color:var(--ink);border:1px solid #3a322b;padding:8px;font:inherit"></select><select id="dsize"><option value="random">Size: random</option><option value="compact">Size: compact</option><option value="small">Size: small</option><option value="medium">Size: medium</option><option value="large">Size: large</option></select><select id="depth"><option value="1">Depth 1</option><option value="2">Depth 2</option><option value="3">Depth 3</option><option value="4">Depth 4</option><option value="5">Depth 5</option><option value="6">Depth 6</option><option value="7">Depth 7</option><option value="8">Depth 8</option><option value="9">Depth 9</option><option value="10">Depth 10</option><option value="11">Depth 11</option><option value="12">Depth 12</option></select><select id="dmul"><option value="0.8">Budget ×0.8</option><option value="1">Budget ×1</option><option value="1.2">Budget ×1.2</option><option value="1.4">Budget ×1.4</option></select><button id="reroll">New dungeon</button><button id="repick">Party</button></div><div class="k">TESTING</div><div class="row"><button id="sbxb">Sandbox</button><label><input type="checkbox" id="haic"> Hero AI plays the heroes</label></div></div><div class="drawer v" id="sbxp" style="left:50%;right:auto;top:70px;bottom:auto;transform:translateX(-50%);width:min(760px,94vw);max-height:80vh;overflow:auto"></div>
 <script>
 const DEVX=id=>document.getElementById(id)||{classList:{toggle(){}},style:{}};  /* dev controls removed (GANK: decided) *//* startup errors on screen (GANK's phone showed a black screen with no clue why): the first error is shown in a box at the top, with the build */
-window.BUILD='1125-1531'; window.__errs=[];
+window.BUILD='1125-1546'; window.__errs=[];
 (function(){ const show=m=>{ window.__errs.push(m); let d=document.getElementById('errbox'); if(!d){ d=document.createElement('div'); d.id='errbox'; d.style.cssText='position:fixed;left:6px;right:6px;top:6px;z-index:99;background:#3a0d0d;color:#ffd8c8;border:1px solid #c05040;font:12px/1.35 monospace;padding:8px;white-space:pre-wrap;max-height:40vh;overflow:auto'; (document.body||document.documentElement).appendChild(d); } d.textContent='Respite build '+window.BUILD+' hit an error (please screenshot this):\n'+window.__errs.slice(0,4).join('\n\n'); };
   addEventListener('error',e=>show((e.message||'error')+' @ '+(e.lineno||'?')+':'+(e.colno||'?')+(e.error&&e.error.stack?'\n'+String(e.error.stack).split('\n').slice(0,4).join('\n'):'')));
   addEventListener('unhandledrejection',e=>show('promise: '+(e.reason&&(e.reason.stack||e.reason.message)||e.reason))); })();
@@ -1547,29 +1547,65 @@ function worth(e){ let w=avg(e.dmg||[0,0]);
   return w; }
 function hitV(h,t,dmg){ if(t.ch==='vessel'&&!vFront(t,h)) dmg=Math.ceil(dmg*.25); let v=Math.min(dmg,t.hp); const kill=dmg>=t.hp; v+=kill?worth(t)*1.2:worth(t)*.25*dmg/Math.max(1,t.hp);
   if(t.ch==='attila') v-=4; if(t.ch==='hk'&&!t.stepUsed&&h.ch!=='ranger') v-=5; if(t.ch==='attila'&&!t.stepUsed&&h.ch!=='ranger') v-=5; return v; }
-function bestAtk(h,a,b){ let best={v:0}; const F=foes(), hx=h.x, hy=h.y; h.x=a; h.y=b;
-  try{ for(const t of F){ if(h.heldBy&&t!==h.heldBy) continue; const d=ch8(a,b,t.x,t.y);
-    if(h.ch==='ranger'){ if(((d>=2&&d<=3)||(h.heldBy&&d===1))&&los(a,b,t.x,t.y)&&!h.shot){ const dm=(h.lock===t?5+7*Math.min(3,h.focus||0):5); const pin=(h.focus||0)>=1&&['hk','attila','drone','husk','bers','eternal','warden','vessel'].includes(t.ch); const v=hitV(h,t,dm)+(pin?4:0)+(h.lock===t?2:0); if(v>best.v) best={v,kind:pin&&!h.heldBy?'pin':'shoot',t}; } continue; }
-    if(d===1){ let dm=avg(h.dmg||[5,8]), kind='strike'; if(h.ch==='knight'&&h.wrath>=20&&!h.heldBy){ dm=10; kind='thrust'; } let v=hitV(h,t,dm);
-      if(kind==='thrust'){ const t2=unitAt(t.x+(t.x-a),t.y+(t.y-b)); if(t2&&F.includes(t2)) v+=hitV(h,t2,10)*.8; } if(v>best.v) best={v,kind,t}; }
-    if(h.ch==='assassin'&&!h.heldBy&&d<=2&&h.mp>=10&&!h.kissed&&los(a,b,t.x,t.y)&&t.hp>=14){ const v=hitV(h,t,6)*.9+3; if(v>best.v) best={v,kind:'kiss',t}; } } } finally { h.x=hx; h.y=hy; }
+// every technique (GANK, Nov 25: let the AI use them all): each option at a tile is scored like a strike - expected damage, a kill's worth, effects - and played through the game's own calls
+const adjF=(a,b,F)=>F.filter(t=>ch8(a,b,t.x,t.y)===1);
+function bestAtk(h,a,b){ let best={v:0}; const F=foes(), hx=h.x, hy=h.y; h.x=a; h.y=b; const add=(v,kind,t,x)=>{ if(v>best.v) best={v,kind,t,...(x||{})}; };
+  try{ const AL=allies().filter(o=>o!==h);
+    for(const t of F){ if(h.heldBy&&t!==h.heldBy) continue; const d=ch8(a,b,t.x,t.y), see=los(a,b,t.x,t.y), en=t.team===1;
+      if(h.ch==='ranger'){ if(((d>=2&&d<=3)||(h.heldBy&&d===1))&&see&&!h.shot){ const dm=(h.lock===t?5+7*Math.min(3,h.focus||0):5); const pin=(h.focus||0)>=1&&['hk','attila','drone','husk','bers','eternal','warden','vessel'].includes(t.ch); add(hitV(h,t,dm)+(pin?4:0)+(h.lock===t?2:0),pin&&!h.heldBy?'pin':'shoot',t); } continue; }
+      if(h.ch==='galvanist'){ const mp=h.mp||0; if(en&&d<=Math.min(20,mp)&&(d===1||see)){ const R=Math.max(0,d-1), D=Math.max(0,Math.min(20-R,mp-R-(h.heldBy?0:10))); if(D>=3||d===1) add(hitV(h,t,1+D),'disch',t,{gd:D,gr:R}); }
+        if(!h.heldBy&&en&&mp>=10&&d<=3&&(d===1||see)){ const near=F.filter(o=>o!==t&&ch8(o.x,o.y,t.x,t.y)===1).length; add(hitV(h,t,7)+near*4,'carc',t); add(hitV(h,t,4)+(['hk','attila','warden','vessel','bers','husk'].includes(t.ch)?6:2),'spasm',t); } continue; }
+      if(d===1){ let dm=avg(h.dmg||[5,8]), kind='strike'; if(h.ch==='knight'&&h.wrath>=20&&!h.heldBy){ dm=10; kind='thrust'; } let v=hitV(h,t,dm);
+        if(kind==='thrust'){ const t2=unitAt(t.x+(t.x-a),t.y+(t.y-b)); if(t2&&F.includes(t2)) v+=hitV(h,t2,10)*.8; }
+        if(h.ch==='wand'){ const ad=adjF(a,b,F); v=ad.reduce((s,o)=>s+hitV(h,o,10)*(o===t?1:.8),0)-AL.filter(o=>ch8(a,b,o.x,o.y)===1).length*8; }  /* his strike chains to everyone beside the target */
+        if(h.ch==='assassin'&&!t.marked&&(h.mp||0)>=20&&worth(t)>=10&&en&&!h.heldBy) { v+=2; kind='markstrike'; }
+        add(v,kind,t);
+        if(h.ch==='wand'&&!h.heldBy&&(h.mp||0)>=10){ const ad=adjF(a,b,F); if(ad.length>=2) add(ad.reduce((s,o)=>s+hitV(h,o,10),0)+2-AL.filter(o=>ch8(a,b,o.x,o.y)===1).length*6,'arc',t); } }
+      if(h.heldBy) continue;
+      if(h.ch==='assassin'&&d<=2&&(h.mp||0)>=10&&!h.kissed&&see&&t.hp>=14&&en) add(hitV(h,t,6)*.9+3,'kiss',t);
+      if(h.ch==='hunter'&&en){ if(d===2&&see) add(hitV(h,t,6)+1.5,'chain',t); if(d<=3&&see&&(h.mp||0)>=10&&h.axeIn&&!h.hunted) add(hitV(h,t,avg(h.dmg||[3,9])+6)+2,'hunt',t); }
+      if(h.ch==='wayfinder'&&en){ const L=leapAt(h,t.x,t.y); if(L) add(hitV(h,t,4+avg(h.dmg||[7,11]))+3,'leap',t); if(d===2&&reach2(h,t.x,t.y)) add(hitV(h,t,avg(h.dmg||[7,11])),'strike',t); } }
+    if(!h.heldBy){
+      if(h.ch==='cleric'&&(h.mp||0)>=10){ const o=AL.filter(o=>ch8(a,b,o.x,o.y)<=3).sort((p,q)=>((q.wrath!==undefined?1:0)+(q.ch==='ranger'?1:0))-((p.wrath!==undefined?1:0)+(p.ch==='ranger'?1:0)))[0]; if(o) add(2.5,'insp',o); }
+      if(h.ch==='galvanist'&&(h.mp||0)>=15){ const o=[h,...AL].filter(o=>ch8(a,b,o.x,o.y)<=3&&!o.ward&&F.some(e=>ch8(o.x,o.y,e.x,e.y)<=2)).sort((p,q)=>p.hp/p.max-q.hp/q.max)[0]; if(o) add(3+(1-o.hp/o.max)*4,'field',o); }
+      if(h.ch==='hunter'&&(h.mp||0)>=10){ for(const [dx,dy] of N8){ const x=a+dx,y=b+dy; if(!trapOK(h,x,y)) continue; const n=F.filter(e=>ch8(x,y,e.x,e.y)<=2).length; if(n) add(1.5+n,'trap',null,{tx:x,ty:y}); } } } }
+  finally { h.x=hx; h.y=hy; }
   return best; }
-function tiles(h){ const R=[[h.x,h.y]]; if(!h.moved&&!h.heldBy&&reachH) for(const k of reachH.keys()){ const [a,b]=k.split(',').map(Number); if(!occ(a,b,h)&&!(a===h.x&&b===h.y)) R.push([a,b]); } return R; }
+function tiles(h){ const R=[[h.x,h.y,null]]; if(h.heldBy) return R; if(!h.moved&&reachH) for(const k of reachH.keys()){ const [a,b]=k.split(',').map(Number); if(!occ(a,b,h)&&!(a===h.x&&b===h.y)) R.push([a,b,null]); }
+  if(h.ch==='knight'&&!h.charged&&typeof chargeTiles==='function') for(const c of chargeTiles(h)) if(!occ(c[0],c[1],h)&&h.wrath-5*c[2]>=0) R.push([c[0],c[1],'charge']);
+  if(h.ch==='wayfinder'&&(h.mp||0)>=5) for(let a=h.x-2;a<=h.x+2;a++) for(let b=h.y-2;b<=h.y+2;b++){ const V=vaultAt(h,a,b); if(V) R.push([a,b,'vault',V]); }
+  if(h.ch==='assassin'&&!h.stepped&&(h.mp||0)>=15) for(const [dx,dy] of N8){ const a=h.x+dx,b=h.y+dy; if(stepOK(h,a,b)) R.push([a,b,'step']); }
+  return R; }
 function plan(h){ const ac=aimCells(), F=foes(); let best=null; const frag=1+(1-h.hp/h.max)*1.4;
   if(h.ch==='cleric'&&!h.heldBy&&h.mp>=10){ const low=allies().filter(o=>o!==h&&o.hp<o.max*.45&&cheb(h,o.x,o.y)<=2&&los(h.x,h.y,o.x,o.y)).sort((p,q)=>p.hp/p.max-q.hp/q.max)[0]; if(low&&h.hp>h.max*.5) return {to:[h.x,h.y],kind:'graft',t:low}; }
-  for(const [a,b] of tiles(h)){ const A=bestAtk(h,a,b), D=danger(h,a,b,ac); let s=A.v-D*.4*frag; if(D>=h.hp) s-=40;
+  for(const [a,b,via,V] of tiles(h)){ const A=bestAtk(h,a,b), D=danger(h,a,b,ac); let s=A.v-D*.4*frag; if(D>=h.hp) s-=40; if(via==='charge') s-=1; if(via) s-=.5;
     const al=allies().filter(o=>o!==h); if(al.some(o=>ch8(o.x,o.y,a,b)===1)) s+=1; if(al.length&&Math.min(...al.map(o=>ch8(o.x,o.y,a,b)))>4) s-=3;
-    if(!A.t&&F.length){ const tgt=F.slice().sort((p,q)=>worth(q)/(1+ch8(h.x,h.y,q.x,q.y))-worth(p)/(1+ch8(h.x,h.y,p.x,p.y)))[0]; const dd=ch8(a,b,tgt.x,tgt.y); s-=(h.ch==='ranger'?Math.abs(dd-3)*.6:dd*1.1); }
-    if(!best||s>best.s) best={s,to:[a,b],...A}; }
+    if((!A.t||!F.includes(A.t))&&F.length){  /* nothing to hit from here (support moves included): close in */ const tgt=F.slice().sort((p,q)=>worth(q)/(1+ch8(h.x,h.y,q.x,q.y))-worth(p)/(1+ch8(h.x,h.y,p.x,p.y)))[0]; const dd=ch8(a,b,tgt.x,tgt.y); s-=(['ranger','galvanist'].includes(h.ch)?Math.abs(dd-3)*.6:dd*1.1); }
+    if(!best||s>best.s) best={s,to:[a,b],via,V,...A}; }
   return best; }
-async function waitIdle(h,ms=8000){ const t0=performance.now(); while(performance.now()-t0<ms){ if(cur()!==h||h.dead) return false; if(myTurn()) return true; await RT(40); } return myTurn(); }
-async function heroTurn(h){ const P=plan(h); if(!P) return;
+async function waitIdle(h,ms=8000){ const t0=performance.now(); while(performance.now()-t0<ms){ if(cur()!==h||h.dead) return false; if(myTurn()&&!busyLock) return true; await RT(40); } return myTurn(); }
+function useHeal(h){ const i=SATCHEL.findIndex(k=>k==='tinct'||k==='wrap'), j=SATCHEL.indexOf('salts');
+  if(j>=0&&(h.poison||h.snared||h.stun||h.curse)&&!h.heldBy){ useItem(j); return true; }
+  if(i>=0&&h.hp<h.max*.35&&!h.heldBy){ useItem(i); return true; } return false; }
+async function doAct(h,A){ const t=A.t; skill=null; atk=false; (window.HAIK=window.HAIK||{})[h.ch+':'+A.kind]=(window.HAIK[h.ch+':'+A.kind]||0)+1;
+  if(h.heldBy&&t) return tileClick(t.x,t.y);
+  switch(A.kind){
+    case 'thrust': return thrust(t.x,t.y); case 'pin': return rangerShoot(t,true); case 'shoot': return rangerShoot(t); case 'kiss': return poisonKiss(t);
+    case 'markstrike': markTarget(t); await RT(250); return heroStrike(t.x,t.y);
+    case 'arc': return heroStrike(t.x,t.y,'arc'); case 'chain': return chainStrike(t); case 'hunt': return bloodyHunt(t);
+    case 'leap': return lancingLeap(leapAt(h,t.x,t.y)); case 'carc': return chainArc(t); case 'spasm': return spasm(t);
+    case 'disch': gvD=A.gd; gvR=A.gr; return discharge(t);
+    case 'insp': return inspire(t); case 'field': return ward(t); case 'trap': return setTrap(A.tx,A.ty);
+    default: if(h.heldBy) return tileClick(t.x,t.y); return heroStrike(t.x,t.y); } }
+async function heroTurn(h){ if(useHeal(h)) await waitIdle(h,1500); const P=plan(h); if(!P) return;
   if(P.kind==='graft'){ skill='exch'; exSrc=null; exchange(h,P.t); await waitIdle(h); }
-  else { if(P.to&&!(P.to[0]===h.x&&P.to[1]===h.y)){ heroGo(P.to[0],P.to[1]); if(!await waitIdle(h)) return; }
+  else { if(P.to&&!(P.to[0]===h.x&&P.to[1]===h.y)){ if(P.via==='charge') charge(P.to[0],P.to[1]); else if(P.via==='vault') vault(P.V); else if(P.via==='step') shadowstep(P.to[0],P.to[1]); else heroGo(P.to[0],P.to[1]); if(!await waitIdle(h)) return; }
     const A=bestAtk(h,h.x,h.y);
-    if(A.t&&!A.t.dead){ const t=A.t; if(h.heldBy) tileClick(t.x,t.y); else if(A.kind==='thrust') thrust(t.x,t.y); else if(A.kind==='pin') rangerShoot(t,true); else if(A.kind==='shoot') rangerShoot(t); else if(A.kind==='kiss') poisonKiss(t); else if(h.ch==='galvanist'&&typeof dischOK==='function'&&dischOK(h,t)) discharge(t); else heroStrike(t.x,t.y); if(!await waitIdle(h)) return; }
-    else if(h.ch==='knight'&&h.wrath>=15&&!h.riposte&&!h.heldBy){ const b=document.getElementById('sk3'); if(b) b.click(); await waitIdle(h,1500); } }
-  if(cur()===h&&myTurn()){ if(h.ch==='ranger'&&!h.heldBy&&reachH&&reachH.size){ const ac=aimCells(); let b0=[h.x,h.y], d0=danger(h,h.x,h.y,ac); for(const k of reachH.keys()){ const [a,b]=k.split(',').map(Number); if(occ(a,b,h)) continue; const d=danger(h,a,b,ac); if(d<d0-2){ d0=d; b0=[a,b]; } } if(b0[0]!==h.x||b0[1]!==h.y){ heroGo(b0[0],b0[1]); await waitIdle(h); } }
+    if(A.kind&&(!A.t||!A.t.dead)){ await doAct(h,A); if(!await waitIdle(h)) return; } }
+  if(cur()===h&&myTurn()){ const F=foes(), near=F.some(e=>ch8(h.x,h.y,e.x,e.y)<=2);
+    if(h.ch==='knight'&&h.wrath>=15&&!h.riposte&&!h.heldBy&&near){ const b=document.getElementById('sk3'); if(b) b.click(); await RT(200); }
+    if(h.ch==='attilah'&&!h.sstep&&near&&h.hp>AH.step+10&&!h.heldBy){ readySidestep(); await waitIdle(h,1500); }
+    if(h.ch==='ranger'&&!h.heldBy&&reachH&&reachH.size){ const ac=aimCells(); let b0=[h.x,h.y], d0=danger(h,h.x,h.y,ac); for(const k of reachH.keys()){ const [a,b]=k.split(',').map(Number); if(occ(a,b,h)) continue; const d=danger(h,a,b,ac); if(d<d0-2){ d0=d; b0=[a,b]; } } if(b0[0]!==h.x||b0[1]!==h.y){ heroGo(b0[0],b0[1]); await waitIdle(h); } }
     if(cur()===h&&myTurn()) document.getElementById('end').click(); } }
 let busy=false; setInterval(()=>{ if(!HAUTO||busy||RP||NET.guest||!myTurn()||(sbOn()&&SBX.done)) return; const h=hero; if(!h||h.dead) return; busy=true; heroTurn(h).catch(e=>console.warn('hero AI',e)).finally(()=>{ busy=false; }); },300);
 window.HAI={plan,danger,bestAtk,heroTurn}; })();
