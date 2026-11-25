@@ -137,7 +137,7 @@ body.inmenu>*:not(canvas):not(#rmenu):not(#pick):not(#errbox){visibility:hidden}
 #rmenu .btn:hover{border-color:#b08a46;color:#fff}#rmenu .btn.small{font-size:13px;padding:4px 10px}#rmenu .btn.go{color:#f0d68a;border-color:#b08a46;background:linear-gradient(180deg,#4a2418,#2a130d)}#rmenu .btn.big{font:24px 'Jacquard 24',serif;padding:6px 18px}
 #rmenu .minfo{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:95}#rmenu .minfo .mright{width:min(640px,92vw);font:14.5px/1.5 'Pixelify Sans',sans-serif;color:#ddd0b4}
 @media (max-width:900px){#rmenu{flex-direction:column;gap:16px;overflow:auto;justify-content:flex-start}#rmenu .mleft,#rmenu .mright{width:min(520px,94vw)}#rmenu .mtitle{font-size:56px}#rmenu .mtitle .cap{font-size:60px}}
-#sbxp .sbg{display:grid;grid-template-columns:1fr 1fr;gap:14px}#sbxp .sbr{display:flex;align-items:center;gap:6px;padding:1px 0}#sbxp .sbr span{flex:1;font-size:12px}#sbxp .sbr b{width:20px;text-align:center}#sbxp .sbr button{width:22px;height:20px;padding:0;line-height:18px}#sbxp .sbh{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px}#sbxp .sbt{padding:3px 6px;font-size:12px}#sbxp .sbt.on{background:#5a1a16;border-color:#c8a05a;color:#f0e0c0}#sbxp .go{margin-left:auto}
+#sbxp .sbg{display:grid;grid-template-columns:1fr 1fr;gap:14px}#sbxp .sbr{display:flex;align-items:center;gap:6px;padding:1px 0}#sbxp .sbr span{flex:1;font-size:12px}#sbxp .sbr b{width:20px;text-align:center}#sbxp .sbr button{width:22px;height:20px;padding:0;line-height:18px}#sbxp .sbh{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px}#sbxp .sbt{padding:3px 6px;font-size:12px}#sbxp .sbt.off{opacity:.35}#sbxp .sbt.on{background:#5a1a16;border-color:#c8a05a;color:#f0e0c0}#sbxp .go{margin-left:auto}
 </style></head><body>
 <canvas id="c"></canvas>
 <div id="fx" style="position:fixed;inset:0;pointer-events:none"><div id="fxt" style="position:absolute;inset:0"></div><div id="fxg" style="position:absolute;inset:-64px"></div><div id="fxv" style="position:absolute;inset:0"></div></div>
@@ -155,7 +155,7 @@ body.inmenu>*:not(canvas):not(#rmenu):not(#pick):not(#errbox){visibility:hidden}
 <div class="drawer v" id="devp"><div class="hd"><span class="cap">D</span>ev</div><div class="k">MAP</div><div class="row"><select id="map" style="background:var(--panel);color:var(--ink);border:1px solid #3a322b;padding:8px;font:inherit"></select><select id="dsize"><option value="random">Size: random</option><option value="compact">Size: compact</option><option value="small">Size: small</option><option value="medium">Size: medium</option><option value="large">Size: large</option></select><select id="depth"><option value="1">Depth 1</option><option value="2">Depth 2</option><option value="3">Depth 3</option><option value="4">Depth 4</option><option value="5">Depth 5</option><option value="6">Depth 6</option><option value="7">Depth 7</option><option value="8">Depth 8</option><option value="9">Depth 9</option><option value="10">Depth 10</option><option value="11">Depth 11</option><option value="12">Depth 12</option></select><select id="dmul"><option value="0.8">Budget ×0.8</option><option value="1">Budget ×1</option><option value="1.2">Budget ×1.2</option><option value="1.4">Budget ×1.4</option></select><button id="reroll">New dungeon</button><button id="repick">Party</button></div><div class="k">TESTING</div><div class="row"><button id="sbxb">Sandbox</button><label><input type="checkbox" id="haic"> Hero AI plays the heroes</label></div></div><div class="drawer v" id="sbxp" style="left:50%;right:auto;top:70px;bottom:auto;transform:translateX(-50%);width:min(760px,94vw);max-height:80vh;overflow:auto"></div>
 <script>
 const DEVX=id=>document.getElementById(id)||{classList:{toggle(){}},style:{}};  /* dev controls removed (GANK: decided) *//* startup errors on screen (GANK's phone showed a black screen with no clue why): the first error is shown in a box at the top, with the build */
-window.BUILD='1125-1500'; window.__errs=[];
+window.BUILD='1125-1531'; window.__errs=[];
 (function(){ const show=m=>{ window.__errs.push(m); let d=document.getElementById('errbox'); if(!d){ d=document.createElement('div'); d.id='errbox'; d.style.cssText='position:fixed;left:6px;right:6px;top:6px;z-index:99;background:#3a0d0d;color:#ffd8c8;border:1px solid #c05040;font:12px/1.35 monospace;padding:8px;white-space:pre-wrap;max-height:40vh;overflow:auto'; (document.body||document.documentElement).appendChild(d); } d.textContent='Respite build '+window.BUILD+' hit an error (please screenshot this):\n'+window.__errs.slice(0,4).join('\n\n'); };
   addEventListener('error',e=>show((e.message||'error')+' @ '+(e.lineno||'?')+':'+(e.colno||'?')+(e.error&&e.error.stack?'\n'+String(e.error.stack).split('\n').slice(0,4).join('\n'):'')));
   addEventListener('unhandledrejection',e=>show('promise: '+(e.reason&&(e.reason.stack||e.reason.message)||e.reason))); })();
@@ -1261,7 +1261,7 @@ function damage(t,n,from,quiet){ if(t.dead)return;
 function riseFallen(){ for(const h of HEROES){ if(!h.dead||h.risen||h.fellRound===undefined||h.fellRound>=round||!U.includes(h)) continue;
     let x=h.x, y=h.y; if(occ(x,y,h)){ const f=N8.map(([dx,dy])=>[h.x+dx,h.y+dy]).find(([a,b])=>walk(a,b)&&!occ(a,b)); if(!f) continue; [x,y]=f; }
     h.risen=true; U.splice(U.indexOf(h),1);
-    const e=unit({id:'ewh'+h.id+round,ch:'eternal',name:'Eternal '+h.short,short:'Eternal '+h.short,x,y,hp:25,max:25,move:2,team:1,dmg:[5,10],dir:h.dir,big:true});
+    const e=unit({id:'ewh'+h.id+round,ch:'eternal',name:'Eternal '+h.short,short:'Eternal '+h.short,x,y,hp:25,max:25,move:2,team:1,dmg:[5,10],dir:h.dir,big:true}); if(h.side) e.side=h.side==='A'?'B':'A';  /* in a sandbox fight it turns on its own side */
     e.mode='act'; setPose(e,'die'); e.f=M(e).die.frames-1; e.reverse=true; e.done=()=>{ e.reverse=false; e.mode='idle'; setPose(e,'idle'); };
     log('The spores take '+h.name+'… the body lurches up as an Eternal Warrior.'); } }
 const unRise=()=>{ for(const h of HEROES){ h.risen=false; h.fellRound=undefined; if(!U.includes(h)) U.push(h); } };
@@ -1499,40 +1499,41 @@ function drawVesselMarks(cx,cy,now){ for(const v of U){ if(v.ch!=='vessel'||v.de
       for(let j=-1;j<=1;j++){ const L=Math.hypot(tx-sx,ty-sy); for(let d=4;d<L;d+=3){ const f=d/L; g.fillRect(Math.round(sx-cx+(tx-sx)*f+j*2),Math.round(sy-cy-34+(ty-sy+20)*f+j),1,1); } } } } }
 // ---- SANDBOX (GANK, Nov 25): Dev → Sandbox: any group of units against any other, heroes included (they fight on side A), to test unit and hero AI.
 // Every unit carries a side; in a sandbox fight, who is a foe goes by side instead of faction, and the fight ends when one side is gone.
-var SBX={A:{},B:{},heroes:[],size:'small',live:false,done:false};
+var SBX={A:{},B:{},hs:{},size:'small',live:false,done:false};  /* hs: hero id -> the side it fights on (GANK: heroes on either side) */
 const sbOn=()=>!!SBX.live&&mapKey==='dungeon';
 function sbCheck(){ if(SBX.done||!SBX.ready) return; const alive=s=>U.some(u=>!u.dead&&(u.side||(isHero(u)?'A':'B'))===s&&!(u.team===1&&u.ch==='envoy'&&U.every(v=>v.dead||v.side!==s||v.ch==='envoy')));
   const a=alive('A'), b=alive('B'); if(a&&b) return; SBX.done=true; log(a?'Side A wins the sandbox fight.':b?'Side B wins the sandbox fight.':'Both sides are down.'); ui(); }
-function sbStart(){ const kinds=[...new Set([...Object.keys(SBX.A),...Object.keys(SBX.B)].filter(k=>(SBX.A[k]||0)+(SBX.B[k]||0)>0))]; if(!SBX.heroes.length&&!kinds.length) return;
-  pickSel=new Set(SBX.heroes); setParty(pickSel); warm(kinds); window.ROSTER={}; window.DSZ=SBX.size; window.DPICK=null; TTM=0; PROTO=''; SBX.live=true; SBX.done=false; SBX.ready=false;
+function sbStart(){ const kinds=[...new Set([...Object.keys(SBX.A),...Object.keys(SBX.B)].filter(k=>(SBX.A[k]||0)+(SBX.B[k]||0)>0))]; const HIDS=Object.keys(SBX.hs); if(!HIDS.length&&!kinds.length) return;
+  pickSel=new Set(HIDS); setParty(pickSel); warm(kinds); window.ROSTER={}; window.DSZ=SBX.size; window.DPICK=null; TTM=0; PROTO=''; SBX.live=true; SBX.done=false; SBX.ready=false;
   document.getElementById('sbxp').classList.remove('on'); document.getElementById('devp').classList.remove('on');
-  loadMap('dungeon'); for(const h of HEROES) h.side='A';
+  loadMap('dungeon'); for(const h of HEROES) h.side=SBX.hs[h.id]||'A'; const HA=HEROES.filter(h=>h.side==='A');
   const free=[]; for(let a=0;a<MW;a++) for(let b=0;b<MH;b++) if(floorOK(a,b)&&!fireSet.has(key(a,b))&&!U.some(u=>!u.dead&&u.x===a&&u.y===b)) free.push([a,b]);
-  const hx=HEROES.length?HEROES.reduce((s,h)=>s+h.x,0)/HEROES.length:0; const put=(side,L)=>{ const P=free.slice().sort((p,q)=>side==='A'?(Math.abs(p[0]-hx)+p[1]*.01)-(Math.abs(q[0]-hx)+q[1]*.01):(q[0]-p[0])||(p[1]-q[1])); let i=0;
+  const hx=HA.length?HA.reduce((s,h)=>s+h.x,0)/HA.length:HEROES.length?HEROES[0].x:0; const put=(side,L)=>{ const P=free.slice().sort((p,q)=>side==='A'?(Math.abs(p[0]-hx)+p[1]*.01)-(Math.abs(q[0]-hx)+q[1]*.01):(q[0]-p[0])||(p[1]-q[1])); let i=0;
     for(const [c,n] of Object.entries(L)) for(let k=0;k<n;k++){ const E=DUELF.find(([d])=>d===c); if(!E||!CH[c]) continue; const at=P.find(q=>!U.some(u=>!u.dead&&u.x===q[0]&&u.y===q[1])&&!HEROES.some(h=>cheb(h,q[0],q[1])<1)); if(!at) return; const S=E[1];
       const u=unit({id:'sb'+side+c+(i++),ch:c,...S,max:S.hp,x:at[0],y:at[1],team:1,dir:side==='A'?rowFor(0):rowFor(Math.PI)}); u.side=side; u.asleep=false; free.splice(free.indexOf(at),1); } };
-  put('A',SBX.A); put('B',SBX.B); SBX.ready=true; newRound(true); round=1; log('Sandbox: side A ('+(HEROES.map(h=>h.short).concat(Object.entries(SBX.A).filter(([,n])=>n).map(([c,n])=>n+' '+c)).join(', ')||'nobody')+') against side B ('+(Object.entries(SBX.B).filter(([,n])=>n).map(([c,n])=>n+' '+c).join(', ')||'nobody')+').'); ui(); }
+  for(const h of HEROES.filter(h=>h.side==='B')){ const at=free.filter(q=>!U.some(u=>!u.dead&&u!==h&&u.x===q[0]&&u.y===q[1])).sort((p,q)=>(q[0]-p[0])||(p[1]-q[1]))[0]; if(at){ Object.assign(h,{x:at[0],y:at[1],px:at[0],py:at[1]}); free.splice(free.indexOf(at),1); } }  /* side B's heroes start in the east */
+  put('A',SBX.A); put('B',SBX.B); SBX.ready=true; newRound(true); round=1; log('Sandbox: side A ('+(HEROES.filter(h=>h.side==='A').map(h=>h.short).concat(Object.entries(SBX.A).filter(([,n])=>n).map(([c,n])=>n+' '+c)).join(', ')||'nobody')+') against side B ('+(HEROES.filter(h=>h.side==='B').map(h=>h.short).concat(Object.entries(SBX.B).filter(([,n])=>n).map(([c,n])=>n+' '+c)).join(', ')||'nobody')+').'); ui(); }
 function sbDraw(){ const P=document.getElementById('sbxp'); const K=DUELF.filter(([c])=>CH[c]).map(([c,S])=>[c,S.name]);
-  const col=s=>'<div class="sbc"><div class="k">SIDE '+s+'</div>'+(s==='A'?'<div class="sbh">'+ALLH.map(h=>'<button class="sbt'+(SBX.heroes.includes(h.id)?' on':'')+'" data-h="'+h.id+'">'+h.short+'</button>').join('')+'</div>':'')+K.map(([c,nm])=>'<div class="sbr"><span>'+nm+'</span><button data-s="'+s+'" data-c="'+c+'" data-d="-1">−</button><b>'+(SBX[s][c]||0)+'</b><button data-s="'+s+'" data-c="'+c+'" data-d="1">+</button></div>').join('')+'</div>';
-  P.innerHTML='<div class="hd"><span class="cap">S</span>andbox</div><div class="sub" style="opacity:.8;margin-bottom:6px">Any group against any other. Heroes fight on side A; units on the same side are allies.</div><div class="sbg">'+col('A')+col('B')+'</div><div class="row" style="margin-top:8px"><select id="sbsz">'+['compact','small','medium','large'].map(z=>'<option'+(z===SBX.size?' selected':'')+'>'+z+'</option>').join('')+'</select><label><input type="checkbox" id="sbai"'+(HAUTO?' checked':'')+'> Hero AI plays the heroes</label><button id="sbclr">Clear</button><button id="sbgo" class="go">Fight</button></div>'; }
+  const col=s=>'<div class="sbc"><div class="k">SIDE '+s+'</div>'+'<div class="sbh">'+ALLH.map(h=>'<button class="sbt'+(SBX.hs[h.id]===s?' on':'')+(SBX.hs[h.id]&&SBX.hs[h.id]!==s?' off':'')+'" data-h="'+h.id+'" data-s="'+s+'">'+h.short+'</button>').join('')+'</div>'+K.map(([c,nm])=>'<div class="sbr"><span>'+nm+'</span><button data-s="'+s+'" data-c="'+c+'" data-d="-1">−</button><b>'+(SBX[s][c]||0)+'</b><button data-s="'+s+'" data-c="'+c+'" data-d="1">+</button></div>').join('')+'</div>';
+  P.innerHTML='<div class="hd"><span class="cap">S</span>andbox</div><div class="sub" style="opacity:.8;margin-bottom:6px">Any group against any other, heroes on either side. Units on the same side are allies.</div><div class="sbg">'+col('A')+col('B')+'</div><div class="row" style="margin-top:8px"><select id="sbsz">'+['compact','small','medium','large'].map(z=>'<option'+(z===SBX.size?' selected':'')+'>'+z+'</option>').join('')+'</select><label><input type="checkbox" id="sbai"'+(HAUTO?' checked':'')+'> Hero AI plays the heroes</label><button id="sbclr">Clear</button><button id="sbgo" class="go">Fight</button></div>'; }
 document.addEventListener('click',e=>{ const P=document.getElementById('sbxp'); if(!P||!P.contains(e.target)) return; const t=e.target;
-  if(t.dataset.h){ const i=SBX.heroes.indexOf(t.dataset.h); if(i<0) SBX.heroes.push(t.dataset.h); else SBX.heroes.splice(i,1); sbDraw(); return; }
+  if(t.dataset.h){ const h=t.dataset.h, sd=t.dataset.s; if(SBX.hs[h]===sd) delete SBX.hs[h]; else SBX.hs[h]=sd; sbDraw(); return; }
   if(t.dataset.c){ const s=t.dataset.s, c=t.dataset.c; SBX[s][c]=Math.max(0,Math.min(20,(SBX[s][c]||0)+ +t.dataset.d)); sbDraw(); return; }
-  if(t.id==='sbclr'){ SBX.A={}; SBX.B={}; SBX.heroes=[]; sbDraw(); return; } if(t.id==='sbgo') return sbStart(); });
+  if(t.id==='sbclr'){ SBX.A={}; SBX.B={}; SBX.hs={}; sbDraw(); return; } if(t.id==='sbgo') return sbStart(); });
 document.addEventListener('change',e=>{ if(e.target.id==='sbsz') SBX.size=e.target.value; if(e.target.id==='sbai'||e.target.id==='haic'){ HAUTO=e.target.checked; const o=document.getElementById(e.target.id==='sbai'?'haic':'sbai'); if(o) o.checked=HAUTO; } });
 
 // ---- HERO AI (the one the balance tests used): a careful one-ply player. Each turn it weighs every tile it can reach: the best attack from there
 // (focus fire, kills, primed Heralds and marked swaps first; Thrust, Pinning Shot, Poison Kiss; Graft for a hurt ally) against the damage expected there.
 var HAUTO=false;
 (()=>{ const avg=d=>(d[0]+d[1])/2, ch8=(a,b,x,y)=>Math.max(Math.abs(a-x),Math.abs(b-y)), RT=ms=>new Promise(r=>setTimeout(r,ms));
-const foes=()=>U.filter(v=>!v.dead&&!isHero(v)&&(sbOn()?(v.side||'B')!=='A':v.team===1)); const awake=()=>foes().filter(v=>!v.asleep);
+const mySide=()=>(hero&&hero.side)||'A'; const foes=()=>sbOn()?U.filter(v=>!v.dead&&v!==hero&&(v.side||(isHero(v)?'A':'B'))!==mySide()):U.filter(v=>!v.dead&&v.team===1); const allies=()=>living().filter(o=>!sbOn()||(o.side||'A')===mySide()); const awake=()=>foes().filter(v=>!v.asleep);
 function eThreat(e){ const k=e.ch; let d=avg(e.dmg||[0,0])*.85, n=1, r=1+(e.reach&&e.reach>1?1:0)+(e.range?e.range-1:0), mv=e.move||2;
   if(k==='hk'||k==='attila') n=2; if(k==='attila'&&e.hp<e.max/2) n=3; if(k==='herald'||k==='envoy') return {d:0,n:0,r:0,mv}; if(k==='warden') return {d:12,n:1,r:1,mv:1,grab:4}; if(k==='necro') d=6; if(k==='vessel'){ d=7; mv=3; }
   return {d,n,r,mv}; }
 function danger(h,a,b,ac){ let D=0; if(ac.has(key(a,b))) D+=16;
   for(const v of foes()) if(v.ch==='herald'&&v.aim) for(const e of foes()) if(e.ch==='envoy'&&e.swap&&e.swap.includes(v)){ const o=e.swap.find(x=>x!==v); if(!o) continue; try{ const L=spineLine(o.x,o.y,...v.aim,v); if(L.P.some(p=>p[0]===a&&p[1]===b)) D+=12; }catch(_){} }
   for(const e of foes()) if(e.ch==='vessel'&&e.vwarn&&e.vwarn[0]===a&&e.vwarn[1]===b) D+=18;  /* the Vessel's reach */
-  const HS=living();
+  const HS=allies();
   for(const e of awake()){ if(e.ch==='herald'){ if((a===e.x||b===e.y||Math.abs(a-e.x)===Math.abs(b-e.y))&&ch8(a,b,e.x,e.y)<=8) D+=2.5; continue; }
     const T=eThreat(e); if(!T.n&&!T.grab) continue; const dist=ch8(a,b,e.x,e.y);
     if(e.ch==='warden'){ if(dist===1) D+=14; else if(dist===2) D+=5; else if(dist===3) D+=3; continue; }
@@ -1555,9 +1556,9 @@ function bestAtk(h,a,b){ let best={v:0}; const F=foes(), hx=h.x, hy=h.y; h.x=a; 
   return best; }
 function tiles(h){ const R=[[h.x,h.y]]; if(!h.moved&&!h.heldBy&&reachH) for(const k of reachH.keys()){ const [a,b]=k.split(',').map(Number); if(!occ(a,b,h)&&!(a===h.x&&b===h.y)) R.push([a,b]); } return R; }
 function plan(h){ const ac=aimCells(), F=foes(); let best=null; const frag=1+(1-h.hp/h.max)*1.4;
-  if(h.ch==='cleric'&&!h.heldBy&&h.mp>=10){ const low=living().filter(o=>o!==h&&o.hp<o.max*.45&&cheb(h,o.x,o.y)<=2&&los(h.x,h.y,o.x,o.y)).sort((p,q)=>p.hp/p.max-q.hp/q.max)[0]; if(low&&h.hp>h.max*.5) return {to:[h.x,h.y],kind:'graft',t:low}; }
+  if(h.ch==='cleric'&&!h.heldBy&&h.mp>=10){ const low=allies().filter(o=>o!==h&&o.hp<o.max*.45&&cheb(h,o.x,o.y)<=2&&los(h.x,h.y,o.x,o.y)).sort((p,q)=>p.hp/p.max-q.hp/q.max)[0]; if(low&&h.hp>h.max*.5) return {to:[h.x,h.y],kind:'graft',t:low}; }
   for(const [a,b] of tiles(h)){ const A=bestAtk(h,a,b), D=danger(h,a,b,ac); let s=A.v-D*.4*frag; if(D>=h.hp) s-=40;
-    const al=living().filter(o=>o!==h); if(al.some(o=>ch8(o.x,o.y,a,b)===1)) s+=1; if(al.length&&Math.min(...al.map(o=>ch8(o.x,o.y,a,b)))>4) s-=3;
+    const al=allies().filter(o=>o!==h); if(al.some(o=>ch8(o.x,o.y,a,b)===1)) s+=1; if(al.length&&Math.min(...al.map(o=>ch8(o.x,o.y,a,b)))>4) s-=3;
     if(!A.t&&F.length){ const tgt=F.slice().sort((p,q)=>worth(q)/(1+ch8(h.x,h.y,q.x,q.y))-worth(p)/(1+ch8(h.x,h.y,p.x,p.y)))[0]; const dd=ch8(a,b,tgt.x,tgt.y); s-=(h.ch==='ranger'?Math.abs(dd-3)*.6:dd*1.1); }
     if(!best||s>best.s) best={s,to:[a,b],...A}; }
   return best; }
@@ -1873,7 +1874,7 @@ function heroStrike(a,b,mode){ if(cheb(hero,a,b)!==1&&!(hero.ch==='wayfinder'&&r
       log(hit.length?(mode==='arc'?'Wide Arc':'The blow')+' hits '+hit.length+(kills?', '+kills+' fall':'')+(allies.length?' — and catches '+allies.join(', ')+'!':'')+'.':'The Wanderer’s blade cuts the empty air.'); ui(); }, endAct(me));
     return; }
   if(me.ch==='hunter'&&!me.axeIn){ busyLock=false; log('His axe is still in the '+(U.find(v=>v.axeOf===me)||{short:'enemy'}).short.toLowerCase()+'.'); return; }
-  const tgt=U.find(u=>u.team===1&&!u.dead&&u.x===a&&u.y===b); if(me.wrath!==undefined) me.wrath+=10;
+  const tgt=U.find(u=>!u.dead&&u!==me&&u.x===a&&u.y===b&&((typeof sbOn==='function'&&sbOn())?foeOf(me,u):u.team===1)); if(me.wrath!==undefined) me.wrath+=10;
   const bs=me.ch==='assassin'&&tgt&&behind(me,tgt), sly=me.ch==='assassin'&&(bs||me.invis>0); if(me.ch==='assassin'&&me.invis){ me.invis=0; log('The Assassin strikes from the shadow.'); }
   let twice=0;  // the Assassin: the knife from behind or from the shadow, the executioner's sword otherwise; a second blow is always the knife
   act(me,me.atk,()=>{ if(tgt){let n=rnd(...me.dmg); if(me.whet>0){ n+=3; me.whet--; } if(me.ch==='wayfinder'&&me.walked){ const m=Math.min(4,me.walked); n+=m; pop(me,'momentum +'+m,'#f0d090'); } if(bs){ n=Math.ceil(n*1.15); pop(tgt,'backstab','#ff8a7a'); } const xk=EXCH()?exHit(me,tgt,n):(damage(tgt,n,me,true),''); if(me.ch==='attilah'&&xk!=='evade'&&xk!=='counter') drain(me,boundN(me)); if(me.ch==='assassin'&&!tgt.dead&&Math.random()<.07) twice=rnd(...me.dmg); if(me.ch==='hunter'&&xk!=='evade'&&xk!=='counter'&&xk!=='crit') shove(tgt,Math.sign(tgt.x-me.x),Math.sign(tgt.y-me.y)); if(!xk) log(me.short+(tgt.dead?' cuts down the '+tgt.short.toLowerCase()+'.':' strikes the '+tgt.short.toLowerCase()+' for '+n+'.'));} else log(me.short+'’s blade cuts the empty air.'); ui(); }, ()=>{ if(!twice||tgt.dead) return endAct(me)(); me.pose='';  /* restart the stab from its first frame */ act(me,'attack',()=>{ damage(tgt,twice,me,true); pop(tgt,'twice!','#ff8a7a'); log('The Assassin’s knife goes in again — '+twice+(tgt.dead?', and it falls':'')+'.'); ui(); }, endAct(me)); }); }
@@ -2117,7 +2118,7 @@ const ptrUp=e=>{ if(e.pointerType==='mouse') return; PTR.delete(e.pointerId); if
 c.addEventListener('pointerup',ptrUp); c.addEventListener('pointercancel',ptrUp);
 function tileClick(a,b){ hover=[a,b]; if(!myTurn())return;
   if(hero.heldBy&&!hero.heldBy.dead){ const v=hero.heldBy; skill=null; atk=false; if(a!==v.x||b!==v.y){ log(hero.short+' is held by the Vessel and can only strike it.'); return; } if(hero.ch==='ranger') return rangerShoot(v); if(hero.ch==='galvanist') return discharge(v); return heroStrike(a,b); }
-  { const q=propAt(a,b); if(q&&q.kind==='Bookshelf'&&q.wall&&cheb(hero,a,b)===0&&!skill&&!atk){ useProp(q); return; } if(q&&propSolid(q)&&!skill&&!atk){ if(cheb(hero,a,b)===1) useProp(q); else log('Move next to it first.'); return; } } const adj=cheb(hero,a,b)===1, enemy=U.some(u=>u.team===1&&!u.dead&&u.x===a&&u.y===b);
+  { const q=propAt(a,b); if(q&&q.kind==='Bookshelf'&&q.wall&&cheb(hero,a,b)===0&&!skill&&!atk){ useProp(q); return; } if(q&&propSolid(q)&&!skill&&!atk){ if(cheb(hero,a,b)===1) useProp(q); else log('Move next to it first.'); return; } } const adj=cheb(hero,a,b)===1, enemy=U.some(u=>!u.dead&&u.x===a&&u.y===b&&((typeof sbOn==='function'&&sbOn())?foeOf(hero,u):u.team===1));
   if(skill==='bomb'){ const t=unitAt(a,b); if(bombOK(hero,t)) throwBomb(t); else setSkill(null); return; }
   if(skill==='trap'){ if(trapOK(hero,a,b)) setTrap(a,b); else setSkill(null); return; }
   if(skill==='calt'){ if(calLine(hero,a,b)) setCaltrops(a,b); else setSkill(null); return; }
