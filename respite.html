@@ -191,7 +191,7 @@ body.inmenu>*:not(canvas):not(#rmenu):not(#pick):not(#errbox){visibility:hidden}
 <div class="drawer v" id="devp"><div class="hd"><span class="cap">D</span>ev</div><div class="k">MAP</div><div class="row"><select id="map" style="background:var(--panel);color:var(--ink);border:1px solid #3a322b;padding:8px;font:inherit"></select><select id="dsize"><option value="random">Size: random</option><option value="compact">Size: compact</option><option value="small">Size: small</option><option value="medium">Size: medium</option><option value="large">Size: large</option></select><select id="depth"><option value="1">Depth 1</option><option value="2">Depth 2</option><option value="3">Depth 3</option><option value="4">Depth 4</option><option value="5">Depth 5</option><option value="6">Depth 6</option><option value="7">Depth 7</option><option value="8">Depth 8</option><option value="9">Depth 9</option><option value="10">Depth 10</option><option value="11">Depth 11</option><option value="12">Depth 12</option></select><select id="dmul"><option value="0.8">Budget ×0.8</option><option value="1">Budget ×1</option><option value="1.2">Budget ×1.2</option><option value="1.4">Budget ×1.4</option></select><button id="reroll">New dungeon</button><button id="repick">Party</button></div><div class="k">TESTING</div><div class="row"><button id="sbxb">Sandbox</button><label><input type="checkbox" id="devtech"> All techniques</label></div></div><div class="drawer v" id="sbxp" style="left:50%;right:auto;top:70px;bottom:auto;transform:translateX(-50%);width:min(760px,94vw);max-height:80vh;overflow:auto"></div>
 <script>
 const DEVX=id=>document.getElementById(id)||{classList:{toggle(){}},style:{}};  /* dev controls removed (GANK: decided) *//* startup errors on screen (GANK's phone showed a black screen with no clue why): the first error is shown in a box at the top, with the build */
-window.BUILD='1126-1327'; window.__errs=[];
+window.BUILD='1126-1342'; window.__errs=[];
 (function(){ const show=m=>{ window.__errs.push(m); let d=document.getElementById('errbox'); if(!d){ d=document.createElement('div'); d.id='errbox'; d.style.cssText='position:fixed;left:6px;right:6px;top:6px;z-index:99;background:#3a0d0d;color:#ffd8c8;border:1px solid #c05040;font:12px/1.35 monospace;padding:8px;white-space:pre-wrap;max-height:40vh;overflow:auto'; (document.body||document.documentElement).appendChild(d); } d.textContent='Respite build '+window.BUILD+' hit an error (please screenshot this):\n'+window.__errs.slice(0,4).join('\n\n'); };
   addEventListener('error',e=>show((e.message||'error')+' @ '+(e.lineno||'?')+':'+(e.colno||'?')+(e.error&&e.error.stack?'\n'+String(e.error.stack).split('\n').slice(0,4).join('\n'):'')));
   addEventListener('unhandledrejection',e=>show('promise: '+(e.reason&&(e.reason.stack||e.reason.message)||e.reason))); })();
@@ -1726,9 +1726,26 @@ async function heroTurn(h){ if(useHeal(h)) await waitIdle(h,1500); const P=plan(
 let busy=false; setInterval(()=>{ if(!HAUTO||!sbOn()||busy||RP||NET.guest||!myTurn()||SBX.done) return;  /* GANK: the hero AI only plays in sandbox fights (it kept switching on in the dungeon while a sandbox was being set up) */ const h=hero; if(!h||h.dead) return; busy=true; heroTurn(h).catch(e=>console.warn('hero AI',e)).finally(()=>{ busy=false; }); },300);
 window.HAI={plan,danger,bestAtk,heroTurn}; })();
 const shieldFront=(t,from)=>{ const th=(t.dir-14)*Math.PI/8, dx=from.x-t.x, dy=from.y-t.y, L=Math.hypot(dx,dy)||1; return (dx*Math.cos(th)+dy*Math.sin(th))/L>.6; };  /* the three tiles in front, and the lines through them */
-function drawShieldMarks(cx,cy){ for(const t of U){ if(t.ch!=='thrall'||t.dead||t.asleep||t.mode==='dead') continue; const th=(t.dir-14)*Math.PI/8;
+function drawShieldMarks(cx,cy){ const ST=window.SHIELDSTYLE||'arc'; if(ST!=='arc') return drawShieldMarks2(cx,cy,ST); for(const t of U){ if(t.ch!=='thrall'||t.dead||t.asleep||t.mode==='dead') continue; const th=(t.dir-14)*Math.PI/8;
   const pt=(a,r)=>{ const [x,y]=iso((t.px+Math.cos(a)*r)*T2+2,(t.py+Math.sin(a)*r)*T2+2); return [x-cx,y-cy]; };
   for(const [r,col,w] of [[.62,'rgba(0,0,0,.55)',5],[.62,'rgba(216,212,200,.85)',2.5]]){ g.strokeStyle=col; g.lineWidth=w; g.beginPath(); for(let k=0;k<=12;k++){ const [x,y]=pt(th-.75+1.5*k/12,r); k?g.lineTo(x,y):g.moveTo(x,y); } g.stroke(); } } }  /* a pale arc on the floor where its shield faces */
+// Shield indicator drafts (GANK, Nov 26: the floor arc doesn't fit the other indicators). window.SHIELDSTYLE = 'edge' | 'tiles' | 'glyph'
+function drawShieldMarks2(cx,cy,ST){ const now=performance.now(), pul=.8+.2*Math.sin(now/220), C=(a,b)=>{ const [x,y]=iso(a*T2,b*T2); return [x-cx,y-cy]; }, BONE='232,222,196';
+  for(const t of U){ if(t.ch!=='thrall'||t.dead||t.asleep||t.mode==='dead') continue; const th=(t.dir-14)*Math.PI/8, fx=Math.round(Math.cos(th)), fy=Math.round(Math.sin(th)), a=Math.round(t.px), b=Math.round(t.py);
+    if(ST==='tiles'){  /* the tiles its shield covers: a pale checker over each, a lit edge, like the Herald's line seen through */
+      const T3=fx&&fy?[[fx,fy],[fx,0],[0,fy]]:fx?[[fx,0],[fx,1],[fx,-1]]:[[0,fy],[1,fy],[-1,fy]];
+      for(const [i,j] of T3){ const x=a+i, y=b+j; if(!floorOK(x,y)) continue; const p=[C(x,y),C(x+1,y),C(x+1,y+1),C(x,y+1)];
+        g.save(); g.beginPath(); g.moveTo(...p[0]); for(const q of p.slice(1)) g.lineTo(...q); g.closePath(); g.clip(); g.fillStyle=g.createPattern(CHK,'repeat'); g.globalAlpha=.16*pul; g.fill(); g.globalAlpha=1; g.restore();
+        g.strokeStyle='rgba('+BONE+','+(.55*pul).toFixed(2)+')'; g.lineWidth=1; g.setLineDash([2,2]); g.lineDashOffset=-now/80; g.beginPath(); g.moveTo(...p[0]); for(const q of p.slice(1)) g.lineTo(...q); g.closePath(); g.stroke(); g.setLineDash([]); } }
+    else if(ST==='edge'){  /* a bracket on the sides of its own tile that face front: the wall the shield makes */
+      const E=[]; if(fx===1) E.push([[a+1,b],[a+1,b+1]]); if(fx===-1) E.push([[a,b],[a,b+1]]); if(fy===1) E.push([[a,b+1],[a+1,b+1]]); if(fy===-1) E.push([[a,b],[a+1,b]]);
+      for(const [w,col] of [[4,'rgba(10,6,4,.8)'],[2,'rgba('+BONE+','+(.9*pul).toFixed(2)+')']]){ g.strokeStyle=col; g.lineWidth=w; g.lineCap='square'; g.beginPath(); for(const [p0,p1] of E){ const A=C(...p0), B=C(...p1); g.moveTo(A[0],A[1]); g.lineTo(B[0],B[1]); } g.stroke(); }
+      for(const [p0,p1] of E){ const A=C(...p0), B=C(...p1), M=[(A[0]+B[0])/2,(A[1]+B[1])/2], [ox,oy]=iso((a+.5+fx*.75)*T2,(b+.5+fy*.75)*T2), dx=ox-cx-M[0], dy=oy-cy-M[1], L=Math.hypot(dx,dy)||1; g.fillStyle='rgba('+BONE+','+(.9*pul).toFixed(2)+')'; for(let k=1;k<=2;k++) g.fillRect(Math.round(M[0]+dx/L*k*3)-1,Math.round(M[1]+dy/L*k*3),2,1); } }  /* two ticks pointing out */
+    else {  /* glyph: a small heater shield laid flat on the floor just in front of it */
+      const sx=-fy, sy=fx, nl=Math.hypot(fx,fy)||1, P=(f,sd)=>{ const [x,y]=iso((t.px+.5+(fx*f+sx*sd)/nl)*T2,(t.py+.5+(fy*f+sy*sd)/nl)*T2); return [x-cx,y-cy]; };
+      const sh=[[.28,-.2],[.62,-.2],[.62,.2],[.28,.2]], pts=[P(.30,-.19),P(.62,-.17),P(.78,0),P(.62,.17),P(.30,.19)];
+      for(const [w,col,fill] of [[3,'rgba(10,6,4,.85)',null],[1.5,'rgba('+BONE+','+(.95*pul).toFixed(2)+')','rgba(70,52,36,'+(.55*pul).toFixed(2)+')']]){ g.beginPath(); g.moveTo(...pts[0]); for(const q of pts.slice(1)) g.lineTo(...q); g.closePath(); if(fill){ g.fillStyle=fill; g.fill(); } g.strokeStyle=col; g.lineWidth=w; g.stroke(); }
+      const bo=P(.5,0); g.fillStyle='rgba('+BONE+','+pul.toFixed(2)+')'; g.fillRect(Math.round(bo[0])-1,Math.round(bo[1])-1,2,2); } } }
 function drawWardenMarks(cx,cy,now){ for(const w of U){ if(w.ch!=='warden'||w.dead||w.asleep) continue;
   if(w.grab&&(w.grab.dead||cheb(w.grab,w.x,w.y)!==1)) w.grab=null;
   const foes=U.filter(t=>!t.dead&&cheb(t,w.x,w.y)===1&&(foeOf(w,t)||t===w.grab));  /* any foe beside it gets the slam marker */
@@ -3281,22 +3298,23 @@ function drawBehind(cx,cy){ const C=CRYPTS&&CRYPTS[mapKey], OCC=C&&C.OCC; if(!OC
     VQ.save(); VQ.beginPath(); VQ.rect(x0-1,y0-1,w,h); VQ.clip(); VQ.globalCompositeOperation='destination-in'; VQ.drawImage(MC,x0-1,y0-1,w,h,x0-1,y0-1,w,h); VQ.fillStyle=VQ.createPattern(CHK,'repeat'); VQ.fillRect(x0-1,y0-1,w,h); VQ.restore();
     g.globalAlpha=.85; g.drawImage(VC,x0-1,y0-1,w,h,x0-1,y0-1,w,h); g.globalAlpha=1; }
   for(const r of UREC){ if(r.u.dead) continue; const ck=r.x+','+r.y+','+BEHIND+DCOL, U0=r.u._bh; if(U0&&U0.im===r.im&&U0.k===ck){ if(U0.c){ g.globalAlpha=U0.a; g.drawImage(U0.c,r.x-1-cx,r.y-1-cy); g.globalAlpha=1; } continue; }  // unchanged since last frame: reuse
-    const os=OCC.filter(o=>o.d>r.d&&hit(o,r)); r.u._bh={im:r.im,k:ck,c:null,a:1}; if(!os.length) continue; const W=r.w+2, H=r.h+2; if(HCV.width<W*2||HCV.height<H){ HCV.width=Math.max(HCV.width,W*2); HCV.height=Math.max(HCV.height,H); }
+    const os=OCC.filter(o=>o.d>r.d&&hit(o,r)); r.u._bh={im:r.im,k:ck,c:null,a:1};  /* r.u._bhc: that unit's own reusable canvas */ if(!os.length) continue; const W=r.w+2, H=r.h+2; if(HCV.width<W*2||HCV.height<H){ HCV.width=Math.max(HCV.width,W*2); HCV.height=Math.max(HCV.height,H); }
     HQ.clearRect(0,0,HCV.width,HCV.height); for(const o of os) HQ.drawImage(o.img||DAT,o.sx,o.sy,o.w,o.h,o.X-r.x+1,o.Y-r.y+1,o.w,o.h);  // what stands in front, as a mask
     const col=r.u.team===1?'rgba(235,96,70,':'rgba(130,195,255,';
     if(BEHIND==='outline'){ if(RCV.width<W||RCV.height<H){ RCV.width=Math.max(RCV.width,W); RCV.height=Math.max(RCV.height,H); } RQ.clearRect(0,0,RCV.width,RCV.height);
       for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]) RQ.drawImage(r.im,1+dx,1+dy); RQ.globalCompositeOperation='destination-out'; RQ.drawImage(r.im,1,1);  // a 1 px ring round the unit
       RQ.globalCompositeOperation='source-in'; RQ.fillStyle=col+'.95)'; RQ.fillRect(0,0,RCV.width,RCV.height);
       RQ.globalCompositeOperation='destination-in'; RQ.drawImage(HCV,0,0); RQ.globalCompositeOperation='source-over';  // only where something stands in front
-      const kc=document.createElement('canvas'); kc.width=W; kc.height=H; kc.getContext('2d').drawImage(RCV,0,0,W,H,0,0,W,H); r.u._bh.c=kc; g.drawImage(kc,r.x-1-cx,r.y-1-cy); continue; }
+      const kc=bhCanvas(r.u,W,H); kc.getContext('2d').drawImage(RCV,0,0,W,H,0,0,W,H); r.u._bh.c=kc; g.drawImage(kc,r.x-1-cx,r.y-1-cy); continue; }
     else { HQ.globalCompositeOperation='source-in'; HQ.drawImage(r.im,1,1); HQ.globalCompositeOperation='source-over'; }
     if(BEHIND==='silhouette'){ HQ.globalCompositeOperation='source-in'; HQ.fillStyle=col+'1)'; HQ.fillRect(0,0,W,H); HQ.globalCompositeOperation='source-over'; g.globalAlpha=.5; }
     if(BEHIND==='dither'&&DCOL){ HQ.globalCompositeOperation='source-atop'; HQ.fillStyle=col+'.6)'; HQ.fillRect(0,0,W,H); HQ.globalCompositeOperation='source-over'; }
     if(BEHIND==='dither'){ HQ.globalCompositeOperation='destination-in'; HQ.fillStyle=HQ.createPattern(CHK,'repeat'); HQ.fillRect(0,0,W,H); HQ.globalCompositeOperation='source-over'; g.globalAlpha=.9; }
     if(BEHIND==='ghost') g.globalAlpha=.42;
-    const keep=r.u._bh.c&&r.u._bh.c.width===W&&r.u._bh.c.height===H?r.u._bh.c:document.createElement('canvas'); keep.width=W; keep.height=H; keep.getContext('2d').drawImage(HCV,0,0,W,H,0,0,W,H); r.u._bh.c=keep; r.u._bh.a=g.globalAlpha;
+    const keep=bhCanvas(r.u,W,H); keep.getContext('2d').drawImage(HCV,0,0,W,H,0,0,W,H); r.u._bh.c=keep; r.u._bh.a=g.globalAlpha;
     g.drawImage(keep,r.x-1-cx,r.y-1-cy); g.globalAlpha=1; } }
-function tick(now){ requestAnimationFrame(tick); try{ frame(now); }catch(e){ if(!tick.err){tick.err=1; console.error('frame error',e);} } }
+function bhCanvas(u,W,H){ let c=u._bhc; if(!c){ c=u._bhc=document.createElement('canvas'); } if(c.width!==W||c.height!==H){ c.width=W; c.height=H; } else c.getContext('2d').clearRect(0,0,W,H); return c; }  /* one canvas per unit, resized in place: phones ran out of canvas memory from a new one every frame */
+function tick(now){ requestAnimationFrame(tick); try{ frame(now); }catch(e){ if(!tick.err){ tick.err=1; console.error('frame error',e); try{ window.dispatchEvent(new ErrorEvent('error',{message:'frame: '+(e&&e.message||e),error:e})); }catch(_){} } } }  /* a drawing error now shows in the red box too, not only the console */
 let gateOK=false, gateKey='', gatePassed=false;
 function gate(){ const need=[...new Set(U.filter(u=>U.includes(u)).map(chOf))].filter(ch=>CH[ch]), k=need.join(','); if(gateOK&&k===gateKey) return null;
   if(gatePassed&&k!==gateKey){ gateKey=k; warm(need); return null; }  /* GANK: a unit that turns up mid-fight (a mycelid rising, an Eternal from a fallen hero) no longer blanks the screen with 'Gathering the party': its sheets build in the background and it shows once they're ready */
