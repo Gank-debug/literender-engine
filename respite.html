@@ -152,10 +152,10 @@ body.inmenu>*:not(canvas):not(#rmenu):not(#pick):not(#errbox){visibility:hidden}
 <div class="corner"><button id="menub" aria-label="Menu">☰</button><button id="guideb">Guide</button><button id="setb">Settings</button><button id="devb">Dev</button></div>
 <div class="drawer v" id="satp" style="left:50%;right:auto;transform:translateX(-50%);bottom:96px;width:340px"></div>
 <div class="drawer v" id="setp"><div class="hd"><span class="cap">S</span>ettings</div><label><input type="checkbox" id="dcolc"> Coloured dither behind walls</label><label><input type="checkbox" id="tiltc" checked> Tilt-shift (miniature)</label><div class="row" style="margin-top:8px"><button id="zoom">Zoom</button><button id="fs">Fullscreen</button></div></div>
-<div class="drawer v" id="devp"><div class="hd"><span class="cap">D</span>ev</div><div class="k">MAP</div><div class="row"><select id="map" style="background:var(--panel);color:var(--ink);border:1px solid #3a322b;padding:8px;font:inherit"></select><select id="dsize"><option value="random">Size: random</option><option value="compact">Size: compact</option><option value="small">Size: small</option><option value="medium">Size: medium</option><option value="large">Size: large</option></select><select id="depth"><option value="1">Depth 1</option><option value="2">Depth 2</option><option value="3">Depth 3</option><option value="4">Depth 4</option><option value="5">Depth 5</option><option value="6">Depth 6</option><option value="7">Depth 7</option><option value="8">Depth 8</option><option value="9">Depth 9</option><option value="10">Depth 10</option><option value="11">Depth 11</option><option value="12">Depth 12</option></select><select id="dmul"><option value="0.8">Budget ×0.8</option><option value="1">Budget ×1</option><option value="1.2">Budget ×1.2</option><option value="1.4">Budget ×1.4</option></select><button id="reroll">New dungeon</button><button id="repick">Party</button></div><div class="k">TESTING</div><div class="row"><button id="sbxb">Sandbox</button><label><input type="checkbox" id="haic"> Hero AI plays the heroes</label></div></div><div class="drawer v" id="sbxp" style="left:50%;right:auto;top:70px;bottom:auto;transform:translateX(-50%);width:min(760px,94vw);max-height:80vh;overflow:auto"></div>
+<div class="drawer v" id="devp"><div class="hd"><span class="cap">D</span>ev</div><div class="k">MAP</div><div class="row"><select id="map" style="background:var(--panel);color:var(--ink);border:1px solid #3a322b;padding:8px;font:inherit"></select><select id="dsize"><option value="random">Size: random</option><option value="compact">Size: compact</option><option value="small">Size: small</option><option value="medium">Size: medium</option><option value="large">Size: large</option></select><select id="depth"><option value="1">Depth 1</option><option value="2">Depth 2</option><option value="3">Depth 3</option><option value="4">Depth 4</option><option value="5">Depth 5</option><option value="6">Depth 6</option><option value="7">Depth 7</option><option value="8">Depth 8</option><option value="9">Depth 9</option><option value="10">Depth 10</option><option value="11">Depth 11</option><option value="12">Depth 12</option></select><select id="dmul"><option value="0.8">Budget ×0.8</option><option value="1">Budget ×1</option><option value="1.2">Budget ×1.2</option><option value="1.4">Budget ×1.4</option></select><button id="reroll">New dungeon</button><button id="repick">Party</button></div><div class="k">TESTING</div><div class="row"><button id="sbxb">Sandbox</button></div></div><div class="drawer v" id="sbxp" style="left:50%;right:auto;top:70px;bottom:auto;transform:translateX(-50%);width:min(760px,94vw);max-height:80vh;overflow:auto"></div>
 <script>
 const DEVX=id=>document.getElementById(id)||{classList:{toggle(){}},style:{}};  /* dev controls removed (GANK: decided) *//* startup errors on screen (GANK's phone showed a black screen with no clue why): the first error is shown in a box at the top, with the build */
-window.BUILD='1125-1854'; window.__errs=[];
+window.BUILD='1125-2006'; window.__errs=[];
 (function(){ const show=m=>{ window.__errs.push(m); let d=document.getElementById('errbox'); if(!d){ d=document.createElement('div'); d.id='errbox'; d.style.cssText='position:fixed;left:6px;right:6px;top:6px;z-index:99;background:#3a0d0d;color:#ffd8c8;border:1px solid #c05040;font:12px/1.35 monospace;padding:8px;white-space:pre-wrap;max-height:40vh;overflow:auto'; (document.body||document.documentElement).appendChild(d); } d.textContent='Respite build '+window.BUILD+' hit an error (please screenshot this):\n'+window.__errs.slice(0,4).join('\n\n'); };
   addEventListener('error',e=>show((e.message||'error')+' @ '+(e.lineno||'?')+':'+(e.colno||'?')+(e.error&&e.error.stack?'\n'+String(e.error.stack).split('\n').slice(0,4).join('\n'):'')));
   addEventListener('unhandledrejection',e=>show('promise: '+(e.reason&&(e.reason.stack||e.reason.message)||e.reason))); })();
@@ -1286,6 +1286,20 @@ function nextTurn(){ if(NET.guest) return; if(!U.some(u=>!u.dead)) return;  /* n
   busyLock=true; if(G.length>1){ const g0={left:G.length,end:j-1}; grp=g0; const safe=()=>{ if(grp!==g0) return; grp.left=1; nextTurn(); }; setTimeout(safe,12000); /* safety: never let a stuck unit hold up the group */ G.forEach((v,k)=>{ if(k) prelude(v); setTimeout(()=>aiTurn(v),180+k*90); }); return; }
   setTimeout(()=>aiTurn(u),180); }
 const cur=()=>order[turnIdx];
+// path distance (GANK, Nov 25: enemies stuck in place, not turning corners): a walk-distance field from a target over the floor (units ignored),
+// cached for the turn; enemies close in by it instead of by straight-line distance, so they go round walls and corners
+const PF=new Map();
+// prey (GANK, Nov 25): the hunters (Attila, Hunter-Killer, Vessel) weigh other foes as they weigh heroes - the dangerous and the ones that matter first
+const PREY={necro:12,bers:9,attila:9,vessel:9,warden:8,envoy:8,herald:7,arb:6,hk:6,husk:4,eternal:3,thrall:3,drone:3,slimeL:2,slimeM:1,myc:1};
+const prey=t=>isHero(t)?0:(PREY[t.ch]??3)+(t.aim?4:0)+(t.swap?3:0);
+function fieldFrom(tx,ty){ const k=tx+','+ty+':'+round+':'+turnIdx+':'+(AIU?AIU.id:''); let D=PF.get(k); if(D) return D; if(PF.size>80) PF.clear();
+  const busy=new Set(); for(const v of U) if(!v.dead&&v!==AIU&&!(v.x===tx&&v.y===ty)) busy.add(key(v.x,v.y));  /* a tile someone stands on costs more, so a blocked corridor routes round */
+  D=new Map([[key(tx,ty),0]]); const B=[[[tx,ty]]];
+  for(let c=0;c<B.length;c++){ const L=B[c]; if(!L) continue; for(const [a,b] of L){ if(D.get(key(a,b))!==c) continue;
+    for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){ const na=a+dx,nb=b+dy,nk=key(na,nb); if(!(floorOK(na,nb)||fireSet.has(nk))) continue; const nc=c+1+(busy.has(nk)?5:0); if(D.has(nk)&&D.get(nk)<=nc) continue; D.set(nk,nc); (B[nc]||(B[nc]=[])).push([na,nb]); } } }
+  PF.set(k,D); return D; }
+const pd=(a,b,t)=>{ const c=cheb(t,a,b); if(c<=1) return c; const v=fieldFrom(t.x,t.y).get(key(a,b)); return v===undefined?60+c:v; };
+const nearPD=(a,b)=>{ let m=1e9; for(const t of seen()) m=Math.min(m,pd(a,b,t)); return m; };
 function aiTurn(u){ if(NET.guest) return; AIU=u;
   if(u.asleep&&!u.dead){ stirCheck(); if(u.asleep) return setTimeout(nextTurn,30); }
   if(u.stun&&!u.dead){ u.stun=false; pop(u,'stunned','#cfe6ff'); log('The '+u.short.toLowerCase()+' is still convulsing.'); return setTimeout(nextTurn,350); }
@@ -1311,7 +1325,7 @@ function aiTurn(u){ if(NET.guest) return; AIU=u;
   if(u.ch==='myc'&&pods.length&&!adjT()){ const D=bfs(u,u.curMove); const P=pods.filter(p=>!U.some(v=>v!==u&&!v.dead&&v.x===p.x&&v.y===p.y)&&D.has(p.x+','+p.y)).sort((a,b)=>cheb(u,a.x,a.y)-cheb(u,b.x,b.y))[0];
     if(P) return moveAlong(u,pathTo(u,D,P.x,P.y),()=>{ takePod(u,P); setTimeout(nextTurn,400); }); }
   const t0=adjT(); if(t0) return strike(t0);
-  const D=bfs(u,u.curMove); let best=null,bd=1e9; for(const [k,[d]] of D){const [a,b]=k.split(',').map(Number); const h=nearestHero(a,b)[1]; const sc=h*10+d+(hazard(k)?25:0); if(sc<bd){bd=sc;best=[a,b];}}
+  const D=bfs(u,u.curMove); let best=null,bd=1e9; for(const [k,[d]] of D){const [a,b]=k.split(',').map(Number); const h=nearPD(a,b); const sc=h*10+d+(hazard(k)?25:0); if(sc<bd){bd=sc;best=[a,b];}}
   if(!best||(best[0]===u.x&&best[1]===u.y)) return setTimeout(nextTurn,80);
   moveAlong(u,pathTo(u,D,...best),()=>{ const t=adjT(); if(t) setTimeout(()=>strike(t),80); else setTimeout(nextTurn,80); }); }
 // ---- THE MOREAU's bats: the screecher drinks 2 health back from every bite that lands; a quarter of the brute's blows seize the hero,
@@ -1394,11 +1408,11 @@ function hkCut(u,t,first,bonus){ if(!t||t.dead) return; let n=rnd(...u.dmg)+(bon
   if(!t.dead&&(k==='hit'||k==='crit'||k==='graze')){ t.lac=Math.min(3,(t.lac||0)+1); pop(t,'lacerated '+t.lac,'#d04a3a'); }
   log('The Hunter-Killer cuts '+t.short+(clean?' from behind':'')+(fin?' — a finishing cut':'')+(t.dead?' — they fall':'')+'.'); ui(); }
 function hkTurn(u){ const H=seen(); if(!H.length) return setTimeout(nextTurn,200);
-  const val=h=>{ const lone=!living().some(o=>o!==h&&cheb(o,h.x,h.y)<=1); return (1-h.hp/h.max)*12+(lone?6:0)+(['ranger','galvanist','assassin'].includes(h.ch)?5:0)-(['cleric','knight'].includes(h.ch)?6:0)+(u.behind===h?6:0)+(h.lac||0)*1.5+(h.hp<h.max*.25?8:0); };
+  const val=h=>{ const lone=!U.some(o=>o!==h&&o!==u&&!o.dead&&!foeOf(h,o)&&cheb(o,h.x,h.y)<=1); return prey(h)+(1-h.hp/h.max)*12+(lone?6:0)+(['ranger','galvanist','assassin'].includes(h.ch)?5:0)-(['cleric','knight'].includes(h.ch)?6:0)+(u.behind===h?6:0)+(h.lac||0)*1.5+(h.hp<h.max*.25?8:0); };
   const lines=aimCells(), D=bfs(u,u.curMove); let best=null,bs=-1e9;
   for(const [k,[d]] of D){ const [a,b]=k.split(',').map(Number); if(hazard(k)||lines.has(k)) continue;
     for(const h of H){ if(cheb(h,a,b)!==1) continue; const sc=val(h)-d*.2+(behind({x:a,y:b},h)?3:0)+H.filter(o=>o!==h&&cheb(o,a,b)===1).length*2; if(sc>bs){ bs=sc; best=[a,b,h]; } } }
-  if(!best){ const t=H.slice().sort((p,q)=>val(q)-val(p))[0]; let mv=null,md=1e9; for(const [k,[d]] of D){ const [a,b]=k.split(',').map(Number); if(hazard(k)||lines.has(k)) continue; const dd=cheb(t,a,b)+d*.01; if(dd<md){ md=dd; mv=[a,b]; } }
+  if(!best){ const t=H.slice().sort((p,q)=>val(q)-val(p))[0]; let mv=null,md=1e9; for(const [k,[d]] of D){ const [a,b]=k.split(',').map(Number); if(hazard(k)||lines.has(k)) continue; const dd=pd(a,b,t)+d*.01; if(dd<md){ md=dd; mv=[a,b]; } }
     if(!mv||(mv[0]===u.x&&mv[1]===u.y)) return setTimeout(nextTurn,100); return moveAlong(u,pathTo(u,D,...mv),()=>setTimeout(nextTurn,100)); }
   const go=()=>{ const t=best[2]; face(u,t.x,t.y); act(u,'attack',()=>{ hkCut(u,t,true); setTimeout(()=>{ if(u.dead) return; const adj=seen().filter(h=>!h.dead&&cheb(h,u.x,u.y)===1), t2=adj.find(h=>h!==t)||(!t.dead?t:null); if(t2){ face(u,t2.x,t2.y); hkCut(u,t2,false); } },300); },
     ()=>{ u.mode='idle'; setPose(u,'idle'); setTimeout(nextTurn,250); }); };
@@ -1412,11 +1426,11 @@ function hkTurn(u){ const H=seen(); if(!H.length) return setTimeout(nextTurn,200
 function attilaCut(u,t){ if(!t||t.dead) return; const n=rnd(...u.dmg); let k; if(!EXCH()){ damage(t,n,u); k='hit'; } else k=exHit(u,t,n);
   if(k==='hit'||k==='crit'||k==='graze'){ u.hp=Math.min(u.max,u.hp+3); pop(u,'+3','#9aff9a'); } log('The Attila cuts '+(isHero(t)?t.short:'the '+t.short.toLowerCase())+(t.dead?' — they fall':'')+'.'); ui(); }
 function attilaTurn(u){ const H=seen(); if(!H.length) return setTimeout(nextTurn,200); const cuts=u.hp<u.max/2?3:2;
-  const val=h=>(1-h.hp/h.max)*10+(['ranger','galvanist'].includes(h.ch)?4:0)+(h.stun||h.snared?5:0)-(cheb(h,u.x,u.y)>3?2:0);
+  const val=h=>prey(h)+(1-h.hp/h.max)*10+(['ranger','galvanist'].includes(h.ch)?4:0)+(h.stun||h.snared?5:0)-(cheb(h,u.x,u.y)>3?2:0);
   const lines=aimCells(), D=bfs(u,u.curMove); let best=null,bs=-1e9;
   for(const [k,[d]] of [[key(u.x,u.y),[0]],...D]){ const [a,b]=k.split(',').map(Number); if(hazard(k)||lines.has(k)) continue;
     for(const h of H){ if(cheb(h,a,b)!==1) continue; const sc=val(h)-d*.2+H.filter(o=>o!==h&&cheb(o,a,b)===1).length*1.5; if(sc>bs){ bs=sc; best=[a,b,h]; } } }
-  if(!best){ const t=H.slice().sort((p,q)=>val(q)-val(p))[0]; let mv=null,md=1e9; for(const [k,[d]] of D){ const [a,b]=k.split(',').map(Number); if(hazard(k)||lines.has(k)) continue; const dd=cheb(t,a,b)+d*.01; if(dd<md){ md=dd; mv=[a,b]; } }
+  if(!best){ const t=H.slice().sort((p,q)=>val(q)-val(p))[0]; let mv=null,md=1e9; for(const [k,[d]] of D){ const [a,b]=k.split(',').map(Number); if(hazard(k)||lines.has(k)) continue; const dd=pd(a,b,t)+d*.01; if(dd<md){ md=dd; mv=[a,b]; } }
     if(!mv||(mv[0]===u.x&&mv[1]===u.y)) return setTimeout(nextTurn,100); return moveAlong(u,pathTo(u,D,...mv),()=>setTimeout(nextTurn,100)); }
   const go=()=>{ const t=best[2]; face(u,t.x,t.y); let left=cuts;
     const one=()=>act(u,'attack',()=>{ attilaCut(u,t); setTimeout(()=>{ if(u.dead) return; const adj=seen().filter(h=>!h.dead&&cheb(h,u.x,u.y)===1), t2=adj.find(h=>h!==t)||(!t.dead?t:null); if(t2){ face(u,t2.x,t2.y); attilaCut(u,t2); } },300); },
@@ -1471,7 +1485,7 @@ function vesselTurn(u){ const H=seen();
     if(t){ face(u,a,b); return act(u,'grab',()=>{ u.held=t; u.heldDmg=0; t.heldBy=u; pop(t,'seized','#e07060'); shake=.2; log('The Vessel’s arms close round '+t.short+'.'); ui(); }, ()=>{ u.mode='idle'; setPose(u,idleOf(u)); setTimeout(nextTurn,150); }); }
     log('The Vessel’s arms close on nothing.'); }
   u.vcd=Math.max(0,(u.vcd||0)-1);
-  const val=h=>(1-h.hp/h.max)*8+(60-h.max)/4+(['ranger','galvanist','assassin'].includes(h.ch)?6:0)-(['cleric','knight','hunter','attilah'].includes(h.ch)?5:0);  /* GANK: it goes past the frontline for the weak backline */
+  const val=h=>prey(h)+(1-h.hp/h.max)*8+(isHero(h)?(60-h.max)/4:0)+(['ranger','galvanist','assassin'].includes(h.ch)?6:0)-(['cleric','knight','hunter','attilah'].includes(h.ch)?5:0);  /* GANK: it goes past the frontline for the weak backline */
   const warnOn=h=>{ face(u,h.x,h.y); u.vwarn=vAhead(u); u.vcd=VS.cd; pop(u,'reaching','#e8b0a0'); log('The Vessel’s arms reach out over the tile before it…'); u.mode='idle'; setPose(u,idleOf(u)); ui(); setTimeout(nextTurn,250); };
   const strikeAt=t=>{ face(u,t.x,t.y); act(u,'attack',()=>{ const n=rnd(...u.dmg); if(EXCH()) exHit(u,t,n); else { damage(t,n,u); log('The Vessel’s arms rake '+t.short+' for '+n+'.'); } }, ()=>{ u.mode='idle'; setPose(u,idleOf(u)); setTimeout(nextTurn,120); }); };
   const engage=t=>{ if(!u.vcd) return warnOn(t); strikeAt(t); };
@@ -1480,7 +1494,7 @@ function vesselTurn(u){ const H=seen();
   for(const [k,[d]] of D){ const [a,b]=k.split(',').map(Number); if((a!==u.x||b!==u.y)&&occ(a,b,u)||hazard(k)) continue; for(const h of H){ if(cheb(h,a,b)!==1) continue; const s=val(h)-d*.25-(lines.has(k)?6:0); if(s>bs){ bs=s; best=[a,b,h]; } } }
   const tgt=H.slice().sort((p,q)=>val(q)-val(p))[0];
   if(!best||(val(tgt)-val(best[2])>6&&cheb(tgt,u.x,u.y)>u.curMove+1)){  /* the one it wants is out of reach this turn: close on it, past anyone in the way */
-    let md=1e9, mv=null; for(const [k,[d]] of D){ const [a,b]=k.split(',').map(Number); if((a!==u.x||b!==u.y)&&occ(a,b,u)||hazard(k)) continue; const dd=cheb(tgt,a,b)+d*.01; if(dd<md){ md=dd; mv=[a,b]; } }
+    let md=1e9, mv=null; for(const [k,[d]] of D){ const [a,b]=k.split(',').map(Number); if((a!==u.x||b!==u.y)&&occ(a,b,u)||hazard(k)) continue; const dd=pd(a,b,tgt)+d*.01; if(dd<md){ md=dd; mv=[a,b]; } }
     if(mv&&(mv[0]!==u.x||mv[1]!==u.y)) return moveAlong(u,pathTo(u,D,mv[0],mv[1]),()=>{ if(cheb(tgt,u.x,u.y)===1) return engage(tgt); setTimeout(nextTurn,100); });
     if(!best) return setTimeout(nextTurn,100); }
   if(best[0]===u.x&&best[1]===u.y) return engage(best[2]);
@@ -1519,7 +1533,7 @@ function sbStart(){ const kinds=[...new Set([...Object.keys(SBX.A),...Object.key
   put('A',SBX.A); put('B',SBX.B); SBX.ready=true; newRound(true); round=1; log('Sandbox: side A ('+(HEROES.filter(h=>h.side==='A').map(h=>h.short).concat(Object.entries(SBX.A).filter(([,n])=>n).map(([c,n])=>n+' '+c)).join(', ')||'nobody')+') against side B ('+(HEROES.filter(h=>h.side==='B').map(h=>h.short).concat(Object.entries(SBX.B).filter(([,n])=>n).map(([c,n])=>n+' '+c)).join(', ')||'nobody')+').'); ui(); }
 function sbDraw(){ const P=document.getElementById('sbxp'); const K=DUELF.filter(([c])=>CH[c]).map(([c,S])=>[c,S.name]);
   const col=s=>'<div class="sbc"><div class="k">SIDE '+s+'</div>'+'<div class="sbh">'+ALLH.map(h=>'<button class="sbt'+(SBX.hs[h.id]===s?' on':'')+(SBX.hs[h.id]&&SBX.hs[h.id]!==s?' off':'')+'" data-h="'+h.id+'" data-s="'+s+'">'+h.short+'</button>').join('')+'</div>'+K.map(([c,nm])=>'<div class="sbr"><span>'+nm+'</span><button data-s="'+s+'" data-c="'+c+'" data-d="-1">−</button><b>'+(SBX[s][c]||0)+'</b><button data-s="'+s+'" data-c="'+c+'" data-d="1">+</button></div>').join('')+'</div>';
-  P.innerHTML='<div class="hd"><span class="cap">S</span>andbox</div><div class="sub" style="opacity:.8;margin-bottom:6px">Any group against any other, heroes on either side. Units on the same side are allies.</div><div class="sbg">'+col('A')+col('B')+'</div><div class="row" style="margin-top:8px"><select id="sbsz">'+['compact','small','medium','large'].map(z=>'<option'+(z===SBX.size?' selected':'')+'>'+z+'</option>').join('')+'</select><label><input type="checkbox" id="sbai"'+(HAUTO?' checked':'')+'> Hero AI plays the heroes</label><button id="sbclr">Clear</button><button id="sbgo" class="go">Fight</button></div>'; }
+  P.innerHTML='<div class="hd"><span class="cap">S</span>andbox</div><div class="sub" style="opacity:.8;margin-bottom:6px">Any group against any other, heroes on either side. Units on the same side are allies.</div><div class="sbg">'+col('A')+col('B')+'</div><div class="row" style="margin-top:8px"><select id="sbsz">'+['compact','small','medium','large'].map(z=>'<option'+(z===SBX.size?' selected':'')+'>'+z+'</option>').join('')+'</select><label><input type="checkbox" id="sbai"'+(HAUTO?' checked':'')+'> Hero AI plays the heroes (in sandbox fights)</label><button id="sbclr">Clear</button><button id="sbgo" class="go">Fight</button></div>'; }
 document.addEventListener('click',e=>{ const P=document.getElementById('sbxp'); if(!P||!P.contains(e.target)) return; const t=e.target;
   if(t.dataset.h){ const h=t.dataset.h, sd=t.dataset.s; if(SBX.hs[h]===sd) delete SBX.hs[h]; else SBX.hs[h]=sd; sbDraw(); return; }
   if(t.dataset.c){ const s=t.dataset.s, c=t.dataset.c; SBX[s][c]=Math.max(0,Math.min(20,(SBX[s][c]||0)+ +t.dataset.d)); sbDraw(); return; }
@@ -1612,7 +1626,7 @@ async function heroTurn(h){ if(useHeal(h)) await waitIdle(h,1500); const P=plan(
     if(h.ch==='attilah'&&!h.sstep&&near&&h.hp>AH.step+10&&!h.heldBy){ readySidestep(); await waitIdle(h,1500); }
     if(h.ch==='ranger'&&!h.heldBy&&reachH&&reachH.size){ const ac=aimCells(); let b0=[h.x,h.y], d0=danger(h,h.x,h.y,ac); for(const k of reachH.keys()){ const [a,b]=k.split(',').map(Number); if(occ(a,b,h)) continue; const d=danger(h,a,b,ac); if(d<d0-2){ d0=d; b0=[a,b]; } } if(b0[0]!==h.x||b0[1]!==h.y){ heroGo(b0[0],b0[1]); await waitIdle(h); } }
     if(cur()===h&&myTurn()) document.getElementById('end').click(); } }
-let busy=false; setInterval(()=>{ if(!HAUTO||busy||RP||NET.guest||!myTurn()||(sbOn()&&SBX.done)) return; const h=hero; if(!h||h.dead) return; busy=true; heroTurn(h).catch(e=>console.warn('hero AI',e)).finally(()=>{ busy=false; }); },300);
+let busy=false; setInterval(()=>{ if(!HAUTO||!sbOn()||busy||RP||NET.guest||!myTurn()||SBX.done) return;  /* GANK: the hero AI only plays in sandbox fights (it kept switching on in the dungeon while a sandbox was being set up) */ const h=hero; if(!h||h.dead) return; busy=true; heroTurn(h).catch(e=>console.warn('hero AI',e)).finally(()=>{ busy=false; }); },300);
 window.HAI={plan,danger,bestAtk,heroTurn}; })();
 function drawWardenMarks(cx,cy,now){ for(const w of U){ if(w.ch!=='warden'||w.dead||w.asleep) continue;
   if(w.grab&&(w.grab.dead||cheb(w.grab,w.x,w.y)!==1)) w.grab=null;
@@ -1710,7 +1724,7 @@ function necroTurn(u){ const H=seen(); if(!H.length) return setTimeout(nextTurn,
   const inReach=h=>cheb(u,h.x,h.y)<=2&&los(u.x,u.y,h.x,h.y), t=H.filter(inReach).sort((p,q)=>p.hp-q.hp)[0];
   const hook=t=>{ face(u,t.x,t.y); act(u,'attack',()=>{ const k=exHit(u,t,rnd(...u.dmg),['gaff','hooks']); if((k==='hit'||k==='crit'||k==='graze')&&!t.dead&&!t.curse){ t.curse={left:10}; pop(t,'cursed','#b8a0e0'); log(t.short+' is cursed by the Necrophage: 1 a turn for 10 turns.'); } }, ()=>{ u.mode='idle'; setPose(u,'idle'); setTimeout(nextTurn,150); }); };
   if(t) return hook(t);
-  const D=bfs(u,u.curMove); let best=null, bs=1e9; for(const [k,[d]] of D){ const [a,b]=k.split(',').map(Number); const dd=Math.min(...H.map(h=>cheb(h,a,b))); const sc=(dd===2?0:dd===1?3:dd*4)+d*.1+(hazard(k)?25:0); if(sc<bs){ bs=sc; best=[a,b]; } }
+  const D=bfs(u,u.curMove); let best=null, bs=1e9; for(const [k,[d]] of D){ const [a,b]=k.split(',').map(Number); const dd=Math.min(...H.map(h=>pd(a,b,h))); const sc=(dd===2?0:dd===1?3:dd*4)+d*.1+(hazard(k)?25:0); if(sc<bs){ bs=sc; best=[a,b]; } }
   if(!best||(best[0]===u.x&&best[1]===u.y)) return setTimeout(nextTurn,100);
   moveAlong(u,pathTo(u,D,...best),()=>{ const t2=H.filter(h=>!h.dead).filter(inReach)[0]; if(t2) setTimeout(()=>hook(t2),100); else setTimeout(nextTurn,100); }); }
 function takePod(u,P){ const i=pods.indexOf(P); if(i<0||u.dead) return; pods.splice(i,1); Object.assign(u,{ch:'thrall',name:'Fungal Thrall',short:'Thrall',hp:12,max:12,dmg:[3,8],move:2}); u.mode='act'; setPose(u,'die'); u.f=M(u).die.frames-1; u.reverse=true; pop(u,'spore-bound','#e8c34a'); log('The pod opens around the mycelid… it stands again with shield and spear: a Fungal Thrall.'); ui(); }
@@ -1836,7 +1850,7 @@ function bersTurn(u){ const rage=u.hp<u.max/2, adj=()=>U.filter(v=>v!==u&&!v.dea
   const pick=()=>{ const A=adj(), H=A.filter(isHero); if(H.length) return H.sort((a,b)=>a.hp-b.hp)[0]; return u.hp<u.max/2&&A.length?A[0]:null; };
   const A=adj(), H=A.filter(isHero); if(H.length>=2&&!u.slammed){ u.slammed=true; return slam(A); } u.slammed=false;
   const t0=pick(); if(t0) return hit(t0);
-  const D=bfs(u,u.curMove,true); let best=null,bd=1e9; for(const [k,[d]] of D){ const [a,b]=k.split(',').map(Number); if(hazard(k)) continue; const h=nearestHero(a,b)[1]; if(h*10+d<bd){ bd=h*10+d; best=[a,b]; } }
+  const D=bfs(u,u.curMove,true); let best=null,bd=1e9; for(const [k,[d]] of D){ const [a,b]=k.split(',').map(Number); if(hazard(k)) continue; const h=nearPD(a,b); if(h*10+d<bd){ bd=h*10+d; best=[a,b]; } }
   if(!best||(best[0]===u.x&&best[1]===u.y)) return setTimeout(nextTurn,80);
   moveAlong(u,pathTo(u,D,...best),()=>{ const t=pick(); if(t) setTimeout(()=>hit(t),80); else setTimeout(nextTurn,80); }); }
 function addBers(n,near){ const T=[]; for(let a=0;a<MW;a++)for(let b=0;b<MH;b++){ if(!floorOK(a,b)||U.some(v=>!v.dead&&v.x===a&&v.y===b))continue; const d=Math.min(...HEROES.map(h=>Math.max(Math.abs(h.x-a),Math.abs(h.y-b)))); if(d<3)continue; T.push([a,b,d]); }
