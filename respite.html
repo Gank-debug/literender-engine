@@ -137,18 +137,29 @@ body.inmenu>*:not(canvas):not(#rmenu):not(#pick):not(#errbox){visibility:hidden}
 #rmenu .btn:hover{border-color:#b08a46;color:#fff}#rmenu .btn.small{font-size:13px;padding:4px 10px}#rmenu .btn.go{color:#f0d68a;border-color:#b08a46;background:linear-gradient(180deg,#4a2418,#2a130d)}#rmenu .btn.big{font:24px 'Jacquard 24',serif;padding:6px 18px}
 #rmenu .minfo{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:95}#rmenu .minfo .mright{width:min(640px,92vw);font:14.5px/1.5 'Pixelify Sans',sans-serif;color:#ddd0b4}
 @media (max-width:900px){#rmenu{flex-direction:column;gap:16px;overflow:auto;justify-content:flex-start}#rmenu .mleft,#rmenu .mright{width:min(520px,94vw)}#rmenu .mtitle{font-size:56px}#rmenu .mtitle .cap{font-size:60px}}
-#invp{position:fixed;inset:0;z-index:65;display:none;align-items:center;justify-content:center;background:rgba(4,3,6,.72)}#invp.on{display:flex}
-#invp .pp{position:relative;width:min(1180px,calc(100% - 24px));max-height:calc(100% - 24px);overflow:auto;padding:18px 22px;color:var(--ink);font:14px/1.45 'Pixelify Sans',sans-serif;flex-direction:column;align-items:stretch;left:auto;bottom:auto;transform:none}
+#invp{position:fixed;inset:0;z-index:65;display:none;align-items:center;justify-content:center;background:rgba(4,3,6,.78)}#invp.on{display:flex}
+#invp .pp{position:relative;width:min(1240px,calc(100% - 24px));max-height:calc(100% - 24px);overflow:auto;padding:16px 20px;color:var(--ink);font:14px/1.45 'Pixelify Sans',sans-serif;flex-direction:column;align-items:stretch;left:auto;bottom:auto;transform:none}
 #invp .tp{display:flex;justify-content:space-between;align-items:center;gap:10px}#invp .x{padding:5px 12px;font-size:13px;color:var(--ink);border:var(--bb);background:var(--bbg);border-radius:0}
-#invp .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-top:10px}#invp .hc{border:var(--bb);background:#120d0a;padding:9px;display:flex;flex-direction:column;gap:7px}#invp .hc.cur{border-color:#8a6a3a}#invp .hc:not(.mine){opacity:.86}
-#invp .rw{display:flex;gap:9px;align-items:center}#invp .pt{width:58px;height:58px;border:1px solid #4a3a28;background:#0a0706;image-rendering:pixelated}#invp .nm{font:21px/1 var(--hf)}#invp .nm i{font-style:normal;color:var(--cap)}#invp .who{font-size:11px;color:var(--dim)}
-#invp .gd{display:inline-block;margin-top:3px;font-size:13px;color:#e0c070;border:1px solid transparent;padding:0 5px}#invp .gd.mine{cursor:pointer;border-color:#5a4630}#invp .gd.mine:hover,#invp .gd.sel{border-color:#e0c070}
-#invp .slots{display:grid;grid-template-columns:1fr;gap:4px}#invp .sl{border:1px dashed #4a3a28;padding:3px 5px;min-height:30px}#invp .sl>small{font-size:9px;letter-spacing:1.5px;color:var(--dim);text-transform:uppercase;display:block}
-#invp .pk{display:flex;flex-direction:column;gap:3px;min-height:40px;border-top:1px solid #3a2a1c;padding-top:6px}#invp .over{outline:1px solid var(--hc);background:#2a1a10}
-#invp .ch{display:flex;gap:6px;align-items:center;padding:2px 4px;border:1px solid #3a2a1c;background:#1a120d;font-size:13px;cursor:default;user-select:none}#invp .ch.mine{cursor:grab}#invp .ch.mine:hover,#invp .ch.sel{border-color:var(--hc)}#invp .ch.drag{opacity:.4}
-#invp .ch i{font:18px/1 var(--hf);font-style:normal;color:var(--cap);width:20px;height:20px;display:flex;align-items:center;justify-content:center;background:#0e0a08;border:1px solid #5a4630;flex:none}#invp .ch.g i{color:#cfe0ff;border-color:#4a5a7a}
-#invp .em{font-size:12px;color:#5a4a3a}#invp .dt{margin-top:10px;border-top:1px solid #4a3a28;padding-top:8px;font-size:13px}#invp .dt.dim{color:var(--dim)}#invp .dt small{color:var(--dim)}#invp .dt p{margin:3px 0 6px;color:#cbbd9f}
+#invp .grid{--q:36px;display:grid;grid-template-columns:repeat(auto-fit,minmax(calc(var(--q)*6 + 34px),1fr));gap:12px;margin-top:10px}#invp .grid.n5{--q:32px}
+#invp .hc{border:1px solid #3a2a1c;background:linear-gradient(#0c0907,#120d0a 40%,#0c0907);padding:10px 10px 12px;display:flex;flex-direction:column;align-items:center;gap:6px;position:relative}
+#invp .hc.cur{border-color:#b08a4a;box-shadow:0 0 0 1px #3a2a14 inset,0 0 18px rgba(176,138,74,.18)}#invp .hc.cur::before,#invp .hc.cur::after{content:'';position:absolute;top:-4px;width:9px;height:9px;border:1px solid #b08a4a;background:#120d0a;transform:rotate(45deg)}#invp .hc.cur::before{left:-5px}#invp .hc.cur::after{right:-5px}
+#invp .hn{font:24px/1 var(--hf)}#invp .hn i{font-style:normal;color:var(--cap)}#invp .hw{font-size:11px;color:var(--dim);margin-top:-4px}
+#invp .hb{width:72%;height:10px;background:#1e140e;border:1px solid #3a2a1c;position:relative}#invp .hb span{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(#b03a2a,#6a1a12)}#invp .hb em{position:absolute;inset:-2px 0 0;text-align:center;font:10px/12px 'Pixelify Sans';font-style:normal;color:#f0e0c8;text-shadow:0 1px 0 #000}
+#invp .dw{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:stretch;width:100%;gap:6px;position:relative;margin-top:4px}#invp .sc{display:flex;flex-direction:column;justify-content:space-between;gap:8px;padding:6px 0}
+#invp canvas.doll{position:static;inset:auto;transform:none;display:block;width:100%;min-width:0;height:232px;image-rendering:pixelated;background:radial-gradient(ellipse at 50% 92%,rgba(120,80,40,.22),transparent 55%)}#invp .grid.n5 canvas.doll{height:200px}
+#invp .nodoll{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%)}#invp .nodoll img{width:72px;height:72px;image-rendering:pixelated;opacity:.8}
+#invp .sq{width:var(--q);height:var(--q);box-sizing:border-box;border:1px solid #2e2218;background:#0a0706;position:relative;display:flex;align-items:center;justify-content:center}
+#invp .sq svg{width:62%;height:62%;fill:none;stroke:#4a3a28;stroke-width:1.5;stroke-linejoin:round;stroke-linecap:round}#invp .sl,#invp .gd{width:calc(var(--q) + 8px);height:calc(var(--q) + 8px);border-color:#5a4630;background:radial-gradient(#1c130e,#0a0706)}
+#invp .gd svg{stroke:#8a6a30}#invp .gd b{position:absolute;right:2px;bottom:0;font:11px 'Pixelify Sans';color:#e0c070;text-shadow:0 1px 0 #000}#invp .gd.mine{cursor:pointer}#invp .gd.mine:hover,#invp .gd.sel{border-color:#e0c070}
+#invp .st{display:flex;gap:12px;font-size:11px;color:var(--dim)}#invp .st b{color:var(--ink);font-weight:normal}
+#invp .pk{display:grid;grid-template-columns:repeat(6,var(--q));gap:2px;padding:4px;margin-top:4px;background:#070504;border:1px solid #2a1e14;max-height:calc(var(--q)*4 + 16px);overflow-y:auto}
+#invp .over{outline:1px solid var(--hc);outline-offset:-1px;background:#2a1a10}#invp .pk.over{outline-offset:0}
+#invp .ic{position:absolute;inset:1px;display:flex;align-items:center;justify-content:center;background:linear-gradient(#2a1c12,#140e0a);border:1px solid #6a4a2a;cursor:default;user-select:none}#invp .ic.g{background:linear-gradient(#1a2030,#0e1018);border-color:#4a5a7a}
+#invp .ic i{font:calc(var(--q)*.55)/1 var(--hf);font-style:normal;color:var(--cap)}#invp .ic.g i{color:#cfe0ff}#invp .ic b{position:absolute;right:2px;bottom:0;font:10px 'Pixelify Sans';color:#f0e0c8;text-shadow:0 1px 0 #000}
+#invp .ic.mine{cursor:grab}#invp .ic.mine:hover,#invp .ic.sel{border-color:var(--hc);box-shadow:0 0 6px rgba(224,192,112,.35)}#invp .ic.drag{opacity:.35}#invp .sl .ic{inset:3px}
+#invp .dt{margin-top:10px;border-top:1px solid #4a3a28;padding-top:8px;font-size:13px}#invp .dt.dim{color:var(--dim)}#invp .dt small{color:var(--dim)}#invp .dt p{margin:3px 0 6px;color:#cbbd9f}
 #invp .gs{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:4px}#invp .gs button{padding:5px 10px;font-size:13px;color:var(--ink);border:var(--bb);background:var(--bbg);border-radius:0}#invp .gs button:disabled{opacity:.4}#invp input{width:70px;padding:5px;background:#0e0a08;color:var(--ink);border:1px solid #5a4630;font:inherit}
+#invtip{position:fixed;display:none;z-index:70;max-width:260px;padding:8px 10px;background:#0e0a08;border:1px solid #8a6a3a;box-shadow:0 4px 14px rgba(0,0,0,.6);pointer-events:none;font:13px/1.4 'Pixelify Sans';color:var(--ink)}#invtip b{font:18px var(--hf);font-weight:normal;display:block}#invtip small{color:var(--dim);display:block}#invtip p{margin:4px 0 0;color:#cbbd9f}
 #rsp{position:fixed;inset:0;background:radial-gradient(ellipse at 50% 55%,rgba(60,30,14,.35),rgba(4,3,6,.9) 70%);display:none;align-items:center;justify-content:center;z-index:60}#rsp.on{display:flex}
 #rsp .pp{position:relative;width:min(1120px,calc(100% - 30px));max-height:calc(100% - 30px);overflow:auto;padding:22px 26px 20px;color:var(--ink);font:14px/1.45 'Pixelify Sans',sans-serif;flex-direction:column;align-items:stretch;left:auto;bottom:auto;transform:none}
 #rsp .sub{color:var(--dim);font-size:13px;margin-bottom:14px}#rsp .tp{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}#rsp .gold{font:22px var(--hf);color:#e0c070}
@@ -179,7 +190,7 @@ body.inmenu>*:not(canvas):not(#rmenu):not(#pick):not(#errbox){visibility:hidden}
 <div class="drawer v" id="devp"><div class="hd"><span class="cap">D</span>ev</div><div class="k">MAP</div><div class="row"><select id="map" style="background:var(--panel);color:var(--ink);border:1px solid #3a322b;padding:8px;font:inherit"></select><select id="dsize"><option value="random">Size: random</option><option value="compact">Size: compact</option><option value="small">Size: small</option><option value="medium">Size: medium</option><option value="large">Size: large</option></select><select id="depth"><option value="1">Depth 1</option><option value="2">Depth 2</option><option value="3">Depth 3</option><option value="4">Depth 4</option><option value="5">Depth 5</option><option value="6">Depth 6</option><option value="7">Depth 7</option><option value="8">Depth 8</option><option value="9">Depth 9</option><option value="10">Depth 10</option><option value="11">Depth 11</option><option value="12">Depth 12</option></select><select id="dmul"><option value="0.8">Budget ×0.8</option><option value="1">Budget ×1</option><option value="1.2">Budget ×1.2</option><option value="1.4">Budget ×1.4</option></select><button id="reroll">New dungeon</button><button id="repick">Party</button></div><div class="k">TESTING</div><div class="row"><button id="sbxb">Sandbox</button><label><input type="checkbox" id="devtech"> All techniques</label></div></div><div class="drawer v" id="sbxp" style="left:50%;right:auto;top:70px;bottom:auto;transform:translateX(-50%);width:min(760px,94vw);max-height:80vh;overflow:auto"></div>
 <script>
 const DEVX=id=>document.getElementById(id)||{classList:{toggle(){}},style:{}};  /* dev controls removed (GANK: decided) *//* startup errors on screen (GANK's phone showed a black screen with no clue why): the first error is shown in a box at the top, with the build */
-window.BUILD='1126-0118'; window.__errs=[];
+window.BUILD='1126-1123'; window.__errs=[];
 (function(){ const show=m=>{ window.__errs.push(m); let d=document.getElementById('errbox'); if(!d){ d=document.createElement('div'); d.id='errbox'; d.style.cssText='position:fixed;left:6px;right:6px;top:6px;z-index:99;background:#3a0d0d;color:#ffd8c8;border:1px solid #c05040;font:12px/1.35 monospace;padding:8px;white-space:pre-wrap;max-height:40vh;overflow:auto'; (document.body||document.documentElement).appendChild(d); } d.textContent='Respite build '+window.BUILD+' hit an error (please screenshot this):\n'+window.__errs.slice(0,4).join('\n\n'); };
   addEventListener('error',e=>show((e.message||'error')+' @ '+(e.lineno||'?')+':'+(e.colno||'?')+(e.error&&e.error.stack?'\n'+String(e.error.stack).split('\n').slice(0,4).join('\n'):'')));
   addEventListener('unhandledrejection',e=>show('promise: '+(e.reason&&(e.reason.stack||e.reason.message)||e.reason))); })();
@@ -2410,27 +2421,55 @@ function invApply(seat,c){ const a=invH(c.from); if(!a||!HEROES.includes(a)) ret
   satchelUI(); ui(); if(RSPS) rspDraw(); }
 function invCmd(c){ if(NET.guest&&NET.started) return NET.act({k:'inv',c}); invApply(NET.on?NET.seat:0,c); }
 let INVSEL=null, INVSIG='';  /* the tapped thing: {from,i|s,k} or {from,gold:true} */
+// the pack screen, after BG3's inventory: a column per hero with their figure standing in the middle, the gear slots either side, and a grid of pack squares under it
+const DOLLC={}; let DROW=0;
+function dollOf(h){ const ch=chOf(h); if(DOLLC[ch]) return DOLLC[ch]; const m=CH[ch]&&CH[ch].meta.poses.idle, sh=SHEETS[ch]&&SHEETS[ch].idle;
+  if(!m||!sh||!(sh.width||sh.naturalWidth)||(sh instanceof HTMLImageElement&&!sh.complete)) return null;
+  const row=Math.min(m.anchor.length-1,DROW), n=m.frames||1; let x0=1e9,y0=1e9,x1=-1,y1=-1; const fr=[];
+  for(let f=0;f<n;f++){ const R=FRC(m,row,f); fr.push(R); if(m.rects){ x0=Math.min(x0,R[4]); y0=Math.min(y0,R[5]); x1=Math.max(x1,R[4]+R[2]); y1=Math.max(y1,R[5]+R[3]); } }
+  if(!m.rects){ const o=document.createElement('canvas'); o.width=m.w; o.height=m.h; const q=o.getContext('2d'); const R=fr[0]; q.drawImage(sh,R[0],R[1],R[2],R[3],R[4],R[5],R[2],R[3]); const d=q.getImageData(0,0,m.w,m.h).data;
+    for(let y=0;y<m.h;y++) for(let x=0;x<m.w;x++) if(d[(y*m.w+x)*4+3]>20){ if(x<x0)x0=x; if(x>x1)x1=x; if(y<y0)y0=y; if(y>y1)y1=y; } x1++; y1++; }
+  if(x1<0) return null; return DOLLC[ch]={sh,fr,x0,y0,w:x1-x0,h:y1-y0,ms:m.ms||90}; }
+function dollTick(t){ const P=document.getElementById('invp'); if(!P||!P.classList.contains('on')) return; for(const c of P.querySelectorAll('canvas.doll')){ const h=invH(c.dataset.h), D=h&&dollOf(h); if(!D) continue;
+    const H=c.clientHeight||200, W=c.clientWidth||120, sc=Math.max(1,Math.min(3,Math.floor((H-6)/D.h),Math.floor(W/D.w))); if(c.width!==W||c.height!==H){ c.width=W; c.height=H; }
+    const q=c.getContext('2d'), R=D.fr[Math.floor(t/D.ms)%D.fr.length]; q.clearRect(0,0,W,H); q.imageSmoothingEnabled=false; const ox=Math.round((W-D.w*sc)/2), oy=H-D.h*sc-4;
+    q.drawImage(D.sh,R[0],R[1],R[2],R[3],ox+(R[4]-D.x0)*sc,oy+(R[5]-D.y0)*sc,R[2]*sc,R[3]*sc); }
+  requestAnimationFrame(dollTick); }
+const SLOTI={w:'<svg viewBox="0 0 24 24"><path d="M18 3l3 0 0 3-9 9-2-1-1-2zM5 14l5 5M3 21l4-4M7 13l4 4"/></svg>',a:'<svg viewBox="0 0 24 24"><path d="M6 4l3-1 3 2 3-2 3 1 2 4-3 2v10H7V10L4 8z"/></svg>',c:'<svg viewBox="0 0 24 24"><path d="M8 3c0 4 8 4 8 0M12 7v3"/><circle cx="12" cy="15" r="5"/></svg>',g:'<svg viewBox="0 0 24 24"><ellipse cx="12" cy="8" rx="7" ry="3"/><path d="M5 8v4c0 1.7 3 3 7 3s7-1.3 7-3V8M5 12v4c0 1.7 3 3 7 3s7-1.3 7-3v-4"/></svg>'};
 function satchelUI(force){ const b=document.getElementById('satb'); if(b){ const n=INV(hero).length; b.innerHTML='Pack<small>'+n+' item'+(n===1?'':'s')+((hero&&hero.gold)?' · '+hero.gold+' gold':'')+'</small>'; }
   const P=document.getElementById('invp'); if(!P||!P.classList.contains('on')) return;
-  const sig=JSON.stringify([HEROES.map(h=>[h.id,h.inv,h.eq,h.gold,h.hp,h.max]),INVSEL,hero&&hero.id,myTurn()]); if(!force&&sig===INVSIG) return; INVSIG=sig;
+  const sig=JSON.stringify([HEROES.map(h=>[h.id,h.inv,h.eq,h.gold,h.hp,h.max]),INVSEL,hero&&hero.id,myTurn()]); if(!force&&sig===INVSEL_SIG) return; INVSEL_SIG=sig;
   const who=h=>NET.on&&NET.started&&NET.lobby&&NET.lobby[NET.own[h.id]??0]?NET.lobby[NET.own[h.id]??0].name:'';
-  const chip=(h,k,src,cls)=>{ const it=itemOf(k), mine=invMine(h), sel=INVSEL&&INVSEL.from===h.id&&(src.s?INVSEL.s===src.s:INVSEL.i===src.i);
-    return '<div class="ch '+(cls||'')+(mine?' mine':'')+(sel?' sel':'')+'" '+(mine?'draggable="true" ':'')+'data-from="'+h.id+'" data-k="'+k+'" '+(src.s?'data-s="'+src.s+'"':'data-i="'+src.i+'"')+'><i>'+it.name[0]+'</i><span>'+it.name+'</span></div>'; };
-  const col=h=>{ const E=EQ(h), mine=invMine(h);
-    return '<div class="hc'+(mine?' mine':'')+(h===hero?' cur':'')+'" data-drop="'+h.id+'"><div class="rw"><img class="pt" src="'+(CH[h.ch]&&CH[h.ch].portraitL||portrait(h))+'"><div><div class="nm"><i>'+h.short[0]+'</i>'+h.short.slice(1)+'</div><div class="who">'+(who(h)?who(h)+' · ':'')+h.hp+' / '+h.max+' health'+(h===hero?' · their turn':'')+'</div>'+
-      '<div class="gd'+(mine?' mine':'')+(INVSEL&&INVSEL.gold&&INVSEL.from===h.id?' sel':'')+'" data-gold="'+h.id+'">'+(h.gold||0)+' gold</div></div></div>'+
-      '<div class="slots">'+['w','a','c'].map(s=>'<div class="sl" data-drop="'+h.id+'" data-ts="'+s+'"><small>'+SLOTN[s]+'</small>'+(E[s]?chip(h,E[s],{s},'g'):'<div class="em">—</div>')+'</div>').join('')+'</div>'+
-      '<div class="pk" data-drop="'+h.id+'">'+(INV(h).length?INV(h).map((k,i)=>chip(h,k,{i},GEAR[k]?'g':'')).join(''):'<div class="em">Empty pack</div>')+'</div></div>'; };
-  let det='<div class="dt dim">'+(HEROES.some(invMine)?'Drag your heroes\' things onto anyone, or tap one. Gear dropped on a slot is worn. Tap your gold to send some.':'You can look, but these heroes aren\'t yours.')+'</div>';
+  const isSel=(h,src)=>INVSEL&&!INVSEL.gold&&INVSEL.from===h.id&&(src.s?INVSEL.s===src.s:INVSEL.i===src.i);
+  const icon=(h,k,src,cnt)=>{ const it=itemOf(k), mine=invMine(h); return '<div class="ic'+(GEAR[k]?' g':'')+(mine?' mine':'')+(isSel(h,src)?' sel':'')+'" '+(mine?'draggable="true" ':'')+'data-from="'+h.id+'" data-k="'+k+'" '+(src.s?'data-s="'+src.s+'"':'data-i="'+src.i+'"')+'><i>'+it.name[0]+'</i>'+(cnt>1?'<b>'+cnt+'</b>':'')+'</div>'; };
+  const slot=(h,s)=>{ const k=EQ(h)[s]; return '<div class="sq sl" data-drop="'+h.id+'" data-ts="'+s+'" data-tip="'+SLOTN[s]+'">'+(k?icon(h,k,{s}):SLOTI[s])+'</div>'; };
+  const col=h=>{ const mine=invMine(h), I=INV(h), seen={}, cells=[];
+    I.forEach((k,i)=>{ if(GEAR[k]||k==='key'){ cells.push(icon(h,k,{i},1)); return; } if(seen[k]) { seen[k].n++; return; } seen[k]={i,n:1,at:cells.length}; cells.push(null); });  /* like items stack */
+    for(const k in seen){ const S=seen[k]; cells[S.at]=icon(h,k,{i:S.i},S.n); }
+    const N=Math.max(24,Math.ceil((cells.length+1)/6)*6); let grid=''; for(let j=0;j<N;j++) grid+='<div class="sq">'+(cells[j]||'')+'</div>';
+    const D=dollOf(h), mv=mvOf(h), gs=(h.gold||0), gsel=INVSEL&&INVSEL.gold&&INVSEL.from===h.id;
+    return '<div class="hc'+(mine?' mine':'')+(h===hero?' cur':'')+'"><div class="hn"><i>'+h.short[0]+'</i>'+h.short.slice(1)+'</div><div class="hw">'+(who(h)?who(h)+' · ':'')+(h===hero?'their turn':'&nbsp;')+'</div>'+
+      '<div class="hb"><span style="width:'+Math.round(100*h.hp/h.max)+'%"></span><em>'+h.hp+' / '+h.max+'</em></div>'+
+      '<div class="dw"><div class="sc">'+slot(h,'a')+slot(h,'w')+'</div><canvas class="doll" data-h="'+h.id+'" data-drop="'+h.id+'"></canvas>'+(D?'':'<div class="nodoll"><img src="'+portrait(h)+'"></div>')+'<div class="sc">'+slot(h,'c')+
+        '<div class="sq gd'+(mine?' mine':'')+(gsel?' sel':'')+'" data-gold="'+h.id+'" data-tip="Gold">'+SLOTI.g+'<b>'+gs+'</b></div></div></div>'+
+      '<div class="st"><span>Move <b>'+mv+'</b></span><span>Strike <b>'+(h.dmg?h.dmg.join('–'):'—')+'</b></span><span>Gold <b>'+gs+'</b></span></div>'+
+      '<div class="pk" data-drop="'+h.id+'">'+grid+'</div></div>'; };
+  let det='<div class="dt dim">'+(HEROES.some(invMine)?'Drag your heroes\' things onto any hero, or onto a slot to wear it. On a phone, tap one. Tap your gold to send some.':'You can look, but these heroes aren\'t yours.')+'</div>';
   if(INVSEL&&INVSEL.gold){ const h=invH(INVSEL.from); det='<div class="dt"><b>'+h.short+'\'s gold</b> · '+(h.gold||0)+'<div class="gs"><input id="invn" type="number" min="1" max="'+(h.gold||0)+'" value="'+Math.min(h.gold||0,Math.max(1,Math.round((h.gold||0)/2)))+'"> '+HEROES.filter(x=>x!==h).map(x=>'<button data-gto="'+x.id+'"'+((h.gold||0)>0?'':' disabled')+'>Send to '+x.short+'</button>').join('')+'</div></div>'; }
   else if(INVSEL){ const h=invH(INVSEL.from), k=INVSEL.k, it=itemOf(k), g=GEAR[k], mine=invMine(h), use=!g&&ITEMS[k]&&!ITEMS[k].keep&&h===hero&&myTurn()&&INVSEL.i!=null;
     det='<div class="dt"><b>'+it.name+'</b> <small>'+(g?g.tag+(INVSEL.s?' · worn by '+h.short:''):it.tag)+'</small><p>'+it.desc+'</p>'+(mine?'<div class="gs">'+(use?'<button data-use="'+INVSEL.i+'">'+(ITEMS[k].aim?'Throw':'Use')+'</button>':'')+(g&&!INVSEL.s?'<button data-eq="1">Wear</button>':'')+(INVSEL.s?'<button data-uneq="1">Take off</button>':'')+HEROES.filter(x=>x!==h).map(x=>'<button data-to="'+x.id+'">Give to '+x.short+'</button>').join('')+'</div>':'')+'</div>'; }
-  P.innerHTML='<div class="pp v"><div class="tp"><div class="hd"><span class="cap">T</span>he packs</div><button class="x" data-x="1">Close</button></div><div class="grid">'+HEROES.map(col).join('')+'</div>'+det+'</div>'; }
+  P.innerHTML='<div class="pp v"><div class="tp"><div class="hd"><span class="cap">T</span>he packs</div><button class="x" data-x="1">Close</button></div><div class="grid n'+HEROES.length+'">'+HEROES.map(col).join('')+'</div>'+det+'</div><div id="invtip"></div>';
+  requestAnimationFrame(dollTick); }
+let INVSEL_SIG='';
 function satchelOpen(on){ const P=invPanel(); P.classList.toggle('on',on); if(!on) INVSEL=null; satchelUI(true); }
 function invPanel(){ let P=document.getElementById('invp'); if(P) return P; P=document.createElement('div'); P.id='invp'; document.body.appendChild(P);
   const src=el=>({from:el.dataset.from,k:el.dataset.k,...(el.dataset.s?{s:el.dataset.s}:{i:+el.dataset.i})});
+  P.addEventListener('mousemove',e=>{ const tp=document.getElementById('invtip'); if(!tp) return; const c=e.target.closest&&e.target.closest('[data-k],[data-tip]');
+    if(!c){ tp.style.display='none'; return; } const k=c.dataset.k, it=k&&itemOf(k); tp.innerHTML=it?'<b>'+it.name+'</b><small>'+(GEAR[k]?GEAR[k].tag:it.tag)+'</small><p>'+it.desc+'</p>':'<small>'+c.dataset.tip+(c.dataset.ts?' · empty':'')+'</small>';
+    tp.style.display='block'; const r=tp.getBoundingClientRect(); tp.style.left=Math.min(innerWidth-r.width-8,e.clientX+16)+'px'; tp.style.top=Math.min(innerHeight-r.height-8,e.clientY+16)+'px'; });
+  P.addEventListener('mouseleave',()=>{ const tp=document.getElementById('invtip'); if(tp) tp.style.display='none'; });
   P.addEventListener('click',e=>{ const T=e.target; if(T===P||T.closest('[data-x]')) return satchelOpen(false);
-    const c=T.closest('.ch'), gd=T.closest('[data-gold]');
+    const c=T.closest('.ic'), gd=T.closest('[data-gold]');
     if(T.closest('[data-use]')){ const i=+T.closest('[data-use]').dataset.use; INVSEL=null; useItem(i); return satchelUI(true); }
     if(T.closest('[data-eq]')&&INVSEL){ const g=GEAR[INVSEL.k]; invCmd({a:'move',...INVSEL,to:INVSEL.from,ts:g.slot}); INVSEL=null; return satchelUI(true); }
     if(T.closest('[data-uneq]')&&INVSEL){ invCmd({a:'uneq',from:INVSEL.from,s:INVSEL.s}); INVSEL=null; return satchelUI(true); }
@@ -2441,7 +2480,7 @@ function invPanel(){ let P=document.getElementById('invp'); if(P) return P; P=do
     if(gd&&gd.classList.contains('mine')){ INVSEL=INVSEL&&INVSEL.gold&&INVSEL.from===gd.dataset.gold?null:{from:gd.dataset.gold,gold:true}; return satchelUI(true); }
     INVSEL=null; satchelUI(true); });
   let drag=null;
-  P.addEventListener('dragstart',e=>{ const c=e.target.closest&&e.target.closest('.ch.mine'); if(!c) return e.preventDefault(); drag=src(c); e.dataTransfer.effectAllowed='move'; try{ e.dataTransfer.setData('text/plain',drag.k); }catch(_){} c.classList.add('drag'); });
+  P.addEventListener('dragstart',e=>{ const c=e.target.closest&&e.target.closest('.ic.mine'); if(!c) return e.preventDefault(); drag=src(c); e.dataTransfer.effectAllowed='move'; try{ e.dataTransfer.setData('text/plain',drag.k); }catch(_){} c.classList.add('drag'); });
   P.addEventListener('dragend',()=>{ drag=null; P.querySelectorAll('.over,.drag').forEach(x=>x.classList.remove('over','drag')); });
   P.addEventListener('dragover',e=>{ const d=drag&&e.target.closest('[data-drop]'); if(!d) return; e.preventDefault(); P.querySelectorAll('.over').forEach(x=>x!==d&&x.classList.remove('over')); d.classList.add('over'); });
   P.addEventListener('drop',e=>{ const d=drag&&e.target.closest('[data-drop]'); if(!d) return; e.preventDefault(); const to=d.dataset.drop, ts=d.dataset.ts, g=GEAR[drag.k];
